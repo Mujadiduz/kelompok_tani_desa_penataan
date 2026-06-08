@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
-import 'pupuk_konfirmasi_page.dart';
+import 'alat_konfirmasi_page.dart';
 
-class PupukFormPage extends StatelessWidget {
-  final String namaPupuk;
+class AlatFormPage extends StatelessWidget {
+  final String namaAlat;
+  final String tanggalDipilih;
 
-  const PupukFormPage({super.key, required this.namaPupuk});
+  const AlatFormPage({
+    super.key,
+    required this.namaAlat,
+    required this.tanggalDipilih,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xfff4fbf4),
       appBar: AppBar(
-        title: const Text("Isi Data Pupuk"),
+        title: const Text("Form Peminjaman"),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
@@ -21,54 +26,35 @@ class PupukFormPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             stepIndicator(),
-
             const SizedBox(height: 25),
 
             const Text(
-              "Isi Data Permintaan",
+              "Isi Data Peminjaman",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-
             const SizedBox(height: 6),
-
             const Text(
-              "Lengkapi data permintaan bantuan pupuk.",
+              "Lengkapi data peminjaman alat.",
               style: TextStyle(color: Colors.grey),
             ),
 
             const SizedBox(height: 20),
 
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: cardStyle(),
-              child: Row(
-                children: [
-                  const Icon(Icons.grass, color: Colors.green),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      namaPupuk,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            infoCard(Icons.agriculture, "Alat Dipilih", namaAlat),
+            const SizedBox(height: 12),
+            infoCard(Icons.calendar_month, "Tanggal Pinjam", tanggalDipilih),
 
             const SizedBox(height: 18),
 
-            inputField("Nama Lengkap", Icons.person),
+            inputField("Nama Peminjam", Icons.person),
             const SizedBox(height: 12),
 
-            inputField("Jumlah Petak Sawah", Icons.agriculture),
-            const SizedBox(height: 12),
-
-            inputField("Jumlah Pupuk (Kg)", Icons.scale),
+            inputField("Tanggal Kembali", Icons.event_available),
             const SizedBox(height: 12),
 
             TextField(
               maxLines: 3,
-              decoration: inputDecoration("Catatan", Icons.note),
+              decoration: inputDecoration("Catatan / Keperluan", Icons.note),
             ),
 
             const Spacer(),
@@ -87,7 +73,7 @@ class PupukFormPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => PupukKonfirmasiPage(namaPupuk: namaPupuk),
+                      builder: (_) => AlatKonfirmasiPage(namaAlat: namaAlat),
                     ),
                   );
                 },
@@ -108,9 +94,11 @@ class PupukFormPage extends StatelessWidget {
       children: [
         stepCircle("1", "Pilih", false),
         stepLine(),
-        stepCircle("2", "Data", true),
+        stepCircle("2", "Jadwal", false),
         stepLine(),
-        stepCircle("3", "Konfirmasi", false),
+        stepCircle("3", "Data", true),
+        stepLine(),
+        stepCircle("4", "Konfirmasi", false),
       ],
     );
   }
@@ -119,7 +107,7 @@ class PupukFormPage extends StatelessWidget {
     return Column(
       children: [
         CircleAvatar(
-          radius: 18,
+          radius: 16,
           backgroundColor: active ? Colors.green : Colors.grey.shade300,
           child: Text(
             number,
@@ -133,7 +121,7 @@ class PupukFormPage extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             color: active ? Colors.green : Colors.grey,
             fontWeight: active ? FontWeight.bold : FontWeight.normal,
           ),
@@ -148,6 +136,31 @@ class PupukFormPage extends StatelessWidget {
         height: 2,
         margin: const EdgeInsets.only(bottom: 24),
         color: Colors.grey.shade300,
+      ),
+    );
+  }
+
+  Widget infoCard(IconData icon, String title, String value) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: cardStyle(),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.green),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: Colors.grey)),
+                Text(
+                  value,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

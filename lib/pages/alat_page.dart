@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
-import 'pupuk_form_page.dart';
+import 'koordinasi_jadwal_page.dart';
 
-class PupukPage extends StatefulWidget {
-  const PupukPage({super.key});
+class AlatPage extends StatefulWidget {
+  const AlatPage({super.key});
 
   @override
-  State<PupukPage> createState() => _PupukPageState();
+  State<AlatPage> createState() => _AlatPageState();
 }
 
-class _PupukPageState extends State<PupukPage> {
-  String? pupukDipilih;
+class _AlatPageState extends State<AlatPage> {
+  String? alatDipilih;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xfff4fbf4),
       appBar: AppBar(
-        title: const Text("Bantuan Pupuk"),
+        title: const Text("Peminjaman Alat"),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
@@ -30,29 +30,36 @@ class _PupukPageState extends State<PupukPage> {
             const SizedBox(height: 25),
 
             const Text(
-              "Pilih Jenis Pupuk",
+              "Pilih Alat Pertanian",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
             const Text(
-              "Pilih pupuk yang ingin diajukan.",
+              "Pilih alat desa yang ingin dipinjam.",
               style: TextStyle(color: Colors.grey),
             ),
 
             const SizedBox(height: 22),
 
-            pilihanPupuk(
-              nama: "Pupuk Urea",
-              stok: "Stok tersedia 500 Kg",
-              icon: Icons.grass,
-              color: Colors.green,
+            pilihanAlat(
+              nama: "Traktor",
+              stok: "Stok tersedia 2 Unit",
+              icon: Icons.agriculture,
+              color: Colors.orange,
             ),
 
-            pilihanPupuk(
-              nama: "NPK Phonska",
-              stok: "Stok tersedia 300 Kg",
-              icon: Icons.eco,
-              color: Colors.orange,
+            pilihanAlat(
+              nama: "Hand Sprayer",
+              stok: "Stok tersedia 5 Unit",
+              icon: Icons.water_drop,
+              color: Colors.blue,
+            ),
+
+            pilihanAlat(
+              nama: "Cangkul Mesin",
+              stok: "Stok tersedia 3 Unit",
+              icon: Icons.build,
+              color: Colors.amber,
             ),
 
             const Spacer(),
@@ -68,15 +75,16 @@ class _PupukPageState extends State<PupukPage> {
                   ),
                 ),
                 onPressed:
-                    pupukDipilih == null
+                    alatDipilih == null
                         ? null
                         : () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder:
-                                  (_) =>
-                                      PupukFormPage(namaPupuk: pupukDipilih!),
+                                  (_) => KoordinasiJadwalPage(
+                                    namaAlat: alatDipilih!,
+                                  ),
                             ),
                           );
                         },
@@ -97,9 +105,11 @@ class _PupukPageState extends State<PupukPage> {
       children: [
         stepCircle("1", "Pilih", true),
         stepLine(),
-        stepCircle("2", "Data", false),
+        stepCircle("2", "Jadwal", false),
         stepLine(),
-        stepCircle("3", "Konfirmasi", false),
+        stepCircle("3", "Data", false),
+        stepLine(),
+        stepCircle("4", "Konfirmasi", false),
       ],
     );
   }
@@ -108,7 +118,7 @@ class _PupukPageState extends State<PupukPage> {
     return Column(
       children: [
         CircleAvatar(
-          radius: 18,
+          radius: 16,
           backgroundColor: active ? Colors.green : Colors.grey.shade300,
           child: Text(
             number,
@@ -122,7 +132,7 @@ class _PupukPageState extends State<PupukPage> {
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             color: active ? Colors.green : Colors.grey,
             fontWeight: active ? FontWeight.bold : FontWeight.normal,
           ),
@@ -141,18 +151,18 @@ class _PupukPageState extends State<PupukPage> {
     );
   }
 
-  Widget pilihanPupuk({
+  Widget pilihanAlat({
     required String nama,
     required String stok,
     required IconData icon,
     required Color color,
   }) {
-    final bool selected = pupukDipilih == nama;
+    final bool selected = alatDipilih == nama;
 
     return GestureDetector(
       onTap: () {
         setState(() {
-          pupukDipilih = nama;
+          alatDipilih = nama;
         });
       },
       child: Container(

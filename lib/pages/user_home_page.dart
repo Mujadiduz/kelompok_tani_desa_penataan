@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'alat_page.dart';
 import 'profil_page.dart';
-import 'riwayat_page.dart';
 import 'pupuk_page.dart';
+import 'riwayat_page.dart';
 
 class UserHomePage extends StatelessWidget {
   const UserHomePage({super.key});
@@ -9,18 +10,18 @@ class UserHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xfff6f9f6),
+      backgroundColor: const Color(0xfff4fbf4),
       body: SingleChildScrollView(
         child: Column(
           children: [
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 55, 20, 25),
+              padding: const EdgeInsets.fromLTRB(20, 55, 20, 28),
               decoration: const BoxDecoration(
                 color: Colors.green,
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(28),
-                  bottomRight: Radius.circular(28),
+                  bottomLeft: Radius.circular(32),
+                  bottomRight: Radius.circular(32),
                 ),
               ),
               child: const Column(
@@ -28,18 +29,22 @@ class UserHomePage extends StatelessWidget {
                 children: [
                   Text(
                     "Selamat Datang,",
-                    style: TextStyle(color: Colors.white, fontSize: 16),
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
                   ),
+                  SizedBox(height: 4),
                   Text(
-                    "Budi Santoso",
+                    "Petani Desa Penataan",
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 8),
-                  Chip(label: Text("Anggota")),
+                  SizedBox(height: 14),
+                  Text(
+                    "Sistem Informasi Kelompok Tani",
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ],
               ),
             ),
@@ -47,33 +52,62 @@ class UserHomePage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(18),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  cardStatus(),
-                  const SizedBox(height: 16),
-                GestureDetector(
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const PupukPage(),
-      ),
-    );
-  },
-  child: menuCard(
-    icon: Icons.grass,
-    title: "Bantuan Pupuk",
-    subtitle: "Ajukan & pesan bantuan pupuk",
-  ),
-),
-                  menuCard(
-                    icon: Icons.agriculture,
-                    title: "Peminjaman Alat",
-                    subtitle: "Ajukan peminjaman alat desa",
+                  statusCard(),
+
+                  const SizedBox(height: 22),
+
+                  const Text(
+                    "Menu Utama",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  menuCard(
-                    icon: Icons.history,
-                    title: "Riwayat",
-                    subtitle: "Riwayat bantuan & peminjaman",
+
+                  const SizedBox(height: 12),
+
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const PupukPage()),
+                      );
+                    },
+                    child: menuCard(
+                      Icons.grass,
+                      "Bantuan Pupuk",
+                      "Pesan dan lihat status bantuan pupuk",
+                      Colors.green,
+                    ),
+                  ),
+
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AlatPage()),
+                      );
+                    },
+                    child: menuCard(
+                      Icons.agriculture,
+                      "Peminjaman Alat",
+                      "Ajukan peminjaman alat pertanian desa",
+                      Colors.orange,
+                    ),
+                  ),
+
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RiwayatPage()),
+                      );
+                    },
+                    child: menuCard(
+                      Icons.history,
+                      "Riwayat",
+                      "Lihat riwayat bantuan dan peminjaman",
+                      Colors.blue,
+                    ),
                   ),
                 ],
               ),
@@ -81,71 +115,60 @@ class UserHomePage extends StatelessWidget {
           ],
         ),
       ),
+
       bottomNavigationBar: BottomNavigationBar(
-  currentIndex: 0,
-  selectedItemColor: Colors.green,
-  onTap: (index) {
-    if(index == 1){
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const RiwayatPage(),
+        currentIndex: 0,
+        selectedItemColor: Colors.green,
+        unselectedItemColor: Colors.grey,
+        onTap: (index) {
+          if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const RiwayatPage()),
+            );
+          }
+
+          if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfilPage()),
+            );
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Beranda"),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: "Riwayat"),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+        ],
       ),
     );
   }
 
-  if(index == 2){
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ProfilPage(),
-      ),
-    );
-  }
-    if (index == 2) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const ProfilPage(),
-        ),
-      );
-    }
-  },
-  items: const [
-    BottomNavigationBarItem(
-      icon: Icon(Icons.home),
-      label: "Beranda",
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.history),
-      label: "Riwayat",
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.person),
-      label: "Profil",
-    ),
-  ],
-),
-    );
-  }
-
-  Widget cardStatus() {
+  Widget statusCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: cardDecoration(),
+      padding: const EdgeInsets.all(18),
+      decoration: cardStyle(),
       child: const Row(
         children: [
-          Icon(Icons.check_circle, color: Colors.green, size: 35),
-          SizedBox(width: 12),
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: Color(0xffdff3df),
+            child: Icon(Icons.verified, color: Colors.green, size: 32),
+          ),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   "Status Pendaftaran",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
-                Text("Akun Anda telah disetujui"),
+                SizedBox(height: 4),
+                Text(
+                  "Menunggu verifikasi admin kelompok tani",
+                  style: TextStyle(color: Colors.grey),
+                ),
               ],
             ),
           ),
@@ -154,32 +177,39 @@ class UserHomePage extends StatelessWidget {
     );
   }
 
-  Widget menuCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
+  Widget menuCard(IconData icon, String title, String subtitle, Color color) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
-      decoration: cardDecoration(),
+      decoration: cardStyle(),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            width: 54,
+            height: 54,
             decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(12),
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(icon, color: Colors.green, size: 30),
+            child: Icon(icon, color: color, size: 30),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(subtitle, style: const TextStyle(fontSize: 12)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -189,18 +219,17 @@ class UserHomePage extends StatelessWidget {
     );
   }
 
-  BoxDecoration cardDecoration() {
+  BoxDecoration cardStyle() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withOpacity(0.06),
-          blurRadius: 8,
-          offset: const Offset(0, 4),
-        )
+          blurRadius: 10,
+          offset: const Offset(0, 5),
+        ),
       ],
     );
   }
-  
 }
