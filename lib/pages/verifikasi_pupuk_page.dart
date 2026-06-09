@@ -6,58 +6,91 @@ class VerifikasiPupukPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xfff8f8f8),
       appBar: AppBar(
-        title: const Text("Verifikasi Pupuk"),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
+        title: const Text("Verifikasi Bantuan Pupuk"),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
       ),
-      body: ListView(
+      body: Padding(
         padding: const EdgeInsets.all(16),
-        children: [
-          pupukCard("Ahmad Fauzi", "Pupuk Urea", "50 Kg"),
-          pupukCard("Budi Santoso", "NPK Phonska", "100 Kg"),
-          pupukCard("Joko Susilo", "Pupuk Urea", "25 Kg"),
-        ],
+        child: Column(
+          children: [
+            const Row(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      "Pengajuan",
+                      style: TextStyle(
+                        color: Colors.deepPurple,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(child: Center(child: Text("Riwayat"))),
+              ],
+            ),
+
+            const Divider(),
+
+            const SizedBox(height: 10),
+
+            itemPupuk("Budi Santoso", "Urea - 50 Kg", "24/05/2026"),
+
+            itemPupuk("Siti Nurhaliza", "NPK Phonska - 100 Kg", "23/05/2026"),
+
+            itemPupuk("Ahmad Fauzi", "Pupuk Organik - 30 Kg", "22/05/2026"),
+          ],
+        ),
       ),
     );
   }
 
-  Widget pupukCard(String nama, String jenisPupuk, String jumlah) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(nama, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text("Jenis Pupuk: $jenisPupuk"),
-            Text("Jumlah: $jumlah"),
-            const Text("Status: Menunggu"),
-            const SizedBox(height: 15),
+  Widget itemPupuk(String nama, String pupuk, String tanggal) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            backgroundColor: Color(0xffede9fe),
+            child: Icon(Icons.person, color: Colors.deepPurple),
+          ),
 
-            Row(
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                    onPressed: () {},
-                    child: const Text("Setujui", style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                    onPressed: () {},
-                    child: const Text("Tolak", style: TextStyle(color: Colors.white)),
-                  ),
-                ),
+                Text(nama, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(pupuk),
+                Text(tanggal, style: const TextStyle(color: Colors.grey)),
               ],
-            )
-          ],
-        ),
+            ),
+          ),
+
+          ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text("Setujui", style: TextStyle(color: Colors.white)),
+          ),
+
+          const SizedBox(width: 6),
+
+          ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Tolak", style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'alat_page.dart';
 import 'profil_page.dart';
 import 'pupuk_page.dart';
 import 'riwayat_page.dart';
+import 'status_keanggotaan_page.dart';
 
 class UserHomePage extends StatelessWidget {
   const UserHomePage({super.key});
@@ -54,7 +55,17 @@ class UserHomePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  statusCard(),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const StatusKeanggotaanPage(),
+                        ),
+                      );
+                    },
+                    child: statusCard(),
+                  ),
 
                   const SizedBox(height: 22),
 
@@ -64,6 +75,23 @@ class UserHomePage extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 12),
+
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const StatusKeanggotaanPage(),
+                        ),
+                      );
+                    },
+                    child: menuCard(
+                      Icons.verified_user,
+                      "Status Keanggotaan",
+                      "Cek apakah pendaftaran sudah diterima",
+                      Colors.green,
+                    ),
+                  ),
 
                   GestureDetector(
                     onTap: () {
@@ -166,12 +194,13 @@ class UserHomePage extends StatelessWidget {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  "Menunggu verifikasi admin kelompok tani",
+                  "Klik untuk melihat status verifikasi anggota",
                   style: TextStyle(color: Colors.grey),
                 ),
               ],
             ),
           ),
+          Icon(Icons.arrow_forward_ios, size: 16),
         ],
       ),
     );

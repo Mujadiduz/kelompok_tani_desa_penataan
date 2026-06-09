@@ -6,59 +6,127 @@ class RiwayatPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xfff4fbf4),
       appBar: AppBar(
-        title: const Text("Riwayat"),
+        title: const Text("Riwayat Aktivitas"),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const Text(
+            "Riwayat Bantuan Pupuk",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
 
           riwayatCard(
-            "Bantuan Pupuk Urea",
-            "50 Kg",
-            "Disetujui",
-            Colors.green,
+            icon: Icons.grass,
+            title: "Pupuk Urea",
+            subtitle: "Jumlah: 50 Kg",
+            status: "Menunggu",
+            color: Colors.orange,
           ),
 
           riwayatCard(
-            "Peminjaman Traktor",
-            "24/05/2026",
-            "Menunggu",
-            Colors.orange,
+            icon: Icons.eco,
+            title: "NPK Phonska",
+            subtitle: "Jumlah: 100 Kg",
+            status: "Disetujui",
+            color: Colors.green,
+          ),
+
+          const SizedBox(height: 24),
+
+          const Text(
+            "Riwayat Peminjaman Alat",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+
+          riwayatCard(
+            icon: Icons.agriculture,
+            title: "Traktor",
+            subtitle: "Tanggal: 17 Juni 2026",
+            status: "Menunggu",
+            color: Colors.orange,
           ),
 
           riwayatCard(
-            "Pupuk NPK Phonska",
-            "100 Kg",
-            "Disetujui",
-            Colors.green,
+            icon: Icons.water_drop,
+            title: "Hand Sprayer",
+            subtitle: "Tanggal: 10 Juni 2026",
+            status: "Disetujui",
+            color: Colors.green,
+          ),
+
+          riwayatCard(
+            icon: Icons.build,
+            title: "Cangkul Mesin",
+            subtitle: "Tanggal: 5 Juni 2026",
+            status: "Ditolak",
+            color: Colors.red,
           ),
         ],
       ),
     );
   }
 
-  Widget riwayatCard(
-      String judul,
-      String detail,
-      String status,
-      Color warna,
-      ) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: const Icon(Icons.history),
-        title: Text(judul),
-        subtitle: Text(detail),
-        trailing: Chip(
-          label: Text(
-            status,
-            style: const TextStyle(color: Colors.white),
+  Widget riwayatCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String status,
+    required Color color,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
           ),
-          backgroundColor: warna,
-        ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withValues(alpha: 0.15),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 14),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(subtitle, style: const TextStyle(color: Colors.grey)),
+              ],
+            ),
+          ),
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              status,
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
   }
