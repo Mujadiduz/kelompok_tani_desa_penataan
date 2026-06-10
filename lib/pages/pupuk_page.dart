@@ -74,9 +74,7 @@ class _PupukPageState extends State<PupukPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder:
-                                  (_) =>
-                                      PupukFormPage(namaPupuk: pupukDipilih!),
+                              builder:(_) =>PupukFormPage(namaPupuk: pupukDipilih!),
                             ),
                           );
                         },

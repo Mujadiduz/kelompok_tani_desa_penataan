@@ -15,11 +15,11 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   bool isLoading = false;
   Map<String, dynamic>? dataAnggota;
 
-  final DatabaseReference calonAnggotaRef = FirebaseDatabase.instanceFor(
+  final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         "https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app",
-  ).ref("calon_anggota");
+  );
 
   Future<void> cekStatus() async {
     setState(() {
@@ -27,23 +27,61 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
       dataAnggota = null;
     });
 
-    final snapshot =
-        await calonAnggotaRef
-            .orderByChild("nik")
-            .equalTo(nikController.text)
-            .get();
+    try {
+      final calonRef = db.ref("calon_anggota");
+      final anggotaRef = db.ref("anggota");
 
-    if (snapshot.exists && snapshot.value != null) {
-      final data = Map<String, dynamic>.from(snapshot.value as Map);
-      final anggota = Map<String, dynamic>.from(data.values.first as Map);
-
-      setState(() {
-        dataAnggota = anggota;
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Data anggota tidak ditemukan")),
+      final calonSnapshot = await calonRef.get().timeout(
+        const Duration(seconds: 10),
       );
+
+      Map<String, dynamic>? hasil;
+
+      if (calonSnapshot.exists && calonSnapshot.value != null) {
+        final data = Map<String, dynamic>.from(calonSnapshot.value as Map);
+
+        data.forEach((key, value) {
+          final anggota = Map<String, dynamic>.from(value as Map);
+
+          if ((anggota["nik"] ?? "").toString().trim() ==
+              nikController.text.trim()) {
+            hasil = anggota;
+          }
+        });
+      }
+
+      if (hasil == null) {
+        final anggotaSnapshot = await anggotaRef.get().timeout(
+          const Duration(seconds: 10),
+        );
+
+        if (anggotaSnapshot.exists && anggotaSnapshot.value != null) {
+          final data = Map<String, dynamic>.from(anggotaSnapshot.value as Map);
+
+          data.forEach((key, value) {
+            final anggota = Map<String, dynamic>.from(value as Map);
+
+            if ((anggota["nik"] ?? "").toString().trim() ==
+                nikController.text.trim()) {
+              hasil = anggota;
+            }
+          });
+        }
+      }
+
+      if (hasil != null) {
+        setState(() {
+          dataAnggota = hasil;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Data anggota tidak ditemukan")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Gagal cek status: $e")));
     }
 
     setState(() {
@@ -52,12 +90,14 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   }
 
   Color warnaStatus(String status) {
+    if (status == "aktif") return Colors.green;
     if (status == "disetujui") return Colors.green;
     if (status == "ditolak") return Colors.red;
     return Colors.orange;
   }
 
   String teksStatus(String status) {
+    if (status == "aktif") return "Disetujui / Aktif";
     if (status == "disetujui") return "Disetujui";
     if (status == "ditolak") return "Ditolak";
     return "Menunggu Verifikasi";
@@ -124,7 +164,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
+                      color: Colors.black.withOpacity(0.06),
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     ),
@@ -157,7 +197,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: warnaStatus(status).withValues(alpha: 0.15),
+                        color: warnaStatus(status).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(

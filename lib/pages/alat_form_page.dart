@@ -1,7 +1,9 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'alat_konfirmasi_page.dart';
 
-class AlatFormPage extends StatelessWidget {
+class AlatFormPage extends StatefulWidget {
   final String namaAlat;
   final String tanggalDipilih;
 
@@ -12,6 +14,82 @@ class AlatFormPage extends StatelessWidget {
   });
 
   @override
+  State<AlatFormPage> createState() => _AlatFormPageState();
+}
+
+class _AlatFormPageState extends State<AlatFormPage> {
+  final nikController = TextEditingController();
+  final tanggalKembaliController = TextEditingController();
+  final catatanController = TextEditingController();
+
+  String nama = "";
+  bool isLoading = false;
+  bool dataDitemukan = false;
+
+  final DatabaseReference anggotaRef = FirebaseDatabase.instanceFor(
+    app: Firebase.app(),
+    databaseURL:
+        "https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app",
+  ).ref("anggota");
+
+  Future<void> cekDataAnggota() async {
+    setState(() {
+      isLoading = true;
+      dataDitemukan = false;
+    });
+
+    try {
+      final snapshot = await anggotaRef.get().timeout(
+        const Duration(seconds: 10),
+      );
+
+      if (snapshot.exists && snapshot.value != null) {
+        final data = Map<String, dynamic>.from(snapshot.value as Map);
+
+        Map<String, dynamic>? anggotaDitemukan;
+
+        data.forEach((key, value) {
+          final anggota = Map<String, dynamic>.from(value as Map);
+
+          if ((anggota["nik"] ?? "").toString().trim() ==
+              nikController.text.trim()) {
+            anggotaDitemukan = anggota;
+          }
+        });
+
+        if (anggotaDitemukan != null) {
+          setState(() {
+            nama = anggotaDitemukan!["nama"] ?? "";
+            dataDitemukan = true;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Data anggota ditemukan")),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("NIK tidak ditemukan di data anggota"),
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Data anggota masih kosong")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Gagal mengecek data: $e")));
+    }
+
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xfff4fbf4),
@@ -20,7 +98,7 @@ class AlatFormPage extends StatelessWidget {
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,32 +110,92 @@ class AlatFormPage extends StatelessWidget {
               "Isi Data Peminjaman",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
+
             const SizedBox(height: 6),
+
             const Text(
-              "Lengkapi data peminjaman alat.",
+              "Masukkan NIK anggota yang sudah disetujui admin.",
               style: TextStyle(color: Colors.grey),
             ),
 
             const SizedBox(height: 20),
 
-            infoCard(Icons.agriculture, "Alat Dipilih", namaAlat),
+            infoCard(Icons.agriculture, "Alat Dipilih", widget.namaAlat),
             const SizedBox(height: 12),
-            infoCard(Icons.calendar_month, "Tanggal Pinjam", tanggalDipilih),
+            infoCard(
+              Icons.calendar_month,
+              "Tanggal Pinjam",
+              widget.tanggalDipilih,
+            ),
 
             const SizedBox(height: 18),
 
-            inputField("Nama Peminjam", Icons.person),
+            TextField(
+              controller: nikController,
+              keyboardType: TextInputType.number,
+              decoration: inputDecoration("Masukkan NIK", Icons.badge),
+            ),
+
             const SizedBox(height: 12),
 
-            inputField("Tanggal Kembali", Icons.event_available),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: isLoading ? null : cekDataAnggota,
+                child: Text(
+                  isLoading ? "Mengecek..." : "Cek Data Anggota",
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            if (dataDitemukan)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: cardStyle(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Data Anggota",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text("Nama: $nama"),
+                    Text("NIK: ${nikController.text}"),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 16),
+
+            TextField(
+              controller: tanggalKembaliController,
+              decoration: inputDecoration(
+                "Tanggal Kembali",
+                Icons.event_available,
+              ),
+            ),
+
             const SizedBox(height: 12),
 
             TextField(
+              controller: catatanController,
               maxLines: 3,
               decoration: inputDecoration("Catatan / Keperluan", Icons.note),
             ),
 
-            const Spacer(),
+            const SizedBox(height: 25),
 
             SizedBox(
               width: double.infinity,
@@ -69,14 +207,26 @@ class AlatFormPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AlatKonfirmasiPage(namaAlat: namaAlat),
-                    ),
-                  );
-                },
+                onPressed:
+                    !dataDitemukan
+                        ? null
+                        : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => AlatKonfirmasiPage(
+                                    namaAlat: widget.namaAlat,
+                                    nama: nama,
+                                    nik: nikController.text,
+                                    tanggalPinjam: widget.tanggalDipilih,
+                                    tanggalKembali:
+                                        tanggalKembaliController.text,
+                                    catatan: catatanController.text,
+                                  ),
+                            ),
+                          );
+                        },
                 child: const Text(
                   "Lanjut",
                   style: TextStyle(color: Colors.white, fontSize: 16),
@@ -164,11 +314,7 @@ class AlatFormPage extends StatelessWidget {
       ),
     );
   }
-
-  Widget inputField(String label, IconData icon) {
-    return TextField(decoration: inputDecoration(label, icon));
-  }
-
+  
   InputDecoration inputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,

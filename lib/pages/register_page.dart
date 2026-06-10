@@ -16,6 +16,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final alamatController = TextEditingController();
   final jenisKelaminController = TextEditingController();
   final petakSawahController = TextEditingController();
+  final passwordController = TextEditingController();
 
   bool isLoading = false;
 
@@ -37,6 +38,7 @@ class _RegisterPageState extends State<RegisterPage> {
           "alamat": alamatController.text,
           "jenis_kelamin": jenisKelaminController.text,
           "jumlah_petak_sawah": petakSawahController.text,
+          "password": passwordController.text,
           "status": "menunggu",
           "tanggal_daftar": DateTime.now().toString(),
         })
@@ -72,11 +74,9 @@ class _RegisterPageState extends State<RegisterPage> {
             const SizedBox(height: 12),
             inputField("Jenis Kelamin", Icons.people, jenisKelaminController),
             const SizedBox(height: 12),
-            inputField(
-              "Jumlah Petak Sawah",
-              Icons.agriculture,
-              petakSawahController,
-            ),
+            inputField("Jumlah Petak Sawah",Icons.agriculture,petakSawahController,),
+            const SizedBox(height: 12),
+            inputField("Password", Icons.lock, passwordController),
 
             const SizedBox(height: 25),
 
@@ -100,7 +100,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
                           try {
                             await simpanDataAnggota();
-
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text("Data berhasil dikirim"),

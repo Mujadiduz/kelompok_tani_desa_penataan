@@ -3,10 +3,12 @@ import 'alat_page.dart';
 import 'profil_page.dart';
 import 'pupuk_page.dart';
 import 'riwayat_page.dart';
-import 'status_keanggotaan_page.dart';
 
 class UserHomePage extends StatelessWidget {
-  const UserHomePage({super.key});
+  final String nama;
+  final String nik;
+
+  const UserHomePage({super.key, required this.nama, required this.nik});
 
   @override
   Widget build(BuildContext context) {
@@ -25,24 +27,24 @@ class UserHomePage extends StatelessWidget {
                   bottomRight: Radius.circular(32),
                 ),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     "Selamat Datang,",
                     style: TextStyle(color: Colors.white70, fontSize: 16),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    "Petani Desa Penataan",
-                    style: TextStyle(
+                    nama,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 14),
-                  Text(
+                  const SizedBox(height: 14),
+                  const Text(
                     "Sistem Informasi Kelompok Tani",
                     style: TextStyle(color: Colors.white),
                   ),
@@ -55,17 +57,7 @@ class UserHomePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const StatusKeanggotaanPage(),
-                        ),
-                      );
-                    },
-                    child: statusCard(),
-                  ),
+                  statusCard(),
 
                   const SizedBox(height: 22),
 
@@ -80,30 +72,13 @@ class UserHomePage extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const StatusKeanggotaanPage(),
-                        ),
-                      );
-                    },
-                    child: menuCard(
-                      Icons.verified_user,
-                      "Status Keanggotaan",
-                      "Cek apakah pendaftaran sudah diterima",
-                      Colors.green,
-                    ),
-                  ),
-
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
                         MaterialPageRoute(builder: (_) => const PupukPage()),
                       );
                     },
                     child: menuCard(
                       Icons.grass,
                       "Bantuan Pupuk",
-                      "Pesan dan lihat status bantuan pupuk",
+                      "Ajukan bantuan pupuk subsidi",
                       Colors.green,
                     ),
                   ),
@@ -127,7 +102,9 @@ class UserHomePage extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const RiwayatPage()),
+                        MaterialPageRoute(
+                          builder: (_) => RiwayatPage(nik: nik),
+                        ),
                       );
                     },
                     child: menuCard(
@@ -152,14 +129,16 @@ class UserHomePage extends StatelessWidget {
           if (index == 1) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const RiwayatPage()),
+              MaterialPageRoute(builder: (_) => RiwayatPage(nik: nik)),
             );
           }
 
           if (index == 2) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const ProfilPage()),
+              MaterialPageRoute(
+                builder: (_) => ProfilPage(nama: nama, nik: nik),
+              ),
             );
           }
         },
@@ -176,31 +155,30 @@ class UserHomePage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: cardStyle(),
-      child: const Row(
+      child: Row(
         children: [
-          CircleAvatar(
+          const CircleAvatar(
             radius: 28,
             backgroundColor: Color(0xffdff3df),
             child: Icon(Icons.verified, color: Colors.green, size: 32),
           ),
-          SizedBox(width: 14),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "Status Pendaftaran",
+                const Text(
+                  "Status Keanggotaan",
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  "Klik untuk melihat status verifikasi anggota",
-                  style: TextStyle(color: Colors.grey),
+                  "Aktif sebagai anggota kelompok tani\nNIK: $nik",
+                  style: const TextStyle(color: Colors.grey),
                 ),
               ],
             ),
           ),
-          Icon(Icons.arrow_forward_ios, size: 16),
         ],
       ),
     );

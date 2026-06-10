@@ -94,7 +94,7 @@ class AdminHomePage extends StatelessWidget {
                   context,
                   "Bantuan\nPupuk",
                   Icons.grass,
-                  const LaporanPage(),
+                  const VerifikasiPupukPage(),
                 ),
                 menuBox(
                   context,
@@ -108,12 +108,6 @@ class AdminHomePage extends StatelessWidget {
                   Icons.calendar_month,
                   const JadwalAlatAdminPage(),
                 ),
-                menuBox(
-                  context,
-                  "Laporan",
-                  Icons.description,
-                  const VerifikasiPupukPage(),
-                ),
               ],
             ),
           ],
@@ -125,7 +119,13 @@ class AdminHomePage extends StatelessWidget {
         selectedItemColor: Colors.purple,
         unselectedItemColor: Colors.grey,
         onTap: (index) {
-          if (index == 4) {
+          if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const LaporanPage()),
+            );
+          }
+          if (index == 2) {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const ProfilAdminPage()),
@@ -135,10 +135,12 @@ class AdminHomePage extends StatelessWidget {
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
-            label: "Dashboard",),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: "Anggota"),
-          BottomNavigationBarItem(icon: Icon(Icons.grass), label: "Bantuan"),
-          BottomNavigationBarItem(icon: Icon(Icons.agriculture),label: "Peminjaman",),
+            label: "Dashboard",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.description),
+            label: "Laporan",
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
         ],
       ),

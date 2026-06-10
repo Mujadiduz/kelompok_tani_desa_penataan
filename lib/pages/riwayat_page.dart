@@ -1,10 +1,55 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
-class RiwayatPage extends StatelessWidget {
-  const RiwayatPage({super.key});
+class RiwayatPage extends StatefulWidget {
+  final String nik;
+
+  const RiwayatPage({super.key, required this.nik});
+
+  @override
+  State<RiwayatPage> createState() => _RiwayatPageState();
+}
+
+class _RiwayatPageState extends State<RiwayatPage> {
+  final FirebaseDatabase db = FirebaseDatabase.instanceFor(
+    app: Firebase.app(),
+    databaseURL:
+        "https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app",
+  );
+
+  late final DatabaseReference pupukRef;
+  late final DatabaseReference peminjamanRef;
+
+  @override
+  void initState() {
+    super.initState();
+    pupukRef = db.ref("bantuan_pupuk");
+    peminjamanRef = db.ref("peminjaman_alat");
+  }
+
+  Color warnaStatus(String status) {
+    if (status == "disetujui") return Colors.green;
+    if (status == "ditolak") return Colors.red;
+    return Colors.orange;
+  }
+
+  String teksStatus(String status) {
+    if (status == "disetujui") return "Disetujui";
+    if (status == "ditolak") return "Ditolak";
+    return "Menunggu";
+  }
+
+  IconData iconAlat(String alat) {
+    if (alat.toLowerCase().contains("sprayer")) return Icons.water_drop;
+    if (alat.toLowerCase().contains("cangkul")) return Icons.build;
+    return Icons.agriculture;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final nik = widget.nik.trim();
+
     return Scaffold(
       backgroundColor: const Color(0xfff4fbf4),
       appBar: AppBar(
@@ -19,22 +64,57 @@ class RiwayatPage extends StatelessWidget {
             "Riwayat Bantuan Pupuk",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
+
           const SizedBox(height: 12),
 
-          riwayatCard(
-            icon: Icons.grass,
-            title: "Pupuk Urea",
-            subtitle: "Jumlah: 50 Kg",
-            status: "Menunggu",
-            color: Colors.orange,
-          ),
+          StreamBuilder<DatabaseEvent>(
+            stream: pupukRef.onValue,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
+                return const Text("Belum ada riwayat bantuan pupuk");
+              }
 
-          riwayatCard(
-            icon: Icons.eco,
-            title: "NPK Phonska",
-            subtitle: "Jumlah: 100 Kg",
-            status: "Disetujui",
-            color: Colors.green,
+              final rawData = snapshot.data!.snapshot.value;
+
+              if (rawData is! Map) {
+                return const Text("Format data pupuk tidak sesuai");
+              }
+
+              final data = Map<String, dynamic>.from(rawData);
+
+              final list =
+                  data.values
+                      .map((e) => Map<String, dynamic>.from(e as Map))
+                      .where(
+                        (item) => (item["nik"] ?? "").toString().trim() == nik,
+                      )
+                      .toList();
+
+              if (list.isEmpty) {
+                return const Text("Belum ada riwayat bantuan pupuk");
+              }
+
+              return Column(
+                children:
+                    list.map((item) {
+                      final status =
+                          (item["status"] ?? "menunggu")
+                              .toString()
+                              .toLowerCase();
+
+                      final color = warnaStatus(status);
+
+                      return riwayatCard(
+                        icon: Icons.grass,
+                        title: item["jenis_pupuk"] ?? "-",
+                        subtitle:
+                            "Jumlah: ${item["jumlah_pupuk"] ?? "-"} Kg | Jatah: ${item["jatah_pupuk"] ?? "-"} Kg",
+                        status: teksStatus(status),
+                        color: color,
+                      );
+                    }).toList(),
+              );
+            },
           ),
 
           const SizedBox(height: 24),
@@ -43,30 +123,58 @@ class RiwayatPage extends StatelessWidget {
             "Riwayat Peminjaman Alat",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
+
           const SizedBox(height: 12),
 
-          riwayatCard(
-            icon: Icons.agriculture,
-            title: "Traktor",
-            subtitle: "Tanggal: 17 Juni 2026",
-            status: "Menunggu",
-            color: Colors.orange,
-          ),
+          StreamBuilder<DatabaseEvent>(
+            stream: peminjamanRef.onValue,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
+                return const Text("Belum ada riwayat peminjaman alat");
+              }
 
-          riwayatCard(
-            icon: Icons.water_drop,
-            title: "Hand Sprayer",
-            subtitle: "Tanggal: 10 Juni 2026",
-            status: "Disetujui",
-            color: Colors.green,
-          ),
+              final rawData = snapshot.data!.snapshot.value;
 
-          riwayatCard(
-            icon: Icons.build,
-            title: "Cangkul Mesin",
-            subtitle: "Tanggal: 5 Juni 2026",
-            status: "Ditolak",
-            color: Colors.red,
+              if (rawData is! Map) {
+                return const Text("Format data peminjaman tidak sesuai");
+              }
+
+              final data = Map<String, dynamic>.from(rawData);
+
+              final list =
+                  data.values
+                      .map((e) => Map<String, dynamic>.from(e as Map))
+                      .where(
+                        (item) => (item["nik"] ?? "").toString().trim() == nik,
+                      )
+                      .toList();
+
+              if (list.isEmpty) {
+                return const Text("Belum ada riwayat peminjaman alat");
+              }
+
+              return Column(
+                children:
+                    list.map((item) {
+                      final status =
+                          (item["status"] ?? "menunggu")
+                              .toString()
+                              .toLowerCase();
+
+                      final color = warnaStatus(status);
+                      final alat = item["alat"] ?? "-";
+
+                      return riwayatCard(
+                        icon: iconAlat(alat),
+                        title: alat,
+                        subtitle:
+                            "Pinjam: ${item["tanggal_pinjam"] ?? "-"} | Kembali: ${item["tanggal_kembali"] ?? "-"}",
+                        status: teksStatus(status),
+                        color: color,
+                      );
+                    }).toList(),
+              );
+            },
           ),
         ],
       ),
@@ -88,7 +196,7 @@ class RiwayatPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -97,11 +205,10 @@ class RiwayatPage extends StatelessWidget {
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: color.withValues(alpha: 0.15),
+            backgroundColor: color.withOpacity(0.15),
             child: Icon(icon, color: color),
           ),
           const SizedBox(width: 14),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,15 +217,17 @@ class RiwayatPage extends StatelessWidget {
                   title,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                Text(subtitle, style: const TextStyle(color: Colors.grey)),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
               ],
             ),
           ),
-
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
+              color: color.withOpacity(0.15),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(

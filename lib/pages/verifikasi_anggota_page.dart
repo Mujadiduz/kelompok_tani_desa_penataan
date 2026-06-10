@@ -10,17 +10,21 @@ class VerifikasiAnggotaPage extends StatefulWidget {
 }
 
 class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
-  final DatabaseReference calonAnggotaRef = FirebaseDatabase.instanceFor(
+  final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         "https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app",
-  ).ref("calon_anggota");
+  );
 
-  final DatabaseReference anggotaRef = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL:
-        "https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app",
-  ).ref("anggota");
+  late final DatabaseReference calonAnggotaRef;
+  late final DatabaseReference anggotaRef;
+
+  @override
+  void initState() {
+    super.initState();
+    calonAnggotaRef = db.ref("calon_anggota");
+    anggotaRef = db.ref("anggota");
+  }
 
   Future<void> setujuiAnggota(String id, Map anggota) async {
     await anggotaRef.child(id).set({
@@ -31,7 +35,8 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
       "jenis_kelamin": anggota["jenis_kelamin"] ?? "",
       "jumlah_petak_sawah": anggota["jumlah_petak_sawah"] ?? "",
       "tanggal_daftar": anggota["tanggal_daftar"] ?? "",
-      "status": "disetujui",
+      "password": anggota["password"] ?? "",
+      "status": "aktif",
     });
 
     await calonAnggotaRef.child(id).update({"status": "disetujui"});
@@ -42,11 +47,17 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   }
 
   Future<void> tolakAnggota(String id) async {
-    await calonAnggotaRef.child(id).update({"status": "ditolak"});
+    try {
+      await calonAnggotaRef.child(id).update({"status": "ditolak"});
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Anggota ditolak")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Anggota ditolak")));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Gagal menolak anggota: $e")));
+    }
   }
 
   Color warnaStatus(String status) {
@@ -58,9 +69,11 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xfff4fbf4),
       appBar: AppBar(
         title: const Text("Verifikasi Anggota"),
         backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
       ),
       body: StreamBuilder<DatabaseEvent>(
         stream: calonAnggotaRef.onValue,
@@ -143,7 +156,10 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                                 onPressed: () {
                                   setujuiAnggota(id, anggota);
                                 },
-                                child: const Text("Setujui"),
+                                child: const Text(
+                                  "Setujui",
+                                  style: TextStyle(color: Colors.white),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -155,7 +171,10 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                                 onPressed: () {
                                   tolakAnggota(id);
                                 },
-                                child: const Text("Tolak"),
+                                child: const Text(
+                                  "Tolak",
+                                  style: TextStyle(color: Colors.white),
+                                ),
                               ),
                             ),
                           ],

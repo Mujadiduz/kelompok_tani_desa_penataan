@@ -13,8 +13,37 @@ class KoordinasiJadwalPage extends StatefulWidget {
 class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
   int? tanggalDipilih;
 
+  final DateTime sekarang = DateTime.now();
+
+  final List<String> namaBulan = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+  ];
+
   final List<int> tanggalDipinjam = [5, 6, 14, 15, 21];
   final List<int> tanggalMenunggu = [10, 18, 24];
+
+  int jumlahHariDalamBulan() {
+    return DateTime(sekarang.year, sekarang.month + 1, 0).day;
+  }
+
+  String bulanTahun() {
+    return "${namaBulan[sekarang.month - 1]} ${sekarang.year}";
+  }
+
+  String tanggalLengkap() {
+    return "$tanggalDipilih ${bulanTahun()}";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,18 +61,25 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
           children: [
             stepIndicator(),
             const SizedBox(height: 22),
+
             const Text(
               "Koordinasi Jadwal",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
+
             const SizedBox(height: 6),
+
             Text(
               "Pilih tanggal tersedia untuk meminjam ${widget.namaAlat}.",
               style: const TextStyle(color: Colors.grey),
             ),
+
             const SizedBox(height: 18),
+
             alatCard(),
+
             const SizedBox(height: 18),
+
             Row(
               children: [
                 statusColor(Colors.green, "Tersedia"),
@@ -53,7 +89,9 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                 statusColor(Colors.orange, "Menunggu"),
               ],
             ),
+
             const SizedBox(height: 18),
+
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -62,14 +100,16 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Juni 2026",
-                      style: TextStyle(
+                    Text(
+                      bulanTahun(),
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
                     const SizedBox(height: 14),
+
                     const Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -82,10 +122,12 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                         Text("Min"),
                       ],
                     ),
+
                     const SizedBox(height: 12),
+
                     Expanded(
                       child: GridView.builder(
-                        itemCount: 35,
+                        itemCount: jumlahHariDalamBulan(),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 7,
@@ -102,18 +144,22 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                 ),
               ),
             ),
+
             const SizedBox(height: 16),
+
             if (tanggalDipilih != null)
               Center(
                 child: Text(
-                  "Tanggal dipilih: $tanggalDipilih Juni 2026",
+                  "Tanggal dipilih: ${tanggalLengkap()}",
                   style: const TextStyle(
                     color: Colors.green,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
+
             const SizedBox(height: 12),
+
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -134,7 +180,7 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                               builder:
                                   (_) => AlatFormPage(
                                     namaAlat: widget.namaAlat,
-                                    tanggalDipilih: "$tanggalDipilih Juni 2026",
+                                    tanggalDipilih: tanggalLengkap(),
                                   ),
                             ),
                           );

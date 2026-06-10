@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 
 class ProfilPage extends StatelessWidget {
-  const ProfilPage({super.key});
+  final String nama;
+  final String nik;
 
+  const ProfilPage({
+    super.key,
+    required this.nama,
+    required this.nik,
+  });
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -21,11 +27,21 @@ class ProfilPage extends StatelessWidget {
               backgroundColor: Color(0xffd8ead8),
               child: Icon(Icons.person, size: 55, color: Colors.green),
             ),
-            const SizedBox(height: 12),
-            const Text(
-              "Budi Santoso",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+            Text(
+  nama,
+  style: const TextStyle(
+    fontSize: 22,
+    fontWeight: FontWeight.bold,
+  ),
+),
+const SizedBox(height: 6),
+
+Text(
+  "NIK : $nik",
+  style: const TextStyle(
+    color: Colors.grey,
+  ),
+),
             const Chip(label: Text("Anggota")),
             const SizedBox(height: 25),
 

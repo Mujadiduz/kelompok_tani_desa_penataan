@@ -1,9 +1,73 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
-class AlatKonfirmasiPage extends StatelessWidget {
+class AlatKonfirmasiPage extends StatefulWidget {
   final String namaAlat;
+  final String nama;
+  final String nik;
+  final String tanggalPinjam;
+  final String tanggalKembali;
+  final String catatan;
 
-  const AlatKonfirmasiPage({super.key, required this.namaAlat});
+  const AlatKonfirmasiPage({
+    super.key,
+    required this.namaAlat,
+    required this.nama,
+    required this.nik,
+    required this.tanggalPinjam,
+    required this.tanggalKembali,
+    required this.catatan,
+  });
+
+  @override
+  State<AlatKonfirmasiPage> createState() => _AlatKonfirmasiPageState();
+}
+
+class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
+  bool isLoading = false;
+
+  final DatabaseReference peminjamanRef = FirebaseDatabase.instanceFor(
+    app: Firebase.app(),
+    databaseURL:
+        "https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app",
+  ).ref("peminjaman_alat");
+
+  Future<void> ajukanPeminjaman() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      await peminjamanRef.push().set({
+        "nama": widget.nama,
+        "nik": widget.nik,
+        "alat": widget.namaAlat,
+        "tanggal_pinjam": widget.tanggalPinjam,
+        "tanggal_kembali": widget.tanggalKembali,
+        "catatan": widget.catatan,
+        "status": "menunggu",
+        "tanggal_pengajuan": DateTime.now().toString(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Pengajuan peminjaman berhasil dikirim")),
+      );
+
+      Navigator.pop(context);
+      Navigator.pop(context);
+      Navigator.pop(context);
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Gagal mengirim peminjaman: $e")));
+    }
+
+    setState(() {
+      isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +78,7 @@ class AlatKonfirmasiPage extends StatelessWidget {
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -26,7 +90,9 @@ class AlatKonfirmasiPage extends StatelessWidget {
               "Ringkasan Peminjaman",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
+
             const SizedBox(height: 6),
+
             const Text(
               "Periksa kembali data sebelum diajukan.",
               style: TextStyle(color: Colors.grey),
@@ -35,6 +101,7 @@ class AlatKonfirmasiPage extends StatelessWidget {
             const SizedBox(height: 20),
 
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: cardStyle(),
               child: Column(
@@ -50,7 +117,7 @@ class AlatKonfirmasiPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    namaAlat,
+                    widget.namaAlat,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -66,10 +133,11 @@ class AlatKonfirmasiPage extends StatelessWidget {
 
             const SizedBox(height: 18),
 
-            detailItem("Nama Peminjam", "Petani Desa Penataan"),
-            detailItem("Tanggal Pinjam", "Tanggal terpilih"),
-            detailItem("Tanggal Kembali", "Diisi oleh pengguna"),
-            detailItem("Catatan", "Keperluan pengolahan lahan"),
+            detailItem("Nama Peminjam", widget.nama),
+            detailItem("NIK", widget.nik),
+            detailItem("Tanggal Pinjam", widget.tanggalPinjam),
+            detailItem("Tanggal Kembali", widget.tanggalKembali),
+            detailItem("Catatan", widget.catatan),
 
             const SizedBox(height: 25),
 
@@ -83,16 +151,10 @@ class AlatKonfirmasiPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Pengajuan peminjaman berhasil dikirim"),
-                    ),
-                  );
-                },
-                child: const Text(
-                  "Ajukan Peminjaman",
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                onPressed: isLoading ? null : ajukanPeminjaman,
+                child: Text(
+                  isLoading ? "Mengirim..." : "Ajukan Peminjaman",
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ),
             ),
@@ -163,7 +225,10 @@ class AlatKonfirmasiPage extends StatelessWidget {
           Expanded(
             child: Text(title, style: const TextStyle(color: Colors.grey)),
           ),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            value.isEmpty ? "-" : value,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
@@ -175,7 +240,7 @@ class AlatKonfirmasiPage extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.06),
+          color: Colors.black.withOpacity(0.06),
           blurRadius: 10,
           offset: const Offset(0, 5),
         ),
