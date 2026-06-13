@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/material.dart';
 
 class VerifikasiPeminjamanPage extends StatefulWidget {
   const VerifikasiPeminjamanPage({super.key});
@@ -11,170 +11,600 @@ class VerifikasiPeminjamanPage extends StatefulWidget {
 }
 
 class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
+  static const Color primaryGreen = Color(0xff2E7D32);
+  static const Color darkGreen = Color(0xff1B5E20);
+  static const Color lightGreen = Color(0xffE8F5E9);
+  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color textDark = Color(0xff1F2937);
+  static const Color textGrey = Color(0xff6B7280);
+
+  String selectedFilter = 'semua';
+
   final DatabaseReference peminjamanRef = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
-        "https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app",
-  ).ref("peminjaman_alat");
+        'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
+  ).ref('peminjaman_alat');
 
   Future<void> updateStatus(String id, String status) async {
-    await peminjamanRef.child(id).update({"status": status});
+    await peminjamanRef.child(id).update({'status': status});
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text("Peminjaman berhasil $status")));
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Peminjaman berhasil $status'),
+        backgroundColor: status == 'disetujui' ? primaryGreen : Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> tampilkanKonfirmasi({
+    required String id,
+    required String status,
+    required String nama,
+  }) async {
+    final bool? hasil = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final isSetuju = status == 'disetujui';
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          title: Text(
+            isSetuju ? 'Setujui Peminjaman?' : 'Tolak Peminjaman?',
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: textDark,
+            ),
+          ),
+          content: Text(
+            isSetuju
+                ? 'Pengajuan peminjaman alat dari $nama akan disetujui.'
+                : 'Pengajuan peminjaman alat dari $nama akan ditolak.',
+            style: const TextStyle(color: textGrey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isSetuju ? primaryGreen : Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(isSetuju ? 'Setujui' : 'Tolak'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (hasil == true) {
+      await updateStatus(id, status);
+    }
   }
 
   Color warnaStatus(String status) {
-    if (status == "disetujui") return Colors.green;
-    if (status == "ditolak") return Colors.red;
-    return Colors.orange;
+    if (status == 'disetujui') return primaryGreen;
+    if (status == 'ditolak') return Colors.red;
+    return const Color(0xffFB8C00);
+  }
+
+  Color backgroundStatus(String status) {
+    if (status == 'disetujui') return const Color(0xffE8F5E9);
+    if (status == 'ditolak') return const Color(0xffFFEBEE);
+    return const Color(0xffFFF3E0);
   }
 
   IconData iconAlat(String alat) {
-    if (alat.toLowerCase().contains("sprayer")) return Icons.water_drop;
-    if (alat.toLowerCase().contains("cangkul")) return Icons.build;
-    return Icons.agriculture;
+    final namaAlat = alat.toLowerCase();
+
+    if (namaAlat.contains('sprayer')) return Icons.water_drop_rounded;
+    if (namaAlat.contains('cangkul')) return Icons.construction_rounded;
+    if (namaAlat.contains('traktor')) return Icons.agriculture_rounded;
+
+    return Icons.handyman_rounded;
+  }
+
+  List<MapEntry<String, dynamic>> filterData(
+    List<MapEntry<String, dynamic>> data,
+  ) {
+    if (selectedFilter == 'semua') return data;
+
+    return data.where((entry) {
+      final item = Map<dynamic, dynamic>.from(entry.value as Map);
+      final status = (item['status'] ?? 'menunggu').toString().toLowerCase();
+      return status == selectedFilter;
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xfff4fbf4),
-      appBar: AppBar(
-        title: const Text("Verifikasi Peminjaman Alat"),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
+      backgroundColor: backgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _headerPage(),
+            _filterStatus(),
+            Expanded(
+              child: StreamBuilder<DatabaseEvent>(
+                stream: peminjamanRef.onValue,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return _messageState(
+                      icon: Icons.error_outline_rounded,
+                      title: 'Terjadi Kesalahan',
+                      message: snapshot.error.toString(),
+                    );
+                  }
+
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: primaryGreen),
+                    );
+                  }
+
+                  if (!snapshot.hasData ||
+                      snapshot.data!.snapshot.value == null) {
+                    return _messageState(
+                      icon: Icons.inventory_2_outlined,
+                      title: 'Belum Ada Pengajuan',
+                      message: 'Data peminjaman alat belum tersedia.',
+                    );
+                  }
+
+                  final rawData = snapshot.data!.snapshot.value;
+
+                  if (rawData is! Map) {
+                    return _messageState(
+                      icon: Icons.warning_amber_rounded,
+                      title: 'Format Data Tidak Sesuai',
+                      message: 'Periksa kembali struktur data Firebase.',
+                    );
+                  }
+
+                  final data = Map<String, dynamic>.from(rawData);
+                  final semuaData = data.entries.toList().reversed.toList();
+                  final peminjamanList = filterData(semuaData);
+
+                  if (peminjamanList.isEmpty) {
+                    return _messageState(
+                      icon: Icons.search_off_rounded,
+                      title: 'Data Tidak Ditemukan',
+                      message: 'Tidak ada peminjaman dengan status ini.',
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+                    itemCount: peminjamanList.length,
+                    itemBuilder: (context, index) {
+                      final id = peminjamanList[index].key.toString();
+                      final item = Map<dynamic, dynamic>.from(
+                        peminjamanList[index].value as Map,
+                      );
+
+                      return _peminjamanCard(id, item);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
-      body: StreamBuilder<DatabaseEvent>(
-        stream: peminjamanRef.onValue,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
-          }
+    );
+  }
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
-            return const Center(
-              child: Text("Belum ada pengajuan peminjaman alat"),
-            );
-          }
-
-          final rawData = snapshot.data!.snapshot.value;
-
-          if (rawData is! Map) {
-            return const Center(
-              child: Text("Format data Firebase tidak sesuai"),
-            );
-          }
-
-          final data = Map<String, dynamic>.from(rawData);
-          final peminjamanList = data.entries.toList();
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: peminjamanList.length,
-            itemBuilder: (context, index) {
-              final id = peminjamanList[index].key.toString();
-
-              final item = Map<String, dynamic>.from(
-                peminjamanList[index].value as Map,
-              );
-
-              final status =
-                  (item["status"] ?? "menunggu").toString().toLowerCase();
-
-              final alat = item["alat"] ?? "-";
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.orange.withOpacity(0.15),
-                        child: Icon(iconAlat(alat), color: Colors.orange),
+  Widget _headerPage() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [darkGreen, primaryGreen],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withValues(alpha: 0.20),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -20,
+            bottom: -36,
+            child: Icon(
+              Icons.agriculture_rounded,
+              size: 135,
+              color: Colors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _backButton(),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Verifikasi Peminjaman',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
                       ),
-
-                      const SizedBox(width: 12),
-
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item["nama"] ?? "-",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text("NIK: ${item["nik"] ?? "-"}"),
-                            Text("Alat: $alat"),
-                            Text("Pinjam: ${item["tanggal_pinjam"] ?? "-"}"),
-                            Text("Kembali: ${item["tanggal_kembali"] ?? "-"}"),
-                            Text("Catatan: ${item["catatan"] ?? "-"}"),
-
-                            const SizedBox(height: 8),
-
-                            Text(
-                              "Status: $status",
-                              style: TextStyle(
-                                color: warnaStatus(status),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-
-                            const SizedBox(height: 10),
-
-                            if (status == "menunggu")
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                      ),
-                                      onPressed: () {
-                                        updateStatus(id, "disetujui");
-                                      },
-                                      child: const Text(
-                                        "Setujui",
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                      ),
-                                      onPressed: () {
-                                        updateStatus(id, "ditolak");
-                                      },
-                                      child: const Text(
-                                        "Tolak",
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Kelola pengajuan peminjaman alat pertanian dari anggota kelompok tani.',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  height: 1.4,
                 ),
-              );
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _backButton() {
+    return InkWell(
+      onTap: () => Navigator.pop(context),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 42,
+        width: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _filterStatus() {
+    final filters = [
+      _FilterItem(label: 'Semua', value: 'semua'),
+      _FilterItem(label: 'Menunggu', value: 'menunggu'),
+      _FilterItem(label: 'Disetujui', value: 'disetujui'),
+      _FilterItem(label: 'Ditolak', value: 'ditolak'),
+    ];
+
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        scrollDirection: Axis.horizontal,
+        itemCount: filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final item = filters[index];
+          final isActive = selectedFilter == item.value;
+
+          return ChoiceChip(
+            label: Text(item.label),
+            selected: isActive,
+            showCheckmark: false,
+            backgroundColor: Colors.white,
+            selectedColor: primaryGreen,
+            labelStyle: TextStyle(
+              color: isActive ? Colors.white : textGrey,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+            side: BorderSide(
+              color: isActive ? primaryGreen : const Color(0xffE5E7EB),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+            ),
+            onSelected: (_) {
+              setState(() {
+                selectedFilter = item.value;
+              });
             },
           );
         },
       ),
     );
   }
+
+  Widget _peminjamanCard(String id, Map<dynamic, dynamic> item) {
+    final nama = (item['nama'] ?? '-').toString();
+    final nik = (item['nik'] ?? '-').toString();
+    final alat = (item['alat'] ?? '-').toString();
+    final tanggalPinjam = (item['tanggal_pinjam'] ?? '-').toString();
+    final tanggalKembali = (item['tanggal_kembali'] ?? '-').toString();
+    final catatan = (item['catatan'] ?? '-').toString();
+    final status = (item['status'] ?? 'menunggu').toString().toLowerCase();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                height: 52,
+                width: 52,
+                decoration: BoxDecoration(
+                  color: lightGreen,
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: Icon(iconAlat(alat), color: primaryGreen, size: 28),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      alat,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textDark,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      nama,
+                      style: const TextStyle(
+                        color: textGrey,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _statusBadge(status),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _infoBox(
+            children: [
+              _infoRow(Icons.badge_outlined, 'NIK', nik),
+              _infoRow(
+                Icons.calendar_today_rounded,
+                'Tanggal Pinjam',
+                tanggalPinjam,
+              ),
+              _infoRow(
+                Icons.event_available_rounded,
+                'Tanggal Kembali',
+                tanggalKembali,
+              ),
+              _infoRow(Icons.notes_rounded, 'Catatan', catatan),
+            ],
+          ),
+          if (status == 'menunggu') ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _actionButton(
+                    title: 'Tolak',
+                    icon: Icons.close_rounded,
+                    color: Colors.red,
+                    onPressed: () {
+                      tampilkanKonfirmasi(
+                        id: id,
+                        status: 'ditolak',
+                        nama: nama,
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _actionButton(
+                    title: 'Setujui',
+                    icon: Icons.check_rounded,
+                    color: primaryGreen,
+                    onPressed: () {
+                      tampilkanKonfirmasi(
+                        id: id,
+                        status: 'disetujui',
+                        nama: nama,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _statusBadge(String status) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundStatus(status),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Text(
+        status.toUpperCase(),
+        style: TextStyle(
+          color: warnaStatus(status),
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _infoBox({required List<Widget> children}) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: const Color(0xffF9FAFB),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xffE5E7EB)),
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: primaryGreen, size: 17),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 105,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: textGrey,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: textDark,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      ),
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+      ),
+    );
+  }
+
+  Widget _messageState({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              height: 86,
+              width: 86,
+              decoration: BoxDecoration(
+                color: lightGreen,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: primaryGreen, size: 42),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: textDark,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: textGrey,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: const Color(0xffE5E7EB)),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.045),
+          blurRadius: 14,
+          offset: const Offset(0, 7),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterItem {
+  final String label;
+  final String value;
+
+  const _FilterItem({required this.label, required this.value});
 }

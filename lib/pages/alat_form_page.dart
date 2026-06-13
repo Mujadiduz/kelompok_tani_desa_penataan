@@ -1,16 +1,18 @@
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'alat_konfirmasi_page.dart';
 
 class AlatFormPage extends StatefulWidget {
   final String namaAlat;
   final String tanggalDipilih;
+  final String nama;
+  final String nik;
 
   const AlatFormPage({
     super.key,
     required this.namaAlat,
     required this.tanggalDipilih,
+    required this.nama,
+    required this.nik,
   });
 
   @override
@@ -18,75 +20,38 @@ class AlatFormPage extends StatefulWidget {
 }
 
 class _AlatFormPageState extends State<AlatFormPage> {
-  final nikController = TextEditingController();
   final tanggalKembaliController = TextEditingController();
   final catatanController = TextEditingController();
 
-  String nama = "";
-  bool isLoading = false;
-  bool dataDitemukan = false;
+  @override
+  void dispose() {
+    tanggalKembaliController.dispose();
+    catatanController.dispose();
+    super.dispose();
+  }
 
-  final DatabaseReference anggotaRef = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL:
-        "https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app",
-  ).ref("anggota");
-
-  Future<void> cekDataAnggota() async {
-    setState(() {
-      isLoading = true;
-      dataDitemukan = false;
-    });
-
-    try {
-      final snapshot = await anggotaRef.get().timeout(
-        const Duration(seconds: 10),
+  void lanjutKonfirmasi() {
+    if (tanggalKembaliController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Tanggal kembali wajib diisi")),
       );
-
-      if (snapshot.exists && snapshot.value != null) {
-        final data = Map<String, dynamic>.from(snapshot.value as Map);
-
-        Map<String, dynamic>? anggotaDitemukan;
-
-        data.forEach((key, value) {
-          final anggota = Map<String, dynamic>.from(value as Map);
-
-          if ((anggota["nik"] ?? "").toString().trim() ==
-              nikController.text.trim()) {
-            anggotaDitemukan = anggota;
-          }
-        });
-
-        if (anggotaDitemukan != null) {
-          setState(() {
-            nama = anggotaDitemukan!["nama"] ?? "";
-            dataDitemukan = true;
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Data anggota ditemukan")),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("NIK tidak ditemukan di data anggota"),
-            ),
-          );
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Data anggota masih kosong")),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Gagal mengecek data: $e")));
+      return;
     }
 
-    setState(() {
-      isLoading = false;
-    });
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => AlatKonfirmasiPage(
+              namaAlat: widget.namaAlat,
+              nama: widget.nama,
+              nik: widget.nik,
+              tanggalPinjam: widget.tanggalDipilih,
+              tanggalKembali: tanggalKembaliController.text.trim(),
+              catatan: catatanController.text.trim(),
+            ),
+      ),
+    );
   }
 
   @override
@@ -105,19 +70,15 @@ class _AlatFormPageState extends State<AlatFormPage> {
           children: [
             stepIndicator(),
             const SizedBox(height: 25),
-
             const Text(
               "Isi Data Peminjaman",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-
             const SizedBox(height: 6),
-
             const Text(
-              "Masukkan NIK anggota yang sudah disetujui admin.",
+              "Data peminjam otomatis sesuai akun yang sedang login.",
               style: TextStyle(color: Colors.grey),
             ),
-
             const SizedBox(height: 20),
 
             infoCard(Icons.agriculture, "Alat Dipilih", widget.namaAlat),
@@ -130,52 +91,23 @@ class _AlatFormPageState extends State<AlatFormPage> {
 
             const SizedBox(height: 18),
 
-            TextField(
-              controller: nikController,
-              keyboardType: TextInputType.number,
-              decoration: inputDecoration("Masukkan NIK", Icons.badge),
-            ),
-
-            const SizedBox(height: 12),
-
-            SizedBox(
+            Container(
               width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+              padding: const EdgeInsets.all(16),
+              decoration: cardStyle(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Data Anggota",
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                ),
-                onPressed: isLoading ? null : cekDataAnggota,
-                child: Text(
-                  isLoading ? "Mengecek..." : "Cek Data Anggota",
-                  style: const TextStyle(color: Colors.white),
-                ),
+                  const SizedBox(height: 8),
+                  Text("Nama: ${widget.nama}"),
+                  Text("NIK: ${widget.nik}"),
+                ],
               ),
             ),
-
-            const SizedBox(height: 16),
-
-            if (dataDitemukan)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: cardStyle(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Data Anggota",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text("Nama: $nama"),
-                    Text("NIK: ${nikController.text}"),
-                  ],
-                ),
-              ),
 
             const SizedBox(height: 16),
 
@@ -207,26 +139,7 @@ class _AlatFormPageState extends State<AlatFormPage> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                onPressed:
-                    !dataDitemukan
-                        ? null
-                        : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (_) => AlatKonfirmasiPage(
-                                    namaAlat: widget.namaAlat,
-                                    nama: nama,
-                                    nik: nikController.text,
-                                    tanggalPinjam: widget.tanggalDipilih,
-                                    tanggalKembali:
-                                        tanggalKembaliController.text,
-                                    catatan: catatanController.text,
-                                  ),
-                            ),
-                          );
-                        },
+                onPressed: lanjutKonfirmasi,
                 child: const Text(
                   "Lanjut",
                   style: TextStyle(color: Colors.white, fontSize: 16),
@@ -314,7 +227,7 @@ class _AlatFormPageState extends State<AlatFormPage> {
       ),
     );
   }
-  
+
   InputDecoration inputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
