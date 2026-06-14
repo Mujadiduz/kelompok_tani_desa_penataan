@@ -39,8 +39,8 @@ class _RiwayatPageState extends State<RiwayatPage> {
   List<Map<String, dynamic>> ambilDataUser(dynamic value) {
     if (value == null || value is! Map) return [];
 
-    final nik = widget.nik.trim();
     final data = Map<dynamic, dynamic>.from(value);
+    final nik = widget.nik.trim();
 
     return data.values
         .whereType<Map>()
@@ -75,9 +75,9 @@ class _RiwayatPageState extends State<RiwayatPage> {
   }
 
   String teksStatus(String status) {
-    if (status == 'disetujui') return 'Disetujui';
-    if (status == 'ditolak') return 'Ditolak';
-    return 'Menunggu';
+    if (status == 'disetujui') return 'Disetujui Admin';
+    if (status == 'ditolak') return 'Ditolak Admin';
+    return 'Menunggu Verifikasi';
   }
 
   IconData iconAlat(String alat) {
@@ -128,6 +128,12 @@ class _RiwayatPageState extends State<RiwayatPage> {
                           menunggu: totalMenunggu,
                           ditolak: totalDitolak,
                         ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
+                        child: _infoBox(),
                       ),
                     ),
                     SliverToBoxAdapter(
@@ -224,7 +230,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
               ),
               const SizedBox(height: 22),
               const Text(
-                'Aktivitas Kelompok Tani',
+                'Aktivitas Pengajuan',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,
@@ -233,7 +239,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Lihat semua riwayat bantuan pupuk dan peminjaman alat pertanian.',
+                'Pantau status bantuan pupuk dan peminjaman alat pertanian.',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 13,
@@ -275,9 +281,9 @@ class _RiwayatPageState extends State<RiwayatPage> {
           children: [
             Expanded(
               child: _summaryCard(
-                title: 'Total',
+                title: 'Total Pengajuan',
                 value: total.toString(),
-                subtitle: 'Pengajuan',
+                subtitle: 'Semua pupuk dan alat',
                 icon: Icons.assignment_rounded,
                 color: primaryGreen,
               ),
@@ -285,9 +291,9 @@ class _RiwayatPageState extends State<RiwayatPage> {
             const SizedBox(width: 12),
             Expanded(
               child: _summaryCard(
-                title: 'Disetujui',
+                title: 'Disetujui Admin',
                 value: disetujui.toString(),
-                subtitle: 'Berhasil',
+                subtitle: 'Sudah diterima',
                 icon: Icons.check_circle_rounded,
                 color: primaryGreen,
               ),
@@ -299,9 +305,9 @@ class _RiwayatPageState extends State<RiwayatPage> {
           children: [
             Expanded(
               child: _summaryCard(
-                title: 'Menunggu',
+                title: 'Menunggu Verifikasi',
                 value: menunggu.toString(),
-                subtitle: 'Diproses',
+                subtitle: 'Belum dicek admin',
                 icon: Icons.hourglass_top_rounded,
                 color: orangeStatus,
               ),
@@ -309,7 +315,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
             const SizedBox(width: 12),
             Expanded(
               child: _summaryCard(
-                title: 'Ditolak',
+                title: 'Ditolak Admin',
                 value: ditolak.toString(),
                 subtitle: 'Tidak disetujui',
                 icon: Icons.cancel_rounded,
@@ -330,7 +336,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
     required Color color,
   }) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 126),
+      constraints: const BoxConstraints(minHeight: 132),
       padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(),
       child: Column(
@@ -357,6 +363,8 @@ class _RiwayatPageState extends State<RiwayatPage> {
           const SizedBox(height: 2),
           Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: textDark,
               fontSize: 13,
@@ -366,10 +374,43 @@ class _RiwayatPageState extends State<RiwayatPage> {
           const SizedBox(height: 2),
           Text(
             subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: textGrey,
               fontSize: 11,
+              height: 1.3,
               fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoBox() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: const Color(0xffECFDF5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 22),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Status riwayat berlaku untuk semua pengajuan, baik bantuan pupuk maupun peminjaman alat. Detail jenis pengajuan dapat dilihat pada daftar di bawah.',
+              style: TextStyle(
+                color: textGrey,
+                fontSize: 12.5,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -395,12 +436,12 @@ class _RiwayatPageState extends State<RiwayatPage> {
               icon: Icons.grass_rounded,
               iconColor: primaryGreen,
               title: (item['jenis_pupuk'] ?? '-').toString(),
-              subtitle: 'Bantuan Pupuk',
+              subtitle: 'Jenis Pengajuan: Bantuan Pupuk',
               details: [
                 _DetailItem(
                   icon: Icons.scale_rounded,
                   label: 'Jumlah',
-                  value: '${item['jumlah_pupuk'] ?? '-'} Kg',
+                  value: '${item['jumlah_pupuk'] ?? item['jumlah'] ?? '-'} Kg',
                 ),
                 _DetailItem(
                   icon: Icons.inventory_2_rounded,
@@ -410,7 +451,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
                 _DetailItem(
                   icon: Icons.notes_rounded,
                   label: 'Catatan',
-                  value: '${item['catatan'] ?? '-'}',
+                  value: '${item['catatan'] ?? item['keterangan'] ?? '-'}',
                 ),
               ],
               status: status,
@@ -432,13 +473,14 @@ class _RiwayatPageState extends State<RiwayatPage> {
           list.map((item) {
             final status =
                 (item['status'] ?? 'menunggu').toString().toLowerCase();
-            final alat = (item['alat'] ?? '-').toString();
+
+            final alat = (item['alat'] ?? item['nama_alat'] ?? '-').toString();
 
             return _riwayatCard(
               icon: iconAlat(alat),
               iconColor: const Color(0xff2F855A),
               title: alat,
-              subtitle: 'Peminjaman Alat',
+              subtitle: 'Jenis Pengajuan: Peminjaman Alat',
               details: [
                 _DetailItem(
                   icon: Icons.calendar_today_rounded,
@@ -573,16 +615,21 @@ class _RiwayatPageState extends State<RiwayatPage> {
 
   Widget _statusBadge(String status) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      constraints: const BoxConstraints(maxWidth: 92),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: backgroundStatus(status),
         borderRadius: BorderRadius.circular(30),
       ),
       child: Text(
-        teksStatus(status).toUpperCase(),
+        teksStatus(status),
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: warnaStatus(status),
-          fontSize: 10,
+          fontSize: 9.5,
+          height: 1.1,
           fontWeight: FontWeight.w900,
         ),
       ),

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -12,53 +10,37 @@ class StatusKeanggotaanPage extends StatefulWidget {
 }
 
 class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
+  static const Color primaryGreen = Color(0xff2E7D32);
+  static const Color darkGreen = Color(0xff1B5E20);
+  static const Color lightGreen = Color(0xffE8F5E9);
+  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color textDark = Color(0xff1F2937);
+  static const Color textGrey = Color(0xff6B7280);
+  static const Color orangeStatus = Color(0xffFB8C00);
+
   final nikController = TextEditingController();
 
   bool isLoading = false;
   Map<String, dynamic>? dataAnggota;
 
-  String runningText = "";
-  int textIndex = 0;
-  Timer? timer;
-
-  final String fullText = "Masukkan NIK untuk melihat status pendaftaran";
-
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
-        "https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app",
+        'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
-
-  @override
-  void initState() {
-    super.initState();
-    mulaiEfekKetik();
-  }
-
-  void mulaiEfekKetik() {
-    timer = Timer.periodic(const Duration(milliseconds: 70), (timer) {
-      if (textIndex < fullText.length) {
-        setState(() {
-          runningText += fullText[textIndex];
-          textIndex++;
-        });
-      } else {
-        timer.cancel();
-      }
-    });
-  }
 
   Future<void> cekStatus() async {
     final nikInput = nikController.text.replaceAll(RegExp(r'[^0-9]'), '');
 
     if (nikInput.isEmpty) {
-      tampilPesan("NIK wajib diisi");
+      _showSnackBar('NIK wajib diisi', Colors.red);
       return;
     }
 
     if (nikInput.length != 16) {
-      tampilPesan(
-        "NIK harus 16 digit. Saat ini terbaca ${nikInput.length} digit.",
+      _showSnackBar(
+        'NIK harus 16 digit. Saat ini terbaca ${nikInput.length} digit.',
+        Colors.red,
       );
       return;
     }
@@ -69,8 +51,8 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     });
 
     try {
-      final calonRef = db.ref("calon_anggota");
-      final anggotaRef = db.ref("anggota");
+      final calonRef = db.ref('calon_anggota');
+      final anggotaRef = db.ref('anggota');
 
       Map<String, dynamic>? hasil;
 
@@ -79,19 +61,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
       );
 
       if (calonSnapshot.exists && calonSnapshot.value != null) {
-        final data = Map<String, dynamic>.from(calonSnapshot.value as Map);
-
-        data.forEach((key, value) {
-          final anggota = Map<String, dynamic>.from(value as Map);
-          final nikData = (anggota["nik"] ?? "").toString().replaceAll(
-            RegExp(r'[^0-9]'),
-            '',
-          );
-
-          if (nikData == nikInput) {
-            hasil = anggota;
-          }
-        });
+        hasil = cariDataByNik(calonSnapshot.value, nikInput);
       }
 
       if (hasil == null) {
@@ -100,19 +70,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
         );
 
         if (anggotaSnapshot.exists && anggotaSnapshot.value != null) {
-          final data = Map<String, dynamic>.from(anggotaSnapshot.value as Map);
-
-          data.forEach((key, value) {
-            final anggota = Map<String, dynamic>.from(value as Map);
-            final nikData = (anggota["nik"] ?? "").toString().replaceAll(
-              RegExp(r'[^0-9]'),
-              '',
-            );
-
-            if (nikData == nikInput) {
-              hasil = anggota;
-            }
-          });
+          hasil = cariDataByNik(anggotaSnapshot.value, nikInput);
         }
       }
 
@@ -123,11 +81,11 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
           dataAnggota = hasil;
         });
       } else {
-        tampilPesan("Data anggota tidak ditemukan");
+        _showSnackBar('Data anggota tidak ditemukan', Colors.red);
       }
     } catch (e) {
       if (!mounted) return;
-      tampilPesan("Gagal cek status: $e");
+      _showSnackBar('Gagal cek status: $e', Colors.red);
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -135,34 +93,77 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     }
   }
 
-  void tampilPesan(String pesan) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(pesan)));
+  Map<String, dynamic>? cariDataByNik(dynamic value, String nikInput) {
+    if (value == null || value is! Map) return null;
+
+    final data = Map<dynamic, dynamic>.from(value);
+
+    for (final item in data.values) {
+      if (item is Map) {
+        final anggota = Map<String, dynamic>.from(item);
+        final nikData = (anggota['nik'] ?? '').toString().replaceAll(
+          RegExp(r'[^0-9]'),
+          '',
+        );
+
+        if (nikData == nikInput) {
+          return anggota;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  void _showSnackBar(String pesan, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(pesan),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Color warnaStatus(String status) {
-    if (status == "aktif") return Colors.green;
-    if (status == "disetujui") return Colors.green;
-    if (status == "ditolak") return Colors.red;
-    return Colors.orange;
+    if (status == 'aktif') return primaryGreen;
+    if (status == 'disetujui') return primaryGreen;
+    if (status == 'ditolak') return Colors.red;
+    return orangeStatus;
+  }
+
+  Color backgroundStatus(String status) {
+    if (status == 'aktif' || status == 'disetujui') return lightGreen;
+    if (status == 'ditolak') return const Color(0xffFFEBEE);
+    return const Color(0xffFFF3E0);
+  }
+
+  IconData iconStatus(String status) {
+    if (status == 'aktif' || status == 'disetujui') {
+      return Icons.check_circle_rounded;
+    }
+
+    if (status == 'ditolak') return Icons.cancel_rounded;
+
+    return Icons.hourglass_top_rounded;
   }
 
   String teksStatus(String status) {
-    if (status == "aktif") return "Disetujui / Aktif";
-    if (status == "disetujui") return "Disetujui";
-    if (status == "ditolak") return "Ditolak";
-    return "Menunggu Verifikasi";
+    if (status == 'aktif') return 'Disetujui / Aktif';
+    if (status == 'disetujui') return 'Disetujui';
+    if (status == 'ditolak') return 'Ditolak';
+    return 'Menunggu Verifikasi';
   }
 
   String ambilLuasSawah() {
-    return (dataAnggota?["luas_sawah"] ??
-            dataAnggota?["jumlah_petak_sawah"] ??
-            "-")
+    return (dataAnggota?['luas_sawah'] ??
+            dataAnggota?['jumlah_petak_sawah'] ??
+            '-')
         .toString();
   }
 
   @override
   void dispose() {
-    timer?.cancel();
     nikController.dispose();
     super.dispose();
   }
@@ -170,139 +171,178 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   @override
   Widget build(BuildContext context) {
     final status =
-        (dataAnggota?["status"] ?? "menunggu").toString().toLowerCase();
+        (dataAnggota?['status'] ?? 'menunggu').toString().toLowerCase();
 
     return Scaffold(
-      backgroundColor: const Color(0xffeef8ef),
-      appBar: AppBar(
-        elevation: 0,
-        title: const Text("Status Keanggotaan"),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            header(),
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                children: [
-                  inputCard(),
-                  const SizedBox(height: 18),
-                  if (dataAnggota != null) hasilCard(status),
-                ],
-              ),
-            ),
-          ],
+      backgroundColor: backgroundColor,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+          child: Column(
+            children: [
+              _header(context),
+              const SizedBox(height: 22),
+              _inputCard(),
+              const SizedBox(height: 18),
+              if (dataAnggota != null) _hasilCard(status),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget header() {
+  Widget _header(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 26),
-      decoration: const BoxDecoration(
-        color: Colors.green,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [darkGreen, primaryGreen, Color(0xff43A047)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: const Icon(Icons.fact_check, color: Colors.white, size: 34),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withValues(alpha: 0.22),
+            blurRadius: 18,
+            offset: const Offset(0, 9),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Cek Status",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 21,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  runningText,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    height: 1.3,
-                  ),
-                ),
-              ],
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -24,
+            bottom: -36,
+            child: Icon(
+              Icons.fact_check_rounded,
+              size: 145,
+              color: Colors.white.withValues(alpha: 0.08),
             ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _backButton(context),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Status Keanggotaan',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              const Text(
+                'Cek Status',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Masukkan NIK untuk melihat status pendaftaran anggota kelompok tani.',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  height: 1.45,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget inputCard() {
+  Widget _backButton(BuildContext context) {
+    return InkWell(
+      onTap: () => Navigator.pop(context),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 42,
+        width: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _inputCard() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: cardStyle(),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            "Nomor Induk Kependudukan",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            'Nomor Induk Kependudukan',
+            style: TextStyle(
+              color: textDark,
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
+            ),
           ),
           const SizedBox(height: 6),
           const Text(
-            "Masukkan NIK yang digunakan saat pendaftaran.",
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            'Masukkan NIK yang digunakan saat pendaftaran.',
+            style: TextStyle(color: textGrey, fontSize: 13, height: 1.4),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           TextField(
             controller: nikController,
             keyboardType: TextInputType.number,
-            decoration: inputDecoration("Masukkan NIK", Icons.badge),
+            decoration: _inputDecoration(
+              label: 'Masukkan NIK',
+              icon: Icons.badge_rounded,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 54,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: primaryGreen,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: primaryGreen.withValues(alpha: 0.65),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(18),
                 ),
               ),
               onPressed: isLoading ? null : cekStatus,
               icon:
                   isLoading
                       ? const SizedBox(
-                        width: 18,
-                        height: 18,
+                        width: 19,
+                        height: 19,
                         child: CircularProgressIndicator(
-                          strokeWidth: 2,
+                          strokeWidth: 2.3,
                           color: Colors.white,
                         ),
                       )
-                      : const Icon(Icons.search, color: Colors.white),
+                      : const Icon(Icons.search_rounded),
               label: Text(
-                isLoading ? "Mengecek..." : "Cek Status",
+                isLoading ? 'Mengecek...' : 'Cek Status',
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
                 ),
               ),
             ),
@@ -312,70 +352,107 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     );
   }
 
-  Widget hasilCard(String status) {
+  Widget _hasilCard(String status) {
     final color = warnaStatus(status);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: cardStyle(),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              CircleAvatar(
-                backgroundColor: color.withValues(alpha: 0.15),
-                child: Icon(Icons.person, color: color),
+              Container(
+                height: 56,
+                width: 56,
+                decoration: BoxDecoration(
+                  color: backgroundStatus(status),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Icon(iconStatus(status), color: color, size: 30),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Text(
-                  dataAnggota!["nama"] ?? "-",
+                  (dataAnggota!['nama'] ?? '-').toString(),
                   style: const TextStyle(
+                    color: textDark,
                     fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          infoText("NIK", dataAnggota!["nik"] ?? "-"),
-          infoText("Alamat", dataAnggota!["alamat"] ?? "-"),
-          infoText("Jenis Kelamin", dataAnggota!["jenis_kelamin"] ?? "-"),
-          infoText("Luas Sawah", "${ambilLuasSawah()} Ha"),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              teksStatus(status),
-              style: TextStyle(color: color, fontWeight: FontWeight.bold),
-            ),
+          const SizedBox(height: 16),
+          _infoBox(
+            children: [
+              _infoRow(Icons.badge_rounded, 'NIK', dataAnggota!['nik'] ?? '-'),
+              _infoRow(
+                Icons.home_rounded,
+                'Alamat',
+                dataAnggota!['alamat'] ?? '-',
+              ),
+              _infoRow(
+                Icons.wc_rounded,
+                'Jenis Kelamin',
+                dataAnggota!['jenis_kelamin'] ?? '-',
+              ),
+              _infoRow(
+                Icons.landscape_rounded,
+                'Luas Sawah',
+                '${ambilLuasSawah()} Ha',
+              ),
+            ],
           ),
+          const SizedBox(height: 14),
+          _statusBadge(status),
         ],
       ),
     );
   }
 
-  Widget infoText(String label, String value) {
+  Widget _infoBox({required List<Widget> children}) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: const Color(0xffF9FAFB),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xffE5E7EB)),
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, dynamic value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 7),
+      padding: const EdgeInsets.only(bottom: 9),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Icon(icon, color: primaryGreen, size: 17),
+          const SizedBox(width: 8),
           SizedBox(
-            width: 110,
-            child: Text(label, style: const TextStyle(color: Colors.grey)),
+            width: 105,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: textGrey,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-          const Text(": "),
           Expanded(
             child: Text(
-              value.toString(),
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              value.toString().isEmpty ? '-' : value.toString(),
+              style: const TextStyle(
+                color: textDark,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
@@ -383,33 +460,69 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     );
   }
 
-  InputDecoration inputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: Colors.green),
-      filled: true,
-      fillColor: const Color(0xfff8fff8),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.green.withValues(alpha: 0.18)),
+  Widget _statusBadge(String status) {
+    final color = warnaStatus(status);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: backgroundStatus(status),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Colors.green, width: 1.4),
+      child: Row(
+        children: [
+          Icon(iconStatus(status), color: color, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              teksStatus(status),
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  BoxDecoration cardStyle() {
+  InputDecoration _inputDecoration({
+    required String label,
+    required IconData icon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: textGrey),
+      prefixIcon: Icon(icon, color: primaryGreen),
+      filled: true,
+      fillColor: const Color(0xffF9FAFB),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: Color(0xffE5E7EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: primaryGreen, width: 1.5),
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: const Color(0xffE5E7EB)),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.06),
-          blurRadius: 10,
-          offset: const Offset(0, 5),
+          color: Colors.black.withValues(alpha: 0.045),
+          blurRadius: 14,
+          offset: const Offset(0, 7),
         ),
       ],
     );

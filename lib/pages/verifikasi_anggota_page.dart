@@ -59,12 +59,11 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
       await calonAnggotaRef
           .child(id)
-          .update({'status': 'disetujui'})
+          .remove()
           .timeout(const Duration(seconds: 10));
 
       if (!mounted) return;
-
-      _showSnackBar('Anggota berhasil disetujui', primaryGreen);
+      _showSnackBar('Anggota berhasil disetujui dan dipindahkan', primaryGreen);
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Gagal menyetujui anggota: $e', Colors.red);
@@ -79,7 +78,6 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
           .timeout(const Duration(seconds: 10));
 
       if (!mounted) return;
-
       _showSnackBar('Anggota berhasil ditolak', Colors.red);
     } catch (e) {
       if (!mounted) return;
@@ -418,7 +416,6 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     final filters = [
       _FilterItem(label: 'Semua', value: 'semua'),
       _FilterItem(label: 'Menunggu', value: 'menunggu'),
-      _FilterItem(label: 'Disetujui', value: 'disetujui'),
       _FilterItem(label: 'Ditolak', value: 'ditolak'),
     ];
 

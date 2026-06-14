@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -28,44 +26,11 @@ class _UserHomePageState extends State<UserHomePage> {
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffFB8C00);
 
-  String runningText = '';
-  int textIndex = 0;
-  Timer? timer;
-
-  final String fullText = 'Sistem Informasi Kelompok Tani Desa Penataan';
-
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
-
-  @override
-  void initState() {
-    super.initState();
-    mulaiEfekKetik();
-  }
-
-  void mulaiEfekKetik() {
-    timer = Timer.periodic(const Duration(milliseconds: 65), (timer) {
-      if (!mounted) return;
-
-      if (textIndex < fullText.length) {
-        setState(() {
-          runningText += fullText[textIndex];
-          textIndex++;
-        });
-      } else {
-        timer.cancel();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    timer?.cancel();
-    super.dispose();
-  }
 
   List<Map<String, dynamic>> ambilDataByNik(dynamic value, String nikUser) {
     if (value == null || value is! Map) return [];
@@ -78,7 +43,7 @@ class _UserHomePageState extends State<UserHomePage> {
             .map((e) => Map<String, dynamic>.from(e))
             .where((item) {
               final nikData = (item['nik'] ?? '').toString().trim();
-              return nikData == nikUser;
+              return nikData == nikUser.trim();
             })
             .toList();
 
@@ -242,14 +207,11 @@ class _UserHomePageState extends State<UserHomePage> {
                           ),
                         ),
                         const SizedBox(height: 3),
-                        Text(
-                          runningText,
+                        const Text(
+                          'Sistem Informasi Kelompok Tani Desa Penataan',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
+                          style: TextStyle(color: Colors.white, fontSize: 12),
                         ),
                       ],
                     ),
@@ -275,15 +237,29 @@ class _UserHomePageState extends State<UserHomePage> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        totalMenunggu == 0
-                            ? 'Tidak ada pengajuan yang menunggu'
-                            : '$totalMenunggu pengajuan sedang diproses',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            totalMenunggu == 0
+                                ? 'Tidak ada pengajuan menunggu'
+                                : '$totalMenunggu pengajuan menunggu verifikasi',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          const Text(
+                            'Bantuan pupuk dan peminjaman alat',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -371,9 +347,12 @@ class _UserHomePageState extends State<UserHomePage> {
           child: _summaryCard(
             title: 'Bantuan',
             value: bantuanTotal.toString(),
-            subtitle: 'Pengajuan pupuk',
+            subtitle: 'Lihat pupuk',
             icon: Icons.grass_rounded,
             color: primaryGreen,
+            onTap: () {
+              bukaHalaman(PupukPage(nama: widget.nama, nik: widget.nik));
+            },
           ),
         ),
         const SizedBox(width: 12),
@@ -381,9 +360,12 @@ class _UserHomePageState extends State<UserHomePage> {
           child: _summaryCard(
             title: 'Peminjaman',
             value: peminjamanTotal.toString(),
-            subtitle: 'Alat pertanian',
+            subtitle: 'Lihat alat',
             icon: Icons.agriculture_rounded,
             color: const Color(0xff2F855A),
+            onTap: () {
+              bukaHalaman(AlatPage(nama: widget.nama, nik: widget.nik));
+            },
           ),
         ),
         const SizedBox(width: 12),
@@ -391,9 +373,12 @@ class _UserHomePageState extends State<UserHomePage> {
           child: _summaryCard(
             title: 'Proses',
             value: totalMenunggu.toString(),
-            subtitle: 'Menunggu',
+            subtitle: 'Lihat riwayat',
             icon: Icons.hourglass_top_rounded,
             color: orangeStatus,
+            onTap: () {
+              bukaHalaman(RiwayatPage(nik: widget.nik));
+            },
           ),
         ),
       ],
@@ -406,47 +391,60 @@ class _UserHomePageState extends State<UserHomePage> {
     required String subtitle,
     required IconData icon,
     required Color color,
+    required VoidCallback onTap,
   }) {
-    return Container(
-      height: 126,
-      padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 38,
-            width: 38,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(13),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(22),
+      child: Container(
+        height: 132,
+        padding: const EdgeInsets.all(13),
+        decoration: _cardDecoration(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 38,
+              width: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(icon, color: color, size: 21),
             ),
-            child: Icon(icon, color: color, size: 21),
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
+            const Spacer(),
+            Text(
+              value,
+              style: const TextStyle(
+                color: textDark,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
-          Text(
-            title,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
+            Text(
+              title,
+              style: const TextStyle(
+                color: textDark,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
-          Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: textGrey, fontSize: 10),
-          ),
-        ],
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: textGrey, fontSize: 10),
+                  ),
+                ),
+                Icon(Icons.arrow_forward_rounded, size: 14, color: color),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -466,20 +464,6 @@ class _UserHomePageState extends State<UserHomePage> {
         icon: Icons.agriculture_rounded,
         color: const Color(0xffFB8C00),
         page: AlatPage(nama: widget.nama, nik: widget.nik),
-      ),
-      _HomeMenu(
-        title: 'Riwayat Pengajuan',
-        subtitle: 'Lihat semua status pengajuan',
-        icon: Icons.history_rounded,
-        color: const Color(0xff2563EB),
-        page: RiwayatPage(nik: widget.nik),
-      ),
-      _HomeMenu(
-        title: 'Profil Anggota',
-        subtitle: 'Lihat data diri anggota',
-        icon: Icons.person_rounded,
-        color: const Color(0xff16A34A),
-        page: ProfilPage(nama: widget.nama, nik: widget.nik),
       ),
     ];
 
@@ -587,7 +571,7 @@ class _UserHomePageState extends State<UserHomePage> {
               color: primaryGreen,
               title: 'Bantuan Pupuk',
               subtitle:
-                  'Jenis: ${item['jenis_pupuk'] ?? '-'} • Jumlah: ${item['jumlah_pupuk'] ?? '-'} Kg',
+                  'Jenis: ${item['jenis_pupuk'] ?? '-'} • Jumlah: ${item['jumlah_pupuk'] ?? item['jumlah'] ?? '-'} Kg',
             ),
           ),
           ...peminjamanList.map(
@@ -596,7 +580,7 @@ class _UserHomePageState extends State<UserHomePage> {
               color: orangeStatus,
               title: 'Peminjaman Alat',
               subtitle:
-                  'Alat: ${item['alat'] ?? '-'} • Pinjam: ${item['tanggal_pinjam'] ?? '-'}',
+                  'Alat: ${item['alat'] ?? item['nama_alat'] ?? '-'} • Pinjam: ${item['tanggal_pinjam'] ?? '-'}',
             ),
           ),
         ],
