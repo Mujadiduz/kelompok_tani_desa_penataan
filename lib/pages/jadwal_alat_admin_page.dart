@@ -18,16 +18,22 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffFB8C00);
   static const Color redStatus = Color(0xffE53935);
+  static const Color blueStatus = Color(0xff1976D2);
+  static const Color purpleStatus = Color(0xff7B1FA2);
 
-  String alatDipilih = '';
+  String idAlatDipilih = '';
+  String namaAlatDipilih = '';
 
   final DateTime sekarang = DateTime.now();
 
-  final DatabaseReference peminjamanRef = FirebaseDatabase.instanceFor(
+  final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
-  ).ref('peminjaman_alat');
+  );
+
+  late final DatabaseReference peminjamanRef;
+  late final DatabaseReference alatRef;
 
   final List<String> namaBulan = const [
     'Januari',
@@ -44,6 +50,13 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     'Desember',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    peminjamanRef = db.ref('peminjaman_alat');
+    alatRef = db.ref('alat_pertanian');
+  }
+
   int jumlahHariDalamBulan() {
     return DateTime(sekarang.year, sekarang.month + 1, 0).day;
   }
@@ -52,81 +65,78 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     return '${namaBulan[sekarang.month - 1]} ${sekarang.year}';
   }
 
-  String namaAlatDariData(Map<String, dynamic> item) {
-    return (item['alat'] ?? item['nama_alat'] ?? item['namaAlat'] ?? '-')
-        .toString()
-        .trim();
-  }
-
-  String normalisasi(String text) {
-    return text.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
-  }
-
-  bool alatSama(String alatFirebase) {
-    final firebase = normalisasi(alatFirebase);
-    final dipilih = normalisasi(alatDipilih);
-
-    if (firebase.isEmpty || dipilih.isEmpty) return false;
-    if (firebase == dipilih) return true;
-    if (firebase.contains(dipilih)) return true;
-    if (dipilih.contains(firebase)) return true;
-
-    final kataFirebase = firebase.split(' ');
-    final kataDipilih = dipilih.split(' ');
-
-    for (final kata in kataDipilih) {
-      if (kata.length > 2 && kataFirebase.contains(kata)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
   int ambilTanggal(dynamic tanggalText) {
     final text = tanggalText.toString();
     final angka = RegExp(r'\d+').firstMatch(text);
     return angka == null ? 0 : int.tryParse(angka.group(0)!) ?? 0;
   }
 
-  List<String> daftarAlatOtomatis(List<Map<String, dynamic>> data) {
-    final Set<String> alatSet = {};
+  List<MapEntry<String, dynamic>> ambilAlatList(dynamic value) {
+    if (value == null || value is! Map) return [];
 
-    for (final item in data) {
-      final nama = namaAlatDariData(item);
-      if (nama.isNotEmpty && nama != '-') {
-        alatSet.add(nama);
-      }
-    }
+    final data = Map<String, dynamic>.from(value);
 
-    final list = alatSet.toList();
-    list.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final list =
+        data.entries.where((entry) {
+          final alat = Map<String, dynamic>.from(entry.value as Map);
+          final status = (alat['status'] ?? 'aktif').toString().toLowerCase();
+          return status == 'aktif';
+        }).toList();
+
+    list.sort((a, b) {
+      final alatA = Map<String, dynamic>.from(a.value as Map);
+      final alatB = Map<String, dynamic>.from(b.value as Map);
+      final namaA = (alatA['nama_alat'] ?? '').toString().toLowerCase();
+      final namaB = (alatB['nama_alat'] ?? '').toString().toLowerCase();
+      return namaA.compareTo(namaB);
+    });
+
     return list;
   }
 
-  List<Map<String, dynamic>> dataUntukAlat(
-    List<Map<String, dynamic>> semuaData,
+  List<MapEntry<String, dynamic>> ambilPeminjamanList(dynamic value) {
+    if (value == null || value is! Map) return [];
+
+    final data = Map<String, dynamic>.from(value);
+    return data.entries.toList();
+  }
+
+  bool alatSama(Map<String, dynamic> item) {
+    final itemIdAlat = (item['id_alat'] ?? '').toString();
+    final itemAlat = (item['alat'] ?? '').toString().toLowerCase().trim();
+
+    if (itemIdAlat.isNotEmpty && idAlatDipilih.isNotEmpty) {
+      return itemIdAlat == idAlatDipilih;
+    }
+
+    return itemAlat == namaAlatDipilih.toLowerCase().trim();
+  }
+
+  List<MapEntry<String, dynamic>> dataUntukAlat(
+    List<MapEntry<String, dynamic>> semuaData,
   ) {
-    return semuaData.where((item) {
-      final alat = namaAlatDariData(item);
-      return alatSama(alat);
+    return semuaData.where((entry) {
+      final item = Map<String, dynamic>.from(entry.value as Map);
+      return alatSama(item);
     }).toList();
   }
 
   Map<String, dynamic>? dataPadaTanggal(
     int tanggal,
-    List<Map<String, dynamic>> dataPeminjaman,
+    List<MapEntry<String, dynamic>> dataPeminjaman,
   ) {
-    for (final item in dataPeminjaman) {
-      final alat = namaAlatDariData(item);
+    for (final entry in dataPeminjaman) {
+      final item = Map<String, dynamic>.from(entry.value as Map);
       final status = (item['status'] ?? '').toString().toLowerCase();
       final tanggalPinjam = ambilTanggal(item['tanggal_pinjam'] ?? '');
       final tanggalKembali = ambilTanggal(item['tanggal_kembali'] ?? '');
 
-      if (alatSama(alat) &&
+      if (alatSama(item) &&
           tanggal >= tanggalPinjam &&
           tanggal <= tanggalKembali &&
-          (status == 'disetujui' || status == 'menunggu')) {
+          (status == 'menunggu' ||
+              status == 'disetujui' ||
+              status == 'dipinjam')) {
         return item;
       }
     }
@@ -134,22 +144,26 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     return null;
   }
 
-  Color warnaTanggal(int tanggal, List<Map<String, dynamic>> dataPeminjaman) {
+  Color warnaTanggal(
+    int tanggal,
+    List<MapEntry<String, dynamic>> dataPeminjaman,
+  ) {
     final item = dataPadaTanggal(tanggal, dataPeminjaman);
 
     if (item == null) return primaryGreen;
 
     final status = (item['status'] ?? '').toString().toLowerCase();
 
-    if (status == 'disetujui') return redStatus;
     if (status == 'menunggu') return orangeStatus;
+    if (status == 'disetujui') return blueStatus;
+    if (status == 'dipinjam') return redStatus;
 
     return primaryGreen;
   }
 
   String keteranganTanggal(
     int tanggal,
-    List<Map<String, dynamic>> dataPeminjaman,
+    List<MapEntry<String, dynamic>> dataPeminjaman,
   ) {
     final item = dataPadaTanggal(tanggal, dataPeminjaman);
 
@@ -158,10 +172,29 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     final status = (item['status'] ?? '').toString().toLowerCase();
     final nama = (item['nama'] ?? '-').toString();
 
-    if (status == 'disetujui') return 'Sedang dipinjam oleh $nama';
     if (status == 'menunggu') return 'Menunggu verifikasi admin';
+    if (status == 'disetujui') return 'Disetujui untuk $nama';
+    if (status == 'dipinjam') return 'Sedang dipinjam oleh $nama';
 
     return 'Tersedia';
+  }
+
+  int hitungStatus(List<MapEntry<String, dynamic>> data, String status) {
+    return data.where((entry) {
+      final item = Map<String, dynamic>.from(entry.value as Map);
+      final itemStatus = (item['status'] ?? '').toString().toLowerCase();
+      return itemStatus == status;
+    }).length;
+  }
+
+  int hitungSemuaAktif(List<MapEntry<String, dynamic>> data) {
+    return data.where((entry) {
+      final item = Map<String, dynamic>.from(entry.value as Map);
+      final status = (item['status'] ?? '').toString().toLowerCase();
+      return status == 'menunggu' ||
+          status == 'disetujui' ||
+          status == 'dipinjam';
+    }).length;
   }
 
   IconData iconAlat(String alat) {
@@ -174,16 +207,27 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     return Icons.handyman_rounded;
   }
 
-  int hitungStatus(List<Map<String, dynamic>> data, String status) {
-    return data.where((item) {
-      final itemStatus = (item['status'] ?? '').toString().toLowerCase();
-      return itemStatus == status;
-    }).length;
+  Color warnaStatus(String status) {
+    if (status == 'menunggu') return orangeStatus;
+    if (status == 'disetujui') return blueStatus;
+    if (status == 'dipinjam') return redStatus;
+    if (status == 'dikembalikan') return primaryGreen;
+    if (status == 'ditolak') return Colors.red;
+    return textGrey;
+  }
+
+  String teksStatus(String status) {
+    if (status == 'menunggu') return 'Menunggu';
+    if (status == 'disetujui') return 'Disetujui';
+    if (status == 'dipinjam') return 'Dipinjam';
+    if (status == 'dikembalikan') return 'Dikembalikan';
+    if (status == 'ditolak') return 'Ditolak';
+    return status;
   }
 
   void tampilkanDetailTanggal(
     int tanggal,
-    List<Map<String, dynamic>> dataPeminjaman,
+    List<MapEntry<String, dynamic>> dataPeminjaman,
   ) {
     final keterangan = keteranganTanggal(tanggal, dataPeminjaman);
 
@@ -196,23 +240,11 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     );
   }
 
-  List<Map<String, dynamic>> _ambilDataPeminjaman(
-    AsyncSnapshot<DatabaseEvent> snapshot,
-  ) {
-    if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
-      return [];
-    }
-
-    final rawData = snapshot.data!.snapshot.value;
-
-    if (rawData is! Map) return [];
-
-    final data = Map<dynamic, dynamic>.from(rawData);
-
-    return data.values
-        .whereType<Map>()
-        .map((item) => Map<String, dynamic>.from(item))
-        .toList();
+  void pilihAlat(String idAlat, String namaAlat) {
+    setState(() {
+      idAlatDipilih = idAlat;
+      namaAlatDipilih = namaAlat;
+    });
   }
 
   @override
@@ -221,66 +253,83 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
       backgroundColor: backgroundColor,
       body: SafeArea(
         child: StreamBuilder<DatabaseEvent>(
-          stream: peminjamanRef.onValue,
-          builder: (context, snapshot) {
-            final dataPeminjaman = _ambilDataPeminjaman(snapshot);
-            final daftarAlat = daftarAlatOtomatis(dataPeminjaman);
+          stream: alatRef.onValue,
+          builder: (context, alatSnapshot) {
+            final alatList = ambilAlatList(alatSnapshot.data?.snapshot.value);
 
-            if (alatDipilih.isEmpty && daftarAlat.isNotEmpty) {
-              alatDipilih = daftarAlat.first;
+            if (idAlatDipilih.isEmpty && alatList.isNotEmpty) {
+              final firstId = alatList.first.key.toString();
+              final firstData = Map<String, dynamic>.from(
+                alatList.first.value as Map,
+              );
+              idAlatDipilih = firstId;
+              namaAlatDipilih = (firstData['nama_alat'] ?? '-').toString();
             }
 
-            final dataAlat = dataUntukAlat(dataPeminjaman);
-            final disetujui = hitungStatus(dataAlat, 'disetujui');
-            final menunggu = hitungStatus(dataAlat, 'menunggu');
+            return StreamBuilder<DatabaseEvent>(
+              stream: peminjamanRef.onValue,
+              builder: (context, pinjamSnapshot) {
+                final dataPeminjaman = ambilPeminjamanList(
+                  pinjamSnapshot.data?.snapshot.value,
+                );
 
-            return CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _headerPage()),
-                if (daftarAlat.isEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: _emptySchedule(),
-                    ),
-                  )
-                else ...[
-                  SliverToBoxAdapter(child: _pilihAlat(daftarAlat)),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
-                      child: _ringkasanAlat(
-                        totalDipinjam: disetujui,
-                        totalMenunggu: menunggu,
+                final dataAlat = dataUntukAlat(dataPeminjaman);
+                final totalAktif = hitungSemuaAktif(dataAlat);
+                final menunggu = hitungStatus(dataAlat, 'menunggu');
+                final disetujui = hitungStatus(dataAlat, 'disetujui');
+                final dipinjam = hitungStatus(dataAlat, 'dipinjam');
+
+                return CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(child: _headerPage()),
+                    if (alatList.isEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: _emptySchedule(),
+                        ),
+                      )
+                    else ...[
+                      SliverToBoxAdapter(child: _pilihAlat(alatList)),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+                          child: _ringkasanAlat(
+                            totalAktif: totalAktif,
+                            menunggu: menunggu,
+                            disetujui: disetujui,
+                            dipinjam: dipinjam,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
-                      child: _sectionTitle('Kalender Ketersediaan'),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-                      child: _kalenderCard(dataPeminjaman),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
-                      child: _sectionTitle('Urutan Jadwal Peminjam'),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
-                      child: _daftarJadwal(dataAlat),
-                    ),
-                  ),
-                ],
-              ],
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
+                          child: _sectionTitle('Kalender Ketersediaan'),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                          child: _kalenderCard(dataPeminjaman),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
+                          child: _sectionTitle('Urutan Jadwal Peminjam'),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+                          child: _daftarJadwal(dataAlat),
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
             );
           },
         ),
@@ -372,7 +421,7 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     );
   }
 
-  Widget _pilihAlat(List<String> daftarAlat) {
+  Widget _pilihAlat(List<MapEntry<String, dynamic>> daftarAlat) {
     return Container(
       height: 80,
       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -382,15 +431,15 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
         itemCount: daftarAlat.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
-          final alat = daftarAlat[index];
-          final aktif = alatDipilih == alat;
+          final idAlat = daftarAlat[index].key.toString();
+          final alat = Map<String, dynamic>.from(
+            daftarAlat[index].value as Map,
+          );
+          final namaAlat = (alat['nama_alat'] ?? '-').toString();
+          final aktif = idAlatDipilih == idAlat;
 
           return InkWell(
-            onTap: () {
-              setState(() {
-                alatDipilih = alat;
-              });
-            },
+            onTap: () => pilihAlat(idAlat, namaAlat),
             borderRadius: BorderRadius.circular(22),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
@@ -412,13 +461,13 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
               child: Row(
                 children: [
                   Icon(
-                    iconAlat(alat),
+                    iconAlat(namaAlat),
                     color: aktif ? Colors.white : primaryGreen,
                     size: 22,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    alat,
+                    namaAlat,
                     style: TextStyle(
                       color: aktif ? Colors.white : textDark,
                       fontSize: 13,
@@ -435,8 +484,10 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
   }
 
   Widget _ringkasanAlat({
-    required int totalDipinjam,
-    required int totalMenunggu,
+    required int totalAktif,
+    required int menunggu,
+    required int disetujui,
+    required int dipinjam,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -450,7 +501,11 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
               color: lightGreen,
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(iconAlat(alatDipilih), color: primaryGreen, size: 31),
+            child: Icon(
+              iconAlat(namaAlatDipilih),
+              color: primaryGreen,
+              size: 31,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -458,7 +513,7 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  alatDipilih,
+                  namaAlatDipilih,
                   style: const TextStyle(
                     color: textDark,
                     fontSize: 17,
@@ -467,26 +522,27 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$totalDipinjam disetujui • $totalMenunggu menunggu verifikasi',
+                  '$totalAktif jadwal aktif • $menunggu menunggu • $disetujui disetujui • $dipinjam dipinjam',
                   style: const TextStyle(
                     color: textGrey,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
+                    height: 1.35,
                   ),
                 ),
               ],
             ),
           ),
           _statusMini(
-            label: totalDipinjam > 0 ? 'Terpakai' : 'Siap',
-            color: totalDipinjam > 0 ? redStatus : primaryGreen,
+            label: dipinjam > 0 ? 'Terpakai' : 'Siap',
+            color: dipinjam > 0 ? redStatus : primaryGreen,
           ),
         ],
       ),
     );
   }
 
-  Widget _kalenderCard(List<Map<String, dynamic>> dataPeminjaman) {
+  Widget _kalenderCard(List<MapEntry<String, dynamic>> dataPeminjaman) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
@@ -507,6 +563,8 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
               _statusColor(primaryGreen, 'Tersedia'),
               const SizedBox(width: 10),
               _statusColor(orangeStatus, 'Menunggu'),
+              const SizedBox(width: 10),
+              _statusColor(blueStatus, 'Disetujui'),
               const SizedBox(width: 10),
               _statusColor(redStatus, 'Dipinjam'),
             ],
@@ -582,16 +640,21 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     );
   }
 
-  Widget _daftarJadwal(List<Map<String, dynamic>> dataAlat) {
+  Widget _daftarJadwal(List<MapEntry<String, dynamic>> dataAlat) {
     final jadwalAktif =
-        dataAlat.where((item) {
+        dataAlat.where((entry) {
+          final item = Map<String, dynamic>.from(entry.value as Map);
           final status = (item['status'] ?? '').toString().toLowerCase();
-          return status == 'disetujui' || status == 'menunggu';
+          return status == 'menunggu' ||
+              status == 'disetujui' ||
+              status == 'dipinjam';
         }).toList();
 
     jadwalAktif.sort((a, b) {
-      final tanggalA = ambilTanggal(a['tanggal_pinjam'] ?? '');
-      final tanggalB = ambilTanggal(b['tanggal_pinjam'] ?? '');
+      final itemA = Map<String, dynamic>.from(a.value as Map);
+      final itemB = Map<String, dynamic>.from(b.value as Map);
+      final tanggalA = ambilTanggal(itemA['tanggal_pinjam'] ?? '');
+      final tanggalB = ambilTanggal(itemB['tanggal_pinjam'] ?? '');
       return tanggalA.compareTo(tanggalB);
     });
 
@@ -601,7 +664,7 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
 
     return Column(
       children: List.generate(jadwalAktif.length, (index) {
-        final item = jadwalAktif[index];
+        final item = Map<String, dynamic>.from(jadwalAktif[index].value as Map);
         final nomorUrut = index + 1;
 
         final nama = (item['nama'] ?? '-').toString();
@@ -662,7 +725,7 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
                 ),
               ),
               _statusMini(
-                label: status == 'disetujui' ? 'Dipakai' : 'Menunggu',
+                label: teksStatus(status),
                 color: warnaStatus(status),
               ),
             ],
@@ -760,12 +823,6 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
         ),
       ),
     );
-  }
-
-  Color warnaStatus(String status) {
-    if (status == 'disetujui') return redStatus;
-    if (status == 'menunggu') return orangeStatus;
-    return primaryGreen;
   }
 
   BoxDecoration _cardDecoration() {

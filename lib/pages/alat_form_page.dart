@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'alat_konfirmasi_page.dart';
 
 class AlatFormPage extends StatefulWidget {
+  final String idAlat;
   final String namaAlat;
   final String tanggalDipilih;
   final String nama;
@@ -9,6 +10,7 @@ class AlatFormPage extends StatefulWidget {
 
   const AlatFormPage({
     super.key,
+    required this.idAlat,
     required this.namaAlat,
     required this.tanggalDipilih,
     required this.nama,
@@ -49,6 +51,7 @@ class _AlatFormPageState extends State<AlatFormPage> {
       MaterialPageRoute(
         builder:
             (_) => AlatKonfirmasiPage(
+              idAlat: widget.idAlat,
               namaAlat: widget.namaAlat,
               nama: widget.nama,
               nik: widget.nik,

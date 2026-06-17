@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'alat_form_page.dart';
 
 class KoordinasiJadwalPage extends StatefulWidget {
+  final String idAlat;
   final String namaAlat;
   final String nama;
   final String nik;
 
   const KoordinasiJadwalPage({
     super.key,
+    required this.idAlat,
     required this.namaAlat,
     required this.nama,
     required this.nik,
@@ -78,8 +80,15 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     return 0;
   }
 
-  bool alatSama(String alatFirebase) {
-    return alatFirebase.toLowerCase().trim() ==
+  bool alatSama(Map<String, dynamic> item) {
+    final idAlat = (item['id_alat'] ?? '').toString();
+    final namaAlat = (item['alat'] ?? '').toString();
+
+    if (idAlat.isNotEmpty) {
+      return idAlat == widget.idAlat;
+    }
+
+    return namaAlat.toLowerCase().trim() ==
         widget.namaAlat.toLowerCase().trim();
   }
 
@@ -88,15 +97,16 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     List<Map<String, dynamic>> dataPeminjaman,
   ) {
     for (final item in dataPeminjaman) {
-      final alat = (item['alat'] ?? '').toString();
       final status = (item['status'] ?? '').toString().toLowerCase();
       final tanggalPinjam = ambilTanggal(item['tanggal_pinjam'] ?? '');
       final tanggalKembali = ambilTanggal(item['tanggal_kembali'] ?? '');
 
-      if (alatSama(alat) &&
+      if (alatSama(item) &&
           tanggal >= tanggalPinjam &&
           tanggal <= tanggalKembali &&
-          (status == 'disetujui' || status == 'menunggu')) {
+          (status == 'menunggu' ||
+              status == 'disetujui' ||
+              status == 'dipinjam')) {
         return item;
       }
     }
@@ -111,8 +121,8 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
 
     final status = (item['status'] ?? '').toString().toLowerCase();
 
-    if (status == 'disetujui') return redStatus;
     if (status == 'menunggu') return orangeStatus;
+    if (status == 'disetujui' || status == 'dipinjam') return redStatus;
 
     return primaryGreen;
   }
@@ -135,8 +145,9 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     final status = (item['status'] ?? '').toString().toLowerCase();
     final nama = (item['nama'] ?? '-').toString();
 
-    if (status == 'disetujui') return 'Sudah dipinjam oleh $nama';
     if (status == 'menunggu') return 'Sedang menunggu persetujuan';
+    if (status == 'disetujui') return 'Sudah disetujui untuk $nama';
+    if (status == 'dipinjam') return 'Sedang dipinjam oleh $nama';
 
     return 'Tanggal tersedia';
   }
@@ -199,6 +210,7 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
       MaterialPageRoute(
         builder:
             (_) => AlatFormPage(
+              idAlat: widget.idAlat,
               namaAlat: widget.namaAlat,
               tanggalDipilih: tanggalLengkap(),
               nama: widget.nama,
@@ -402,7 +414,7 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
         children: [
           _statusColor(primaryGreen, 'Tersedia'),
           _statusColor(orangeStatus, 'Menunggu'),
-          _statusColor(redStatus, 'Dipinjam'),
+          _statusColor(redStatus, 'Terpakai'),
         ],
       ),
     );

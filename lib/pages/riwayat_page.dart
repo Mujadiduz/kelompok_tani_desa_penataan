@@ -19,6 +19,8 @@ class _RiwayatPageState extends State<RiwayatPage> {
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color blueStatus = Color(0xff1976D2);
+  static const Color purpleStatus = Color(0xff7B1FA2);
 
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -54,28 +56,37 @@ class _RiwayatPageState extends State<RiwayatPage> {
         .toList();
   }
 
-  int hitungStatus(List<Map<String, dynamic>> data, String status) {
+  int hitungStatus(List<Map<String, dynamic>> data, List<String> statusList) {
     return data.where((item) {
       final itemStatus =
           (item['status'] ?? 'menunggu').toString().toLowerCase();
-      return itemStatus == status;
+      return statusList.contains(itemStatus);
     }).length;
   }
 
   Color warnaStatus(String status) {
-    if (status == 'disetujui') return primaryGreen;
+    if (status == 'disetujui') return blueStatus;
+    if (status == 'sudah_diambil') return primaryGreen;
+    if (status == 'dipinjam') return purpleStatus;
+    if (status == 'dikembalikan') return primaryGreen;
     if (status == 'ditolak') return Colors.red;
     return orangeStatus;
   }
 
   Color backgroundStatus(String status) {
-    if (status == 'disetujui') return lightGreen;
+    if (status == 'disetujui') return const Color(0xffE3F2FD);
+    if (status == 'sudah_diambil') return lightGreen;
+    if (status == 'dipinjam') return const Color(0xffF3E5F5);
+    if (status == 'dikembalikan') return lightGreen;
     if (status == 'ditolak') return const Color(0xffFFEBEE);
     return const Color(0xffFFF3E0);
   }
 
   String teksStatus(String status) {
     if (status == 'disetujui') return 'Disetujui Admin';
+    if (status == 'sudah_diambil') return 'Sudah Diambil';
+    if (status == 'dipinjam') return 'Sedang Dipinjam';
+    if (status == 'dikembalikan') return 'Dikembalikan';
     if (status == 'ditolak') return 'Ditolak Admin';
     return 'Menunggu Verifikasi';
   }
@@ -88,6 +99,29 @@ class _RiwayatPageState extends State<RiwayatPage> {
     if (nama.contains('traktor')) return Icons.agriculture_rounded;
 
     return Icons.handyman_rounded;
+  }
+
+  String teksPengembalian(Map<String, dynamic> item) {
+    final status = (item['status_pengembalian'] ?? '').toString();
+
+    if (status == 'terlambat') {
+      return 'Terlambat ${item['jumlah_hari_terlambat'] ?? 0} hari';
+    }
+
+    if (status == 'tepat_waktu') {
+      return 'Tepat waktu';
+    }
+
+    return 'Belum diketahui';
+  }
+
+  Color warnaPengembalian(Map<String, dynamic> item) {
+    final status = (item['status_pengembalian'] ?? '').toString();
+
+    if (status == 'terlambat') return Colors.red;
+    if (status == 'tepat_waktu') return primaryGreen;
+
+    return textGrey;
   }
 
   @override
@@ -112,9 +146,16 @@ class _RiwayatPageState extends State<RiwayatPage> {
                 final semuaRiwayat = [...riwayatPupuk, ...riwayatAlat];
 
                 final totalPengajuan = semuaRiwayat.length;
-                final totalDisetujui = hitungStatus(semuaRiwayat, 'disetujui');
-                final totalMenunggu = hitungStatus(semuaRiwayat, 'menunggu');
-                final totalDitolak = hitungStatus(semuaRiwayat, 'ditolak');
+                final totalSelesai = hitungStatus(semuaRiwayat, [
+                  'sudah_diambil',
+                  'dikembalikan',
+                ]);
+                final totalProses = hitungStatus(semuaRiwayat, [
+                  'menunggu',
+                  'disetujui',
+                  'dipinjam',
+                ]);
+                final totalDitolak = hitungStatus(semuaRiwayat, ['ditolak']);
 
                 return CustomScrollView(
                   slivers: [
@@ -124,8 +165,8 @@ class _RiwayatPageState extends State<RiwayatPage> {
                         padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
                         child: _summaryGrid(
                           total: totalPengajuan,
-                          disetujui: totalDisetujui,
-                          menunggu: totalMenunggu,
+                          selesai: totalSelesai,
+                          proses: totalProses,
                           ditolak: totalDitolak,
                         ),
                       ),
@@ -271,8 +312,8 @@ class _RiwayatPageState extends State<RiwayatPage> {
 
   Widget _summaryGrid({
     required int total,
-    required int disetujui,
-    required int menunggu,
+    required int selesai,
+    required int proses,
     required int ditolak,
   }) {
     return Column(
@@ -291,9 +332,9 @@ class _RiwayatPageState extends State<RiwayatPage> {
             const SizedBox(width: 12),
             Expanded(
               child: _summaryCard(
-                title: 'Disetujui Admin',
-                value: disetujui.toString(),
-                subtitle: 'Sudah diterima',
+                title: 'Selesai',
+                value: selesai.toString(),
+                subtitle: 'Sudah diambil/dikembalikan',
                 icon: Icons.check_circle_rounded,
                 color: primaryGreen,
               ),
@@ -305,9 +346,9 @@ class _RiwayatPageState extends State<RiwayatPage> {
           children: [
             Expanded(
               child: _summaryCard(
-                title: 'Menunggu Verifikasi',
-                value: menunggu.toString(),
-                subtitle: 'Belum dicek admin',
+                title: 'Dalam Proses',
+                value: proses.toString(),
+                subtitle: 'Menunggu atau diproses admin',
                 icon: Icons.hourglass_top_rounded,
                 color: orangeStatus,
               ),
@@ -404,7 +445,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Status riwayat berlaku untuk semua pengajuan, baik bantuan pupuk maupun peminjaman alat. Detail jenis pengajuan dapat dilihat pada daftar di bawah.',
+              'Riwayat menampilkan perkembangan bantuan pupuk dan peminjaman alat mulai dari pengajuan, persetujuan, pengambilan, hingga pengembalian.',
               style: TextStyle(
                 color: textGrey,
                 fontSize: 12.5,
@@ -432,28 +473,45 @@ class _RiwayatPageState extends State<RiwayatPage> {
             final status =
                 (item['status'] ?? 'menunggu').toString().toLowerCase();
 
+            final details = <_DetailItem>[
+              _DetailItem(
+                icon: Icons.scale_rounded,
+                label: 'Jumlah',
+                value: '${item['jumlah_pupuk'] ?? item['jumlah'] ?? '-'} Kg',
+              ),
+              _DetailItem(
+                icon: Icons.inventory_2_rounded,
+                label: 'Jatah',
+                value: '${item['jatah_pupuk'] ?? '-'} Kg',
+              ),
+              _DetailItem(
+                icon: Icons.notes_rounded,
+                label: 'Catatan',
+                value: '${item['catatan'] ?? item['keterangan'] ?? '-'}',
+              ),
+            ];
+
+            if (status == 'sudah_diambil') {
+              details.addAll([
+                _DetailItem(
+                  icon: Icons.event_available_rounded,
+                  label: 'Tgl Ambil',
+                  value: '${item['tanggal_pengambilan'] ?? '-'}',
+                ),
+                _DetailItem(
+                  icon: Icons.access_time_rounded,
+                  label: 'Jam Ambil',
+                  value: '${item['waktu_pengambilan'] ?? '-'}',
+                ),
+              ]);
+            }
+
             return _riwayatCard(
               icon: Icons.grass_rounded,
               iconColor: primaryGreen,
               title: (item['jenis_pupuk'] ?? '-').toString(),
               subtitle: 'Jenis Pengajuan: Bantuan Pupuk',
-              details: [
-                _DetailItem(
-                  icon: Icons.scale_rounded,
-                  label: 'Jumlah',
-                  value: '${item['jumlah_pupuk'] ?? item['jumlah'] ?? '-'} Kg',
-                ),
-                _DetailItem(
-                  icon: Icons.inventory_2_rounded,
-                  label: 'Jatah',
-                  value: '${item['jatah_pupuk'] ?? '-'} Kg',
-                ),
-                _DetailItem(
-                  icon: Icons.notes_rounded,
-                  label: 'Catatan',
-                  value: '${item['catatan'] ?? item['keterangan'] ?? '-'}',
-                ),
-              ],
+              details: details,
               status: status,
             );
           }).toList(),
@@ -473,31 +531,68 @@ class _RiwayatPageState extends State<RiwayatPage> {
           list.map((item) {
             final status =
                 (item['status'] ?? 'menunggu').toString().toLowerCase();
-
             final alat = (item['alat'] ?? item['nama_alat'] ?? '-').toString();
+
+            final details = <_DetailItem>[
+              _DetailItem(
+                icon: Icons.calendar_today_rounded,
+                label: 'Pinjam',
+                value: '${item['tanggal_pinjam'] ?? '-'}',
+              ),
+              _DetailItem(
+                icon: Icons.event_available_rounded,
+                label: 'Rencana',
+                value: '${item['tanggal_kembali'] ?? '-'}',
+              ),
+              _DetailItem(
+                icon: Icons.notes_rounded,
+                label: 'Catatan',
+                value: '${item['catatan'] ?? '-'}',
+              ),
+            ];
+
+            if (status == 'dipinjam' || status == 'dikembalikan') {
+              details.addAll([
+                _DetailItem(
+                  icon: Icons.output_rounded,
+                  label: 'Tgl Ambil',
+                  value: '${item['tanggal_diambil'] ?? '-'}',
+                ),
+                _DetailItem(
+                  icon: Icons.access_time_rounded,
+                  label: 'Jam Ambil',
+                  value: '${item['waktu_diambil'] ?? '-'}',
+                ),
+              ]);
+            }
+
+            if (status == 'dikembalikan') {
+              details.addAll([
+                _DetailItem(
+                  icon: Icons.event_repeat_rounded,
+                  label: 'Tgl Aktual',
+                  value: '${item['tanggal_dikembalikan'] ?? '-'}',
+                ),
+                _DetailItem(
+                  icon: Icons.access_time_rounded,
+                  label: 'Jam Kembali',
+                  value: '${item['waktu_dikembalikan'] ?? '-'}',
+                ),
+                _DetailItem(
+                  icon: Icons.timer_outlined,
+                  label: 'Ketepatan',
+                  value: teksPengembalian(item),
+                  valueColor: warnaPengembalian(item),
+                ),
+              ]);
+            }
 
             return _riwayatCard(
               icon: iconAlat(alat),
               iconColor: const Color(0xff2F855A),
               title: alat,
               subtitle: 'Jenis Pengajuan: Peminjaman Alat',
-              details: [
-                _DetailItem(
-                  icon: Icons.calendar_today_rounded,
-                  label: 'Pinjam',
-                  value: '${item['tanggal_pinjam'] ?? '-'}',
-                ),
-                _DetailItem(
-                  icon: Icons.event_available_rounded,
-                  label: 'Kembali',
-                  value: '${item['tanggal_kembali'] ?? '-'}',
-                ),
-                _DetailItem(
-                  icon: Icons.notes_rounded,
-                  label: 'Catatan',
-                  value: '${item['catatan'] ?? '-'}',
-                ),
-              ],
+              details: details,
               status: status,
             );
           }).toList(),
@@ -570,7 +665,12 @@ class _RiwayatPageState extends State<RiwayatPage> {
             child: Column(
               children:
                   details.map((item) {
-                    return _detailRow(item.icon, item.label, item.value);
+                    return _detailRow(
+                      item.icon,
+                      item.label,
+                      item.value,
+                      valueColor: item.valueColor,
+                    );
                   }).toList(),
             ),
           ),
@@ -579,7 +679,12 @@ class _RiwayatPageState extends State<RiwayatPage> {
     );
   }
 
-  Widget _detailRow(IconData icon, String label, String value) {
+  Widget _detailRow(
+    IconData icon,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
       child: Row(
@@ -588,7 +693,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
           Icon(icon, color: primaryGreen, size: 17),
           const SizedBox(width: 8),
           SizedBox(
-            width: 76,
+            width: 82,
             child: Text(
               label,
               style: const TextStyle(
@@ -601,8 +706,8 @@ class _RiwayatPageState extends State<RiwayatPage> {
           Expanded(
             child: Text(
               value.isEmpty ? '-' : value,
-              style: const TextStyle(
-                color: textDark,
+              style: TextStyle(
+                color: valueColor ?? textDark,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
@@ -615,7 +720,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
 
   Widget _statusBadge(String status) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 92),
+      constraints: const BoxConstraints(maxWidth: 98),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: backgroundStatus(status),
@@ -715,10 +820,12 @@ class _DetailItem {
   final IconData icon;
   final String label;
   final String value;
+  final Color? valueColor;
 
   const _DetailItem({
     required this.icon,
     required this.label,
     required this.value,
+    this.valueColor,
   });
 }

@@ -17,6 +17,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color blueStatus = Color(0xff1976D2);
 
   String selectedFilter = 'semua';
 
@@ -42,65 +43,86 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     Map<String, dynamic> dataPupuk,
   ) async {
     try {
-      if (status == 'disetujui') {
-        final jenisPupuk = (dataPupuk['jenis_pupuk'] ?? '').toString();
-        final jumlahDiajukan =
-            int.tryParse((dataPupuk['jumlah_pupuk'] ?? '0').toString()) ?? 0;
-
-        final snapshot = await stokPupukRef.get().timeout(
-          const Duration(seconds: 10),
-        );
-
-        if (snapshot.exists && snapshot.value != null) {
-          final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
-          bool pupukDitemukan = false;
-
-          for (final entry in data.entries) {
-            final idPupuk = entry.key.toString();
-            final pupuk = Map<dynamic, dynamic>.from(entry.value as Map);
-
-            final namaPupuk = (pupuk['nama_pupuk'] ?? '').toString();
-            final stokSekarang =
-                int.tryParse((pupuk['stok'] ?? 0).toString()) ?? 0;
-
-            if (namaPupuk.toLowerCase().trim() ==
-                jenisPupuk.toLowerCase().trim()) {
-              pupukDitemukan = true;
-
-              if (stokSekarang < jumlahDiajukan) {
-                if (!mounted) return;
-                _showSnackBar('Stok pupuk tidak mencukupi', Colors.red);
-                return;
-              }
-
-              final stokBaru = stokSekarang - jumlahDiajukan;
-              await stokPupukRef.child(idPupuk).update({'stok': stokBaru});
-              break;
-            }
-          }
-
-          if (!pupukDitemukan) {
-            if (!mounted) return;
-            _showSnackBar(
-              'Jenis pupuk tidak ditemukan di data stok',
-              Colors.red,
-            );
-            return;
-          }
-        }
-      }
-
       await bantuanPupukRef.child(id).update({'status': status});
 
       if (!mounted) return;
 
       _showSnackBar(
-        'Pengajuan pupuk berhasil $status',
+        status == 'disetujui'
+            ? 'Pengajuan pupuk berhasil disetujui'
+            : 'Pengajuan pupuk berhasil ditolak',
         status == 'disetujui' ? primaryGreen : Colors.red,
       );
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Gagal mengubah status: $e', Colors.red);
+    }
+  }
+
+  Future<void> tandaiSudahDiambil(
+    String id,
+    Map<String, dynamic> dataPupuk,
+  ) async {
+    try {
+      final jenisPupuk = (dataPupuk['jenis_pupuk'] ?? '').toString();
+      final jumlahDiajukan =
+          int.tryParse((dataPupuk['jumlah_pupuk'] ?? '0').toString()) ?? 0;
+
+      final snapshot = await stokPupukRef.get().timeout(
+        const Duration(seconds: 10),
+      );
+
+      if (!snapshot.exists || snapshot.value == null) {
+        if (!mounted) return;
+        _showSnackBar('Data stok pupuk belum tersedia', Colors.red);
+        return;
+      }
+
+      final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
+      bool pupukDitemukan = false;
+
+      for (final entry in data.entries) {
+        final idPupuk = entry.key.toString();
+        final pupuk = Map<dynamic, dynamic>.from(entry.value as Map);
+
+        final namaPupuk = (pupuk['nama_pupuk'] ?? '').toString();
+        final stokSekarang = int.tryParse((pupuk['stok'] ?? 0).toString()) ?? 0;
+
+        if (namaPupuk.toLowerCase().trim() == jenisPupuk.toLowerCase().trim()) {
+          pupukDitemukan = true;
+
+          if (stokSekarang < jumlahDiajukan) {
+            if (!mounted) return;
+            _showSnackBar('Stok pupuk tidak mencukupi', Colors.red);
+            return;
+          }
+
+          final stokBaru = stokSekarang - jumlahDiajukan;
+          await stokPupukRef.child(idPupuk).update({'stok': stokBaru});
+          break;
+        }
+      }
+
+      if (!pupukDitemukan) {
+        if (!mounted) return;
+        _showSnackBar('Jenis pupuk tidak ditemukan di data stok', Colors.red);
+        return;
+      }
+
+      final now = DateTime.now();
+
+      await bantuanPupukRef.child(id).update({
+        'status': 'sudah_diambil',
+        'tanggal_pengambilan':
+            '${now.year}-${_duaDigit(now.month)}-${_duaDigit(now.day)}',
+        'waktu_pengambilan': '${_duaDigit(now.hour)}:${_duaDigit(now.minute)}',
+      });
+
+      if (!mounted) return;
+      _showSnackBar('Pupuk berhasil ditandai sudah diambil', primaryGreen);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Gagal menandai pengambilan: $e', Colors.red);
     }
   }
 
@@ -128,7 +150,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
           ),
           content: Text(
             isSetuju
-                ? 'Pengajuan pupuk dari $nama akan disetujui dan stok pupuk akan dikurangi.'
+                ? 'Pengajuan pupuk dari $nama akan disetujui. Stok pupuk belum dikurangi sampai anggota mengambil pupuk.'
                 : 'Pengajuan pupuk dari $nama akan ditolak.',
             style: const TextStyle(color: textGrey),
           ),
@@ -159,21 +181,74 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     }
   }
 
+  Future<void> tampilkanKonfirmasiPengambilan({
+    required String id,
+    required Map<String, dynamic> pupuk,
+  }) async {
+    final nama = (pupuk['nama'] ?? '-').toString();
+    final jenis = (pupuk['jenis_pupuk'] ?? '-').toString();
+    final jumlah = (pupuk['jumlah_pupuk'] ?? '-').toString();
+
+    final hasil = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          title: const Text(
+            'Tandai Sudah Diambil?',
+            style: TextStyle(color: textDark, fontWeight: FontWeight.w800),
+          ),
+          content: Text(
+            'Pastikan $nama benar-benar sudah mengambil pupuk $jenis sebanyak $jumlah Kg. Setelah dikonfirmasi, stok pupuk akan dikurangi.',
+            style: const TextStyle(color: textGrey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryGreen,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Sudah Diambil'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (hasil == true) {
+      await tandaiSudahDiambil(id, pupuk);
+    }
+  }
+
   Color warnaStatus(String status) {
-    if (status == 'disetujui') return primaryGreen;
+    if (status == 'disetujui') return blueStatus;
     if (status == 'ditolak') return Colors.red;
+    if (status == 'sudah_diambil') return primaryGreen;
     return orangeStatus;
   }
 
   Color backgroundStatus(String status) {
-    if (status == 'disetujui') return lightGreen;
+    if (status == 'disetujui') return const Color(0xffE3F2FD);
     if (status == 'ditolak') return const Color(0xffFFEBEE);
+    if (status == 'sudah_diambil') return lightGreen;
     return const Color(0xffFFF3E0);
   }
 
   String teksStatus(String status) {
     if (status == 'disetujui') return 'Disetujui';
     if (status == 'ditolak') return 'Ditolak';
+    if (status == 'sudah_diambil') return 'Sudah Diambil';
     return 'Menunggu';
   }
 
@@ -190,6 +265,10 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
   String ambilLahan(Map<String, dynamic> pupuk) {
     return (pupuk['luas_sawah'] ?? pupuk['jumlah_petak_sawah'] ?? '-')
         .toString();
+  }
+
+  String _duaDigit(int value) {
+    return value.toString().padLeft(2, '0');
   }
 
   List<MapEntry<String, dynamic>> filterData(
@@ -347,7 +426,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
               ),
               const SizedBox(height: 18),
               const Text(
-                'Periksa dan setujui pengajuan bantuan pupuk dari anggota kelompok tani.',
+                'Periksa pengajuan, setujui bantuan, dan tandai pupuk yang sudah diambil oleh anggota.',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 13,
@@ -383,6 +462,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
       _FilterItem(label: 'Menunggu', value: 'menunggu'),
       _FilterItem(label: 'Disetujui', value: 'disetujui'),
       _FilterItem(label: 'Ditolak', value: 'ditolak'),
+      _FilterItem(label: 'Sudah Diambil', value: 'sudah_diambil'),
     ];
 
     return SizedBox(
@@ -461,6 +541,18 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                 '${pupuk['jumlah_pupuk'] ?? '-'} Kg',
               ),
               _infoRow(Icons.notes_rounded, 'Catatan', pupuk['catatan'] ?? '-'),
+              if (status == 'sudah_diambil') ...[
+                _infoRow(
+                  Icons.event_available_rounded,
+                  'Tanggal Ambil',
+                  pupuk['tanggal_pengambilan'] ?? '-',
+                ),
+                _infoRow(
+                  Icons.access_time_rounded,
+                  'Waktu Ambil',
+                  pupuk['waktu_pengambilan'] ?? '-',
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 14),
@@ -514,6 +606,17 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                   ),
                 ),
               ],
+            ),
+          ],
+          if (status == 'disetujui') ...[
+            const SizedBox(height: 14),
+            _actionButton(
+              title: 'Tandai Sudah Diambil',
+              icon: Icons.inventory_rounded,
+              color: primaryGreen,
+              onPressed: () {
+                tampilkanKonfirmasiPengambilan(id: id, pupuk: pupuk);
+              },
             ),
           ],
         ],
@@ -630,17 +733,22 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     required Color color,
     required VoidCallback onPressed,
   }) {
-    return ElevatedButton.icon(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        ),
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
       ),
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
     );
   }
 

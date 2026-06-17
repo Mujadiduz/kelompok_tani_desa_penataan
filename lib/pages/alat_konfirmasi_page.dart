@@ -3,6 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
 class AlatKonfirmasiPage extends StatefulWidget {
+  final String idAlat;
   final String namaAlat;
   final String nama;
   final String nik;
@@ -12,6 +13,7 @@ class AlatKonfirmasiPage extends StatefulWidget {
 
   const AlatKonfirmasiPage({
     super.key,
+    required this.idAlat,
     required this.namaAlat,
     required this.nama,
     required this.nik,
@@ -48,12 +50,14 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
       await peminjamanRef
           .push()
           .set({
+            'id_alat': widget.idAlat,
+            'alat': widget.namaAlat,
             'nama': widget.nama,
             'nik': widget.nik,
-            'alat': widget.namaAlat,
             'tanggal_pinjam': widget.tanggalPinjam,
             'tanggal_kembali': widget.tanggalKembali,
             'catatan': widget.catatan,
+            'jumlah': 1,
             'status': 'menunggu',
             'tanggal_pengajuan': DateTime.now().toString(),
           })

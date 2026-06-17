@@ -23,7 +23,8 @@ class _AlatPageState extends State<AlatPage> {
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffFB8C00);
 
-  String? alatDipilih;
+  String? idAlatDipilih;
+  String? namaAlatDipilih;
 
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -41,16 +42,85 @@ class _AlatPageState extends State<AlatPage> {
     peminjamanRef = db.ref('peminjaman_alat');
   }
 
-  int hitungTerpakai(String namaAlat, List<Map<String, dynamic>> data) {
+  List<MapEntry<String, dynamic>> ambilAlatList(dynamic value) {
+    if (value == null || value is! Map) return [];
+
+    final data = Map<String, dynamic>.from(value);
+
+    return data.entries.where((entry) {
+      final alat = Map<String, dynamic>.from(entry.value as Map);
+      final status = (alat['status'] ?? 'aktif').toString().toLowerCase();
+      return status == 'aktif';
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> ambilPeminjamanList(dynamic value) {
+    if (value == null || value is! Map) return [];
+
+    final data = Map<dynamic, dynamic>.from(value);
+
+    return data.values
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  int hitungDipinjam(
+    String idAlat,
+    String namaAlat,
+    List<Map<String, dynamic>> data,
+  ) {
     int total = 0;
 
     for (final item in data) {
-      final alat = (item['alat'] ?? '').toString();
+      final itemIdAlat = (item['id_alat'] ?? '').toString();
+      final itemAlat = (item['alat'] ?? '').toString();
       final status = (item['status'] ?? '').toString().toLowerCase();
 
-      if (alat == namaAlat && (status == 'menunggu' || status == 'disetujui')) {
-        total++;
+      final alatSama =
+          itemIdAlat.isNotEmpty
+              ? itemIdAlat == idAlat
+              : itemAlat.toLowerCase().trim() == namaAlat.toLowerCase().trim();
+
+      if (alatSama && status == 'dipinjam') {
+        total +=
+            int.tryParse(
+              (item['jumlah'] ?? item['jumlah_alat'] ?? 1).toString(),
+            ) ??
+            1;
       }
+    }
+
+    return total;
+  }
+
+  int totalUnit(List<MapEntry<String, dynamic>> alatList) {
+    int total = 0;
+
+    for (final entry in alatList) {
+      final alat = Map<String, dynamic>.from(entry.value as Map);
+      total += int.tryParse((alat['jumlah_unit'] ?? 0).toString()) ?? 0;
+    }
+
+    return total;
+  }
+
+  int totalTersedia(
+    List<MapEntry<String, dynamic>> alatList,
+    List<Map<String, dynamic>> peminjamanList,
+  ) {
+    int total = 0;
+
+    for (final entry in alatList) {
+      final idAlat = entry.key.toString();
+      final alat = Map<String, dynamic>.from(entry.value as Map);
+      final namaAlat = (alat['nama_alat'] ?? '-').toString();
+      final jumlahUnit =
+          int.tryParse((alat['jumlah_unit'] ?? 0).toString()) ?? 0;
+      final dipinjam = hitungDipinjam(idAlat, namaAlat, peminjamanList);
+      final tersedia = jumlahUnit - dipinjam;
+
+      total += tersedia < 0 ? 0 : tersedia;
     }
 
     return total;
@@ -76,70 +146,16 @@ class _AlatPageState extends State<AlatPage> {
     return primaryGreen;
   }
 
-  List<Map<String, dynamic>> ambilAlatList(dynamic value) {
-    if (value == null || value is! Map) return [];
-
-    final data = Map<dynamic, dynamic>.from(value);
-
-    return data.values
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .where((alat) {
-          final status = (alat['status'] ?? 'aktif').toString().toLowerCase();
-          return status == 'aktif';
-        })
-        .toList();
-  }
-
-  List<Map<String, dynamic>> ambilPeminjamanList(dynamic value) {
-    if (value == null || value is! Map) return [];
-
-    final data = Map<dynamic, dynamic>.from(value);
-
-    return data.values
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
-  }
-
-  int totalUnit(List<Map<String, dynamic>> alatList) {
-    int total = 0;
-
-    for (final alat in alatList) {
-      total += int.tryParse((alat['jumlah_unit'] ?? 0).toString()) ?? 0;
-    }
-
-    return total;
-  }
-
-  int totalTersedia(
-    List<Map<String, dynamic>> alatList,
-    List<Map<String, dynamic>> peminjamanList,
-  ) {
-    int total = 0;
-
-    for (final alat in alatList) {
-      final namaAlat = (alat['nama_alat'] ?? '-').toString();
-      final jumlahUnit =
-          int.tryParse((alat['jumlah_unit'] ?? 0).toString()) ?? 0;
-      final terpakai = hitungTerpakai(namaAlat, peminjamanList);
-      final tersedia = jumlahUnit - terpakai;
-
-      total += tersedia < 0 ? 0 : tersedia;
-    }
-
-    return total;
-  }
-
   void lanjutPilihJadwal() {
-    if (alatDipilih == null) return;
+    if (idAlatDipilih == null || namaAlatDipilih == null) return;
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder:
             (_) => KoordinasiJadwalPage(
-              namaAlat: alatDipilih!,
+              idAlat: idAlatDipilih!,
+              namaAlat: namaAlatDipilih!,
               nama: widget.nama,
               nik: widget.nik,
             ),
@@ -164,7 +180,7 @@ class _AlatPageState extends State<AlatPage> {
                   pinjamSnapshot.data?.snapshot.value,
                 );
 
-                final totalAlat = alatList.length;
+                final totalJenis = alatList.length;
                 final unitSemua = totalUnit(alatList);
                 final unitTersedia = totalTersedia(alatList, peminjamanList);
 
@@ -180,7 +196,7 @@ class _AlatPageState extends State<AlatPage> {
                             _stepIndicator(),
                             const SizedBox(height: 18),
                             _summaryCard(
-                              totalJenis: totalAlat,
+                              totalJenis: totalJenis,
                               totalUnit: unitSemua,
                               tersedia: unitTersedia,
                             ),
@@ -213,7 +229,7 @@ class _AlatPageState extends State<AlatPage> {
 
   Widget _buildContent(
     AsyncSnapshot<DatabaseEvent> alatSnapshot,
-    List<Map<String, dynamic>> alatList,
+    List<MapEntry<String, dynamic>> alatList,
     List<Map<String, dynamic>> peminjamanList,
   ) {
     if (alatSnapshot.connectionState == ConnectionState.waiting) {
@@ -242,15 +258,17 @@ class _AlatPageState extends State<AlatPage> {
       padding: const EdgeInsets.only(bottom: 18),
       itemCount: alatList.length,
       itemBuilder: (context, index) {
-        final alat = alatList[index];
+        final idAlat = alatList[index].key.toString();
+        final alat = Map<String, dynamic>.from(alatList[index].value as Map);
         final namaAlat = (alat['nama_alat'] ?? '-').toString();
         final jumlahUnit =
             int.tryParse((alat['jumlah_unit'] ?? 0).toString()) ?? 0;
-        final terpakai = hitungTerpakai(namaAlat, peminjamanList);
-        final tersedia = jumlahUnit - terpakai;
+        final dipinjam = hitungDipinjam(idAlat, namaAlat, peminjamanList);
+        final tersedia = jumlahUnit - dipinjam;
         final stokTersedia = tersedia < 0 ? 0 : tersedia;
 
         return _pilihanAlat(
+          idAlat: idAlat,
           nama: namaAlat,
           stokTersedia: stokTersedia,
           jumlahUnit: jumlahUnit,
@@ -403,8 +421,6 @@ class _AlatPageState extends State<AlatPage> {
           const SizedBox(height: 6),
           Text(
             value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: textDark,
               fontSize: 14,
@@ -440,7 +456,7 @@ class _AlatPageState extends State<AlatPage> {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Pilih salah satu alat yang tersedia. Setelah itu lanjutkan untuk memilih jadwal peminjaman.',
+              'Stok alat akan berkurang ketika admin menandai alat benar-benar dipinjam.',
               style: TextStyle(
                 color: textGrey,
                 fontSize: 12,
@@ -455,6 +471,7 @@ class _AlatPageState extends State<AlatPage> {
   }
 
   Widget _pilihanAlat({
+    required String idAlat,
     required String nama,
     required int stokTersedia,
     required int jumlahUnit,
@@ -462,14 +479,15 @@ class _AlatPageState extends State<AlatPage> {
     required Color color,
     required bool tersedia,
   }) {
-    final selected = alatDipilih == nama;
+    final selected = idAlatDipilih == idAlat;
 
     return InkWell(
       onTap:
           tersedia
               ? () {
                 setState(() {
-                  alatDipilih = nama;
+                  idAlatDipilih = idAlat;
+                  namaAlatDipilih = nama;
                 });
               }
               : null,
@@ -575,7 +593,7 @@ class _AlatPageState extends State<AlatPage> {
               borderRadius: BorderRadius.circular(18),
             ),
           ),
-          onPressed: alatDipilih == null ? null : lanjutPilihJadwal,
+          onPressed: idAlatDipilih == null ? null : lanjutPilihJadwal,
           child: const Text(
             'Lanjut Pilih Jadwal',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
