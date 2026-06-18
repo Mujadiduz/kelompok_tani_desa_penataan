@@ -14,7 +14,6 @@ class LaporanPage extends StatefulWidget {
 class _LaporanPageState extends State<LaporanPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff1B5E20);
-  static const Color lightGreen = Color(0xffE8F5E9);
   static const Color backgroundColor = Color(0xffF6FAF7);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
@@ -33,15 +32,22 @@ class _LaporanPageState extends State<LaporanPage> {
 
   int totalAnggota = 0;
   int totalCalon = 0;
+  int calonMenunggu = 0;
+  int calonDisetujui = 0;
+  int calonDitolak = 0;
 
   int totalPupuk = 0;
   int pupukMenunggu = 0;
   int pupukDisetujui = 0;
+  int pupukSudahDiambil = 0;
   int pupukDitolak = 0;
+  double totalKgDisalurkan = 0;
 
   int totalPeminjaman = 0;
   int peminjamanMenunggu = 0;
   int peminjamanDisetujui = 0;
+  int peminjamanDipinjam = 0;
+  int peminjamanDikembalikan = 0;
   int peminjamanDitolak = 0;
 
   @override
@@ -67,9 +73,36 @@ class _LaporanPageState extends State<LaporanPage> {
     for (final item in data.values) {
       if (item is Map) {
         final mapItem = Map<dynamic, dynamic>.from(item);
+        final status =
+            (mapItem['status'] ?? 'menunggu').toString().toLowerCase();
+
+        if (status == statusTarget) {
+          total++;
+        }
+      }
+    }
+
+    return total;
+  }
+
+  double hitungTotalKgDisalurkan(dynamic value) {
+    if (value == null || value is! Map) return 0;
+
+    double total = 0;
+    final data = Map<dynamic, dynamic>.from(value);
+
+    for (final item in data.values) {
+      if (item is Map) {
+        final mapItem = Map<dynamic, dynamic>.from(item);
         final status = (mapItem['status'] ?? '').toString().toLowerCase();
 
-        if (status == statusTarget) total++;
+        if (status == 'sudah_diambil') {
+          total +=
+              double.tryParse(
+                (mapItem['jumlah_pupuk'] ?? 0).toString().replaceAll(',', '.'),
+              ) ??
+              0;
+        }
       }
     }
 
@@ -100,7 +133,10 @@ class _LaporanPageState extends State<LaporanPage> {
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
               ),
               pw.Text('Total Anggota Aktif: $totalAnggota'),
-              pw.Text('Calon Anggota: $totalCalon'),
+              pw.Text('Calon Anggota Baru: $totalCalon'),
+              pw.Text('Calon Menunggu: $calonMenunggu'),
+              pw.Text('Calon Disetujui: $calonDisetujui'),
+              pw.Text('Calon Ditolak: $calonDitolak'),
               pw.SizedBox(height: 14),
               pw.Text(
                 'Laporan Bantuan Pupuk',
@@ -109,7 +145,12 @@ class _LaporanPageState extends State<LaporanPage> {
               pw.Text('Total Pengajuan: $totalPupuk'),
               pw.Text('Menunggu Verifikasi: $pupukMenunggu'),
               pw.Text('Disetujui Admin: $pupukDisetujui'),
+              pw.Text('Sudah Diambil: $pupukSudahDiambil'),
               pw.Text('Ditolak Admin: $pupukDitolak'),
+              pw.Text(
+                'Total Pupuk Disalurkan: '
+                '${totalKgDisalurkan.toStringAsFixed(1)} Kg',
+              ),
               pw.SizedBox(height: 14),
               pw.Text(
                 'Laporan Peminjaman Alat',
@@ -118,6 +159,8 @@ class _LaporanPageState extends State<LaporanPage> {
               pw.Text('Total Peminjaman: $totalPeminjaman'),
               pw.Text('Menunggu Verifikasi: $peminjamanMenunggu'),
               pw.Text('Disetujui Admin: $peminjamanDisetujui'),
+              pw.Text('Sedang Dipinjam: $peminjamanDipinjam'),
+              pw.Text('Sudah Dikembalikan: $peminjamanDikembalikan'),
               pw.Text('Ditolak Admin: $peminjamanDitolak'),
             ],
           );
@@ -170,16 +213,24 @@ class _LaporanPageState extends State<LaporanPage> {
     dynamic peminjamanValue,
   ) {
     totalAnggota = hitungTotal(anggotaValue);
+
     totalCalon = hitungTotal(calonValue);
+    calonMenunggu = hitungStatus(calonValue, 'menunggu');
+    calonDisetujui = hitungStatus(calonValue, 'disetujui');
+    calonDitolak = hitungStatus(calonValue, 'ditolak');
 
     totalPupuk = hitungTotal(pupukValue);
     pupukMenunggu = hitungStatus(pupukValue, 'menunggu');
     pupukDisetujui = hitungStatus(pupukValue, 'disetujui');
+    pupukSudahDiambil = hitungStatus(pupukValue, 'sudah_diambil');
     pupukDitolak = hitungStatus(pupukValue, 'ditolak');
+    totalKgDisalurkan = hitungTotalKgDisalurkan(pupukValue);
 
     totalPeminjaman = hitungTotal(peminjamanValue);
     peminjamanMenunggu = hitungStatus(peminjamanValue, 'menunggu');
     peminjamanDisetujui = hitungStatus(peminjamanValue, 'disetujui');
+    peminjamanDipinjam = hitungStatus(peminjamanValue, 'dipinjam');
+    peminjamanDikembalikan = hitungStatus(peminjamanValue, 'dikembalikan');
     peminjamanDitolak = hitungStatus(peminjamanValue, 'ditolak');
 
     return SingleChildScrollView(
@@ -196,7 +247,10 @@ class _LaporanPageState extends State<LaporanPage> {
             color: primaryGreen,
             children: [
               _dataItem('Total Anggota Aktif', totalAnggota.toString()),
-              _dataItem('Calon Anggota', totalCalon.toString()),
+              _dataItem('Calon Anggota Baru', totalCalon.toString()),
+              _dataItem('Calon Menunggu', calonMenunggu.toString()),
+              _dataItem('Calon Disetujui', calonDisetujui.toString()),
+              _dataItem('Calon Ditolak', calonDitolak.toString()),
             ],
           ),
           const SizedBox(height: 18),
@@ -208,7 +262,12 @@ class _LaporanPageState extends State<LaporanPage> {
               _dataItem('Total Pengajuan', totalPupuk.toString()),
               _dataItem('Menunggu Verifikasi', pupukMenunggu.toString()),
               _dataItem('Disetujui Admin', pupukDisetujui.toString()),
+              _dataItem('Sudah Diambil', pupukSudahDiambil.toString()),
               _dataItem('Ditolak Admin', pupukDitolak.toString()),
+              _dataItem(
+                'Total Pupuk Disalurkan',
+                '${totalKgDisalurkan.toStringAsFixed(1)} Kg',
+              ),
             ],
           ),
           const SizedBox(height: 18),
@@ -220,6 +279,11 @@ class _LaporanPageState extends State<LaporanPage> {
               _dataItem('Total Peminjaman', totalPeminjaman.toString()),
               _dataItem('Menunggu Verifikasi', peminjamanMenunggu.toString()),
               _dataItem('Disetujui Admin', peminjamanDisetujui.toString()),
+              _dataItem('Sedang Dipinjam', peminjamanDipinjam.toString()),
+              _dataItem(
+                'Sudah Dikembalikan',
+                peminjamanDikembalikan.toString(),
+              ),
               _dataItem('Ditolak Admin', peminjamanDitolak.toString()),
             ],
           ),

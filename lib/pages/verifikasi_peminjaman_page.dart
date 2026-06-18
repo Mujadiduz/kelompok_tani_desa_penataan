@@ -31,17 +31,64 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
 
   late final DatabaseReference peminjamanRef;
   late final DatabaseReference alatRef;
+  late final DatabaseReference notifikasiRef;
 
   @override
   void initState() {
     super.initState();
     peminjamanRef = db.ref('peminjaman_alat');
     alatRef = db.ref('alat_pertanian');
+    notifikasiRef = db.ref('notifikasi');
   }
 
-  Future<void> updateStatus(String id, String status) async {
+  Future<void> simpanNotifikasi({
+    required String nik,
+    required String judul,
+    required String pesan,
+    required String tipe,
+  }) async {
+    if (nik.trim().isEmpty || nik == '-') return;
+
+    await notifikasiRef.child(nik).push().set({
+      'judul': judul,
+      'pesan': pesan,
+      'tipe': tipe,
+      'status': 'belum_dibaca',
+      'tanggal': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<void> updateStatus(
+    String id,
+    String status,
+    Map<dynamic, dynamic> item,
+  ) async {
     try {
-      await peminjamanRef.child(id).update({'status': status});
+      await peminjamanRef.child(id).update({
+        'status': status,
+        'tanggal_verifikasi': DateTime.now().toIso8601String(),
+      });
+
+      final nik = (item['nik'] ?? '').toString();
+      final alat = (item['alat'] ?? item['nama_alat'] ?? 'alat').toString();
+
+      if (status == 'disetujui') {
+        await simpanNotifikasi(
+          nik: nik,
+          judul: 'Peminjaman Alat Disetujui',
+          pesan:
+              'Pengajuan peminjaman $alat telah disetujui admin. Silakan menunggu arahan pengambilan alat.',
+          tipe: 'peminjaman_alat',
+        );
+      } else if (status == 'ditolak') {
+        await simpanNotifikasi(
+          nik: nik,
+          judul: 'Peminjaman Alat Ditolak',
+          pesan:
+              'Pengajuan peminjaman $alat ditolak oleh admin. Silakan cek kembali data pengajuan.',
+          tipe: 'peminjaman_alat',
+        );
+      }
 
       if (!mounted) return;
 
@@ -60,7 +107,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   Future<void> tandaiDipinjam(String id, Map<dynamic, dynamic> item) async {
     try {
       final idAlat = (item['id_alat'] ?? '').toString();
-      final namaAlat = (item['alat'] ?? '').toString();
+      final namaAlat = (item['alat'] ?? item['nama_alat'] ?? '').toString();
       final jumlahPinjam =
           int.tryParse(
             (item['jumlah'] ?? item['jumlah_alat'] ?? 1).toString(),
@@ -123,6 +170,16 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
         'alat': namaAlat,
       });
 
+      final nik = (item['nik'] ?? '').toString();
+
+      await simpanNotifikasi(
+        nik: nik,
+        judul: 'Alat Sudah Dipinjam',
+        pesan:
+            'Peminjaman $namaAlat sebanyak $jumlahPinjam unit telah ditandai sedang dipinjam.',
+        tipe: 'peminjaman_alat',
+      );
+
       if (!mounted) return;
       _showSnackBar('Alat berhasil ditandai dipinjam', primaryGreen);
     } catch (e) {
@@ -136,6 +193,8 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
       final now = DateTime.now();
       final tanggalKembali = (item['tanggal_kembali'] ?? '').toString();
       final hasil = _hitungKeterlambatan(tanggalKembali, now);
+      final nik = (item['nik'] ?? '').toString();
+      final alat = (item['alat'] ?? item['nama_alat'] ?? 'alat').toString();
 
       await peminjamanRef.child(id).update({
         'status': 'dikembalikan',
@@ -144,6 +203,18 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
         'status_pengembalian': hasil.status,
         'jumlah_hari_terlambat': hasil.hariTerlambat,
       });
+
+      final pesanTerlambat =
+          hasil.status == 'terlambat'
+              ? ' Pengembalian terlambat ${hasil.hariTerlambat} hari.'
+              : ' Pengembalian tepat waktu.';
+
+      await simpanNotifikasi(
+        nik: nik,
+        judul: 'Peminjaman Selesai',
+        pesan: 'Alat $alat telah ditandai sudah dikembalikan.$pesanTerlambat',
+        tipe: 'peminjaman_alat',
+      );
 
       if (!mounted) return;
       _showSnackBar('Alat berhasil ditandai dikembalikan', primaryGreen);
@@ -185,8 +256,10 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   Future<void> tampilkanKonfirmasi({
     required String id,
     required String status,
-    required String nama,
+    required Map<dynamic, dynamic> item,
   }) async {
+    final nama = (item['nama'] ?? '-').toString();
+
     final hasil = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -231,8 +304,10 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
       },
     );
 
+    if (!mounted) return;
+
     if (hasil == true) {
-      await updateStatus(id, status);
+      await updateStatus(id, status, item);
     }
   }
 
@@ -241,7 +316,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     required Map<dynamic, dynamic> item,
   }) async {
     final nama = (item['nama'] ?? '-').toString();
-    final alat = (item['alat'] ?? '-').toString();
+    final alat = (item['alat'] ?? item['nama_alat'] ?? '-').toString();
 
     final hasil = await showDialog<bool>(
       context: context,
@@ -280,6 +355,8 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
       },
     );
 
+    if (!mounted) return;
+
     if (hasil == true) {
       await tandaiDipinjam(id, item);
     }
@@ -290,7 +367,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     required Map<dynamic, dynamic> item,
   }) async {
     final nama = (item['nama'] ?? '-').toString();
-    final alat = (item['alat'] ?? '-').toString();
+    final alat = (item['alat'] ?? item['nama_alat'] ?? '-').toString();
 
     final hasil = await showDialog<bool>(
       context: context,
@@ -328,6 +405,8 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
         );
       },
     );
+
+    if (!mounted) return;
 
     if (hasil == true) {
       await tandaiDikembalikan(id, item);
@@ -656,12 +735,12 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
 
   Widget _filterStatus() {
     final filters = [
-      _FilterItem(label: 'Semua', value: 'semua'),
-      _FilterItem(label: 'Menunggu', value: 'menunggu'),
-      _FilterItem(label: 'Disetujui', value: 'disetujui'),
-      _FilterItem(label: 'Dipinjam', value: 'dipinjam'),
-      _FilterItem(label: 'Dikembalikan', value: 'dikembalikan'),
-      _FilterItem(label: 'Ditolak', value: 'ditolak'),
+      const _FilterItem(label: 'Semua', value: 'semua'),
+      const _FilterItem(label: 'Menunggu', value: 'menunggu'),
+      const _FilterItem(label: 'Disetujui', value: 'disetujui'),
+      const _FilterItem(label: 'Dipinjam', value: 'dipinjam'),
+      const _FilterItem(label: 'Dikembalikan', value: 'dikembalikan'),
+      const _FilterItem(label: 'Ditolak', value: 'ditolak'),
     ];
 
     return Container(
@@ -707,7 +786,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   Widget _peminjamanCard(String id, Map<dynamic, dynamic> item) {
     final nama = (item['nama'] ?? '-').toString();
     final nik = (item['nik'] ?? '-').toString();
-    final alat = (item['alat'] ?? '-').toString();
+    final alat = (item['alat'] ?? item['nama_alat'] ?? '-').toString();
     final jumlah = (item['jumlah'] ?? item['jumlah_alat'] ?? '1').toString();
     final tanggalPinjam = (item['tanggal_pinjam'] ?? '-').toString();
     final tanggalKembali = (item['tanggal_kembali'] ?? '-').toString();
@@ -823,7 +902,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
                       tampilkanKonfirmasi(
                         id: id,
                         status: 'ditolak',
-                        nama: nama,
+                        item: item,
                       );
                     },
                   ),
@@ -838,7 +917,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
                       tampilkanKonfirmasi(
                         id: id,
                         status: 'disetujui',
-                        nama: nama,
+                        item: item,
                       );
                     },
                   ),

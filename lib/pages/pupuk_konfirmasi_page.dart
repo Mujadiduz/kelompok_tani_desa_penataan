@@ -3,6 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
 class PupukKonfirmasiPage extends StatefulWidget {
+  final String idPupuk;
   final String namaPupuk;
   final String nama;
   final String nik;
@@ -14,6 +15,7 @@ class PupukKonfirmasiPage extends StatefulWidget {
 
   const PupukKonfirmasiPage({
     super.key,
+    required this.idPupuk,
     required this.namaPupuk,
     required this.nama,
     required this.nik,
@@ -39,59 +41,76 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
 
   bool isLoading = false;
 
-  final DatabaseReference pupukRef = FirebaseDatabase.instanceFor(
+  final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
-  ).ref('bantuan_pupuk');
+  );
+
+  late final DatabaseReference pupukRef;
+  late final DatabaseReference notifikasiAdminRef;
+
+  @override
+  void initState() {
+    super.initState();
+    pupukRef = db.ref('bantuan_pupuk');
+    notifikasiAdminRef = db.ref('notifikasi_admin');
+  }
+
+  Future<void> simpanNotifikasiAdmin() async {
+    await notifikasiAdminRef.push().set({
+      'judul': 'Pengajuan Pupuk Baru',
+      'pesan':
+          '${widget.nama} mengajukan bantuan pupuk ${widget.namaPupuk} sebanyak ${widget.jumlahPupuk} Kg.',
+      'tipe': 'bantuan_pupuk',
+      'status': 'belum_dibaca',
+      'tanggal': DateTime.now().toIso8601String(),
+    });
+  }
 
   Future<void> kirimPermintaan() async {
+    if (isLoading) return;
+
+    if (widget.idPupuk.trim().isEmpty) {
+      _showSnackBar('ID pupuk tidak ditemukan', Colors.red);
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
       await pupukRef
           .push()
           .set({
-            'nama': widget.nama,
-            'nik': widget.nik,
-            'jenis_pupuk': widget.namaPupuk,
-            'jumlah_petak_sawah': widget.jumlahPetakSawah,
-            'jatah_pupuk': widget.jatahPupuk,
-            'jumlah_pupuk': widget.jumlahPupuk,
-            'status_jatah': widget.statusJatah,
-            'catatan': widget.catatan,
+            'id_pupuk': widget.idPupuk.trim(),
+            'nama': widget.nama.trim(),
+            'nik': widget.nik.trim(),
+            'jenis_pupuk': widget.namaPupuk.trim(),
+            'luas_sawah': widget.jumlahPetakSawah.trim(),
+            'jumlah_petak_sawah': widget.jumlahPetakSawah.trim(),
+            'jatah_pupuk': widget.jatahPupuk.trim(),
+            'jumlah_pupuk': widget.jumlahPupuk.trim().replaceAll(',', '.'),
+            'status_jatah': widget.statusJatah.trim(),
+            'catatan': widget.catatan.trim(),
             'status': 'menunggu',
             'tanggal_pengajuan': DateTime.now().toIso8601String(),
           })
           .timeout(const Duration(seconds: 15));
 
+      await simpanNotifikasiAdmin();
+
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Permintaan pupuk berhasil dikirim'),
-          backgroundColor: primaryGreen,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showSnackBar('Permintaan pupuk berhasil dikirim', primaryGreen);
 
       Navigator.pop(context);
       Navigator.pop(context);
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal mengirim permintaan: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showSnackBar('Gagal mengirim permintaan: $e', Colors.red);
     } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -100,6 +119,16 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
   Color get warnaJatah => isMelebihiJatah ? Colors.red : primaryGreen;
 
   String get teksJatah => isMelebihiJatah ? 'Melebihi Jatah' : 'Sesuai Jatah';
+
+  void _showSnackBar(String pesan, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(pesan),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -220,13 +249,13 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
 
   Widget _stepIndicator() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       decoration: _cardDecoration(),
       child: Row(
         children: [
-          _stepCircle('1', 'Pilih', false),
+          _stepCircle('1', 'Pilih', true, completed: true),
           _stepLine(true),
-          _stepCircle('2', 'Data', false),
+          _stepCircle('2', 'Data', true, completed: true),
           _stepLine(true),
           _stepCircle('3', 'Kirim', true),
         ],
@@ -234,21 +263,49 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
     );
   }
 
-  Widget _stepCircle(String number, String label, bool active) {
+  Widget _stepCircle(
+    String number,
+    String label,
+    bool active, {
+    bool completed = false,
+  }) {
     return Column(
       children: [
-        CircleAvatar(
-          radius: 17,
-          backgroundColor: active ? primaryGreen : const Color(0xffE5E7EB),
-          child: Text(
-            number,
-            style: TextStyle(
-              color: active ? Colors.white : textGrey,
-              fontWeight: FontWeight.w900,
-            ),
+        Container(
+          height: 38,
+          width: 38,
+          decoration: BoxDecoration(
+            color: active ? primaryGreen : const Color(0xffE5E7EB),
+            shape: BoxShape.circle,
+            boxShadow:
+                active
+                    ? [
+                      BoxShadow(
+                        color: primaryGreen.withValues(alpha: 0.24),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ]
+                    : [],
+          ),
+          child: Center(
+            child:
+                completed
+                    ? const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    )
+                    : Text(
+                      number,
+                      style: TextStyle(
+                        color: active ? Colors.white : textGrey,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 7),
         Text(
           label,
           style: TextStyle(
@@ -264,9 +321,12 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
   Widget _stepLine(bool active) {
     return Expanded(
       child: Container(
-        height: 2,
+        height: 3,
         margin: const EdgeInsets.only(bottom: 24),
-        color: active ? primaryGreen : const Color(0xffE5E7EB),
+        decoration: BoxDecoration(
+          color: active ? primaryGreen : const Color(0xffE5E7EB),
+          borderRadius: BorderRadius.circular(30),
+        ),
       ),
     );
   }
@@ -295,6 +355,16 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
               color: textDark,
               fontSize: 21,
               fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            'ID Pupuk: ${widget.idPupuk}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 10),
@@ -331,6 +401,7 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
           const SizedBox(height: 14),
           _detailItem(Icons.person_rounded, 'Nama Pemohon', widget.nama),
           _detailItem(Icons.badge_rounded, 'NIK', widget.nik),
+          _detailItem(Icons.qr_code_rounded, 'ID Pupuk', widget.idPupuk),
           _detailItem(Icons.grass_rounded, 'Jenis Pupuk', widget.namaPupuk),
           _detailItem(
             Icons.landscape_rounded,
@@ -422,7 +493,7 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Permintaan akan masuk ke admin untuk diverifikasi. Status pengajuan dapat dilihat pada halaman riwayat bantuan pupuk.',
+              'Permintaan akan masuk ke admin untuk diverifikasi. Stok pupuk belum berkurang pada tahap ini dan baru berkurang ketika admin menandai pupuk sudah diambil.',
               style: TextStyle(
                 color: textGrey,
                 height: 1.4,

@@ -3,6 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
 import 'alat_page.dart';
+import 'notifikasi_page.dart';
 import 'profil_page.dart';
 import 'pupuk_page.dart';
 import 'riwayat_page.dart';
@@ -57,6 +58,25 @@ class _UserHomePageState extends State<UserHomePage> {
     }).toList();
   }
 
+  int hitungNotifBelumDibaca(dynamic value) {
+    if (value == null || value is! Map) return 0;
+
+    int total = 0;
+    final data = Map<dynamic, dynamic>.from(value);
+
+    for (final item in data.values) {
+      if (item is Map) {
+        final notif = Map<dynamic, dynamic>.from(item);
+        final status = (notif['status'] ?? 'belum_dibaca').toString();
+        if (status == 'belum_dibaca') {
+          total++;
+        }
+      }
+    }
+
+    return total;
+  }
+
   void bukaHalaman(Widget page) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
@@ -65,6 +85,7 @@ class _UserHomePageState extends State<UserHomePage> {
   Widget build(BuildContext context) {
     final bantuanRef = db.ref('bantuan_pupuk');
     final peminjamanRef = db.ref('peminjaman_alat');
+    final notifikasiRef = db.ref('notifikasi').child(widget.nik);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -75,56 +96,65 @@ class _UserHomePageState extends State<UserHomePage> {
             return StreamBuilder<DatabaseEvent>(
               stream: peminjamanRef.onValue,
               builder: (context, peminjamanSnapshot) {
-                final semuaBantuan = ambilDataByNik(
-                  bantuanSnapshot.data?.snapshot.value,
-                  widget.nik,
-                );
+                return StreamBuilder<DatabaseEvent>(
+                  stream: notifikasiRef.onValue,
+                  builder: (context, notifSnapshot) {
+                    final semuaBantuan = ambilDataByNik(
+                      bantuanSnapshot.data?.snapshot.value,
+                      widget.nik,
+                    );
 
-                final semuaPeminjaman = ambilDataByNik(
-                  peminjamanSnapshot.data?.snapshot.value,
-                  widget.nik,
-                );
+                    final semuaPeminjaman = ambilDataByNik(
+                      peminjamanSnapshot.data?.snapshot.value,
+                      widget.nik,
+                    );
 
-                final bantuanMenunggu = ambilDataMenunggu(
-                  bantuanSnapshot.data?.snapshot.value,
-                  widget.nik,
-                );
+                    final bantuanMenunggu = ambilDataMenunggu(
+                      bantuanSnapshot.data?.snapshot.value,
+                      widget.nik,
+                    );
 
-                final peminjamanMenunggu = ambilDataMenunggu(
-                  peminjamanSnapshot.data?.snapshot.value,
-                  widget.nik,
-                );
+                    final peminjamanMenunggu = ambilDataMenunggu(
+                      peminjamanSnapshot.data?.snapshot.value,
+                      widget.nik,
+                    );
 
-                final totalMenunggu =
-                    bantuanMenunggu.length + peminjamanMenunggu.length;
+                    final totalMenunggu =
+                        bantuanMenunggu.length + peminjamanMenunggu.length;
 
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _header(totalMenunggu),
-                      const SizedBox(height: 22),
-                      _statusCard(),
-                      const SizedBox(height: 22),
-                      _sectionTitle('Ringkasan Aktivitas'),
-                      const SizedBox(height: 12),
-                      _summaryGrid(
-                        bantuanTotal: semuaBantuan.length,
-                        peminjamanTotal: semuaPeminjaman.length,
-                        totalMenunggu: totalMenunggu,
+                    final totalNotifBelumDibaca = hitungNotifBelumDibaca(
+                      notifSnapshot.data?.snapshot.value,
+                    );
+
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _header(totalMenunggu, totalNotifBelumDibaca),
+                          const SizedBox(height: 22),
+                          _statusCard(),
+                          const SizedBox(height: 22),
+                          _sectionTitle('Ringkasan Aktivitas'),
+                          const SizedBox(height: 12),
+                          _summaryGrid(
+                            bantuanTotal: semuaBantuan.length,
+                            peminjamanTotal: semuaPeminjaman.length,
+                            totalMenunggu: totalMenunggu,
+                          ),
+                          const SizedBox(height: 24),
+                          _sectionTitle('Menu Utama'),
+                          const SizedBox(height: 12),
+                          _quickMenu(),
+                          const SizedBox(height: 24),
+                          _prosesSection(
+                            bantuanList: bantuanMenunggu,
+                            peminjamanList: peminjamanMenunggu,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 24),
-                      _sectionTitle('Menu Utama'),
-                      const SizedBox(height: 12),
-                      _quickMenu(),
-                      const SizedBox(height: 24),
-                      _prosesSection(
-                        bantuanList: bantuanMenunggu,
-                        peminjamanList: peminjamanMenunggu,
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
             );
@@ -135,7 +165,7 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _header(int totalMenunggu) {
+  Widget _header(int totalMenunggu, int totalNotifBelumDibaca) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -216,6 +246,8 @@ class _UserHomePageState extends State<UserHomePage> {
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  _notifButton(totalNotifBelumDibaca),
                 ],
               ),
               const SizedBox(height: 22),
@@ -267,6 +299,57 @@ class _UserHomePageState extends State<UserHomePage> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _notifButton(int totalNotifBelumDibaca) {
+    return InkWell(
+      onTap: () {
+        bukaHalaman(NotifikasiPage(nik: widget.nik));
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            height: 46,
+            width: 46,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+            ),
+            child: const Icon(
+              Icons.notifications_rounded,
+              color: Colors.white,
+              size: 25,
+            ),
+          ),
+          if (totalNotifBelumDibaca > 0)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+                child: Text(
+                  totalNotifBelumDibaca > 99
+                      ? '99+'
+                      : totalNotifBelumDibaca.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

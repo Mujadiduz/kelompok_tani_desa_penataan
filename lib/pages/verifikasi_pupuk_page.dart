@@ -20,6 +20,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
   static const Color blueStatus = Color(0xff1976D2);
 
   String selectedFilter = 'semua';
+  bool isProcessing = false;
 
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -29,12 +30,40 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
 
   late final DatabaseReference bantuanPupukRef;
   late final DatabaseReference stokPupukRef;
+  late final DatabaseReference notifikasiRef;
 
   @override
   void initState() {
     super.initState();
     bantuanPupukRef = db.ref('bantuan_pupuk');
     stokPupukRef = db.ref('pupuk');
+    notifikasiRef = db.ref('notifikasi');
+  }
+
+  double parseDouble(dynamic value) {
+    return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0;
+  }
+
+  String formatKg(double value) {
+    if (value % 1 == 0) return value.toInt().toString();
+    return value.toStringAsFixed(1);
+  }
+
+  Future<void> simpanNotifikasi({
+    required String nik,
+    required String judul,
+    required String pesan,
+    required String tipe,
+  }) async {
+    if (nik.trim().isEmpty || nik == '-') return;
+
+    await notifikasiRef.child(nik).push().set({
+      'judul': judul,
+      'pesan': pesan,
+      'tipe': tipe,
+      'status': 'belum_dibaca',
+      'tanggal': DateTime.now().toIso8601String(),
+    });
   }
 
   Future<void> updateStatus(
@@ -43,7 +72,31 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     Map<String, dynamic> dataPupuk,
   ) async {
     try {
-      await bantuanPupukRef.child(id).update({'status': status});
+      await bantuanPupukRef.child(id).update({
+        'status': status,
+        'tanggal_verifikasi': DateTime.now().toIso8601String(),
+      });
+
+      final nik = (dataPupuk['nik'] ?? '').toString();
+      final jenisPupuk = (dataPupuk['jenis_pupuk'] ?? 'pupuk').toString();
+
+      if (status == 'disetujui') {
+        await simpanNotifikasi(
+          nik: nik,
+          judul: 'Bantuan Pupuk Disetujui',
+          pesan:
+              'Pengajuan bantuan pupuk $jenisPupuk Anda telah disetujui admin. Silakan menunggu arahan pengambilan.',
+          tipe: 'bantuan_pupuk',
+        );
+      } else if (status == 'ditolak') {
+        await simpanNotifikasi(
+          nik: nik,
+          judul: 'Bantuan Pupuk Ditolak',
+          pesan:
+              'Pengajuan bantuan pupuk $jenisPupuk Anda ditolak oleh admin. Silakan cek kembali data pengajuan.',
+          tipe: 'bantuan_pupuk',
+        );
+      }
 
       if (!mounted) return;
 
@@ -60,69 +113,77 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
   }
 
   Future<void> tandaiSudahDiambil(
-    String id,
+    String idBantuan,
     Map<String, dynamic> dataPupuk,
   ) async {
-    try {
-      final jenisPupuk = (dataPupuk['jenis_pupuk'] ?? '').toString();
-      final jumlahDiajukan =
-          int.tryParse((dataPupuk['jumlah_pupuk'] ?? '0').toString()) ?? 0;
+    if (isProcessing) return;
 
-      final snapshot = await stokPupukRef.get().timeout(
-        const Duration(seconds: 10),
-      );
+    setState(() => isProcessing = true);
+
+    try {
+      final idPupuk = (dataPupuk['id_pupuk'] ?? '').toString();
+      final jumlahDiajukan = parseDouble(dataPupuk['jumlah_pupuk']);
+
+      if (idPupuk.isEmpty) {
+        throw Exception('ID pupuk tidak ditemukan pada data pengajuan');
+      }
+
+      if (jumlahDiajukan <= 0) {
+        throw Exception('Jumlah pupuk tidak valid');
+      }
+
+      final snapshot = await stokPupukRef
+          .child(idPupuk)
+          .get()
+          .timeout(const Duration(seconds: 10));
 
       if (!snapshot.exists || snapshot.value == null) {
-        if (!mounted) return;
-        _showSnackBar('Data stok pupuk belum tersedia', Colors.red);
-        return;
+        throw Exception('Data pupuk tidak ditemukan');
       }
 
-      final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
-      bool pupukDitemukan = false;
+      final pupuk = Map<dynamic, dynamic>.from(snapshot.value as Map);
+      final stokSekarang = parseDouble(pupuk['stok']);
 
-      for (final entry in data.entries) {
-        final idPupuk = entry.key.toString();
-        final pupuk = Map<dynamic, dynamic>.from(entry.value as Map);
-
-        final namaPupuk = (pupuk['nama_pupuk'] ?? '').toString();
-        final stokSekarang = int.tryParse((pupuk['stok'] ?? 0).toString()) ?? 0;
-
-        if (namaPupuk.toLowerCase().trim() == jenisPupuk.toLowerCase().trim()) {
-          pupukDitemukan = true;
-
-          if (stokSekarang < jumlahDiajukan) {
-            if (!mounted) return;
-            _showSnackBar('Stok pupuk tidak mencukupi', Colors.red);
-            return;
-          }
-
-          final stokBaru = stokSekarang - jumlahDiajukan;
-          await stokPupukRef.child(idPupuk).update({'stok': stokBaru});
-          break;
-        }
+      if (stokSekarang < jumlahDiajukan) {
+        throw Exception('Stok pupuk tidak mencukupi');
       }
 
-      if (!pupukDitemukan) {
-        if (!mounted) return;
-        _showSnackBar('Jenis pupuk tidak ditemukan di data stok', Colors.red);
-        return;
-      }
-
+      final stokBaru = stokSekarang - jumlahDiajukan;
       final now = DateTime.now();
 
-      await bantuanPupukRef.child(id).update({
+      await stokPupukRef.child(idPupuk).update({
+        'stok': stokBaru,
+      });
+
+      await bantuanPupukRef.child(idBantuan).update({
         'status': 'sudah_diambil',
+        'jumlah_pupuk_diambil': jumlahDiajukan,
         'tanggal_pengambilan':
             '${now.year}-${_duaDigit(now.month)}-${_duaDigit(now.day)}',
         'waktu_pengambilan': '${_duaDigit(now.hour)}:${_duaDigit(now.minute)}',
+        'tanggal_diambil': now.toIso8601String(),
       });
+
+      final nik = (dataPupuk['nik'] ?? '').toString();
+      final jenisPupuk = (dataPupuk['jenis_pupuk'] ?? 'pupuk').toString();
+
+      await simpanNotifikasi(
+        nik: nik,
+        judul: 'Pupuk Sudah Diambil',
+        pesan:
+            'Bantuan pupuk $jenisPupuk sebanyak ${formatKg(jumlahDiajukan)} Kg telah ditandai sudah diambil.',
+        tipe: 'bantuan_pupuk',
+      );
 
       if (!mounted) return;
       _showSnackBar('Pupuk berhasil ditandai sudah diambil', primaryGreen);
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Gagal menandai pengambilan: $e', Colors.red);
+    } finally {
+      if (mounted) {
+        setState(() => isProcessing = false);
+      }
     }
   }
 
@@ -176,6 +237,8 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
       },
     );
 
+    if (!mounted) return;
+
     if (hasil == true) {
       await updateStatus(id, status, pupuk);
     }
@@ -225,6 +288,8 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
         );
       },
     );
+
+    if (!mounted) return;
 
     if (hasil == true) {
       await tandaiSudahDiambil(id, pupuk);
@@ -297,77 +362,89 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _header(),
-            _filterStatus(),
-            Expanded(
-              child: StreamBuilder<DatabaseEvent>(
-                stream: bantuanPupukRef.onValue,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return _messageState(
-                      icon: Icons.error_outline_rounded,
-                      title: 'Terjadi Kesalahan',
-                      message: snapshot.error.toString(),
-                    );
-                  }
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                _header(),
+                _filterStatus(),
+                Expanded(
+                  child: StreamBuilder<DatabaseEvent>(
+                    stream: bantuanPupukRef.onValue,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return _messageState(
+                          icon: Icons.error_outline_rounded,
+                          title: 'Terjadi Kesalahan',
+                          message: snapshot.error.toString(),
+                        );
+                      }
 
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: primaryGreen),
-                    );
-                  }
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: primaryGreen),
+                        );
+                      }
 
-                  if (!snapshot.hasData ||
-                      snapshot.data!.snapshot.value == null) {
-                    return _messageState(
-                      icon: Icons.inbox_outlined,
-                      title: 'Belum Ada Pengajuan',
-                      message: 'Belum ada pengajuan bantuan pupuk.',
-                    );
-                  }
+                      if (!snapshot.hasData ||
+                          snapshot.data!.snapshot.value == null) {
+                        return _messageState(
+                          icon: Icons.inbox_outlined,
+                          title: 'Belum Ada Pengajuan',
+                          message: 'Belum ada pengajuan bantuan pupuk.',
+                        );
+                      }
 
-                  final rawData = snapshot.data!.snapshot.value;
+                      final rawData = snapshot.data!.snapshot.value;
 
-                  if (rawData is! Map) {
-                    return _messageState(
-                      icon: Icons.warning_amber_rounded,
-                      title: 'Format Data Salah',
-                      message: 'Struktur data Firebase tidak sesuai.',
-                    );
-                  }
+                      if (rawData is! Map) {
+                        return _messageState(
+                          icon: Icons.warning_amber_rounded,
+                          title: 'Format Data Salah',
+                          message: 'Struktur data Firebase tidak sesuai.',
+                        );
+                      }
 
-                  final data = Map<String, dynamic>.from(rawData);
-                  final semuaData = data.entries.toList().reversed.toList();
-                  final pupukList = filterData(semuaData);
+                      final data = Map<String, dynamic>.from(rawData);
+                      final semuaData = data.entries.toList().reversed.toList();
+                      final pupukList = filterData(semuaData);
 
-                  if (pupukList.isEmpty) {
-                    return _messageState(
-                      icon: Icons.search_off_rounded,
-                      title: 'Data Tidak Ditemukan',
-                      message: 'Tidak ada pengajuan pupuk dengan status ini.',
-                    );
-                  }
+                      if (pupukList.isEmpty) {
+                        return _messageState(
+                          icon: Icons.search_off_rounded,
+                          title: 'Data Tidak Ditemukan',
+                          message:
+                              'Tidak ada pengajuan pupuk dengan status ini.',
+                        );
+                      }
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
-                    itemCount: pupukList.length,
-                    itemBuilder: (context, index) {
-                      final id = pupukList[index].key.toString();
-                      final pupuk = Map<String, dynamic>.from(
-                        pupukList[index].value as Map,
+                      return ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+                        itemCount: pupukList.length,
+                        itemBuilder: (context, index) {
+                          final id = pupukList[index].key.toString();
+                          final pupuk = Map<String, dynamic>.from(
+                            pupukList[index].value as Map,
+                          );
+
+                          return _pupukCard(id, pupuk);
+                        },
                       );
-
-                      return _pupukCard(id, pupuk);
                     },
-                  );
-                },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isProcessing)
+            Container(
+              color: Colors.black.withValues(alpha: 0.20),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -458,11 +535,11 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
 
   Widget _filterStatus() {
     final filters = [
-      _FilterItem(label: 'Semua', value: 'semua'),
-      _FilterItem(label: 'Menunggu', value: 'menunggu'),
-      _FilterItem(label: 'Disetujui', value: 'disetujui'),
-      _FilterItem(label: 'Ditolak', value: 'ditolak'),
-      _FilterItem(label: 'Sudah Diambil', value: 'sudah_diambil'),
+      const _FilterItem(label: 'Semua', value: 'semua'),
+      const _FilterItem(label: 'Menunggu', value: 'menunggu'),
+      const _FilterItem(label: 'Disetujui', value: 'disetujui'),
+      const _FilterItem(label: 'Ditolak', value: 'ditolak'),
+      const _FilterItem(label: 'Sudah Diambil', value: 'sudah_diambil'),
     ];
 
     return SizedBox(
@@ -507,6 +584,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
   Widget _pupukCard(String id, Map<String, dynamic> pupuk) {
     final status = (pupuk['status'] ?? 'menunggu').toString().toLowerCase();
     final statusJatah = (pupuk['status_jatah'] ?? 'sesuai_jatah').toString();
+    final idPupuk = (pupuk['id_pupuk'] ?? '').toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -520,6 +598,11 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
           _infoBox(
             children: [
               _infoRow(Icons.badge_outlined, 'NIK', pupuk['nik'] ?? '-'),
+              _infoRow(
+                Icons.qr_code_rounded,
+                'ID Pupuk',
+                idPupuk.isEmpty ? 'Belum ada id_pupuk' : idPupuk,
+              ),
               _infoRow(
                 Icons.grass_rounded,
                 'Jenis Pupuk',
@@ -745,7 +828,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
             borderRadius: BorderRadius.circular(15),
           ),
         ),
-        onPressed: onPressed,
+        onPressed: isProcessing ? null : onPressed,
         icon: Icon(icon, size: 18),
         label: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
       ),

@@ -27,6 +27,23 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   ).ref('pupuk');
 
+  IconData iconPupuk(String nama) {
+    final value = nama.toLowerCase();
+
+    if (value.contains('urea')) return Icons.water_drop_rounded;
+    if (value.contains('npk')) return Icons.grain_rounded;
+    if (value.contains('organik')) return Icons.eco_rounded;
+    if (value.contains('kandang')) return Icons.grass_rounded;
+    if (value.contains('kompos')) return Icons.local_florist_rounded;
+    if (value.contains('za')) return Icons.science_rounded;
+    if (value.contains('sp')) return Icons.bubble_chart_rounded;
+    if (value.contains('kcl')) return Icons.inventory_2_rounded;
+    if (value.contains('dolomit')) return Icons.terrain_rounded;
+    if (value.contains('hayati')) return Icons.spa_rounded;
+
+    return Icons.eco_rounded;
+  }
+
   Future<void> simpanPupuk(String? id) async {
     final nama = namaController.text.trim();
     final stok = int.tryParse(stokController.text.trim()) ?? 0;
@@ -49,7 +66,7 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
               'nama_pupuk': nama,
               'stok': stok,
               'status': 'aktif',
-              'tanggal_input': DateTime.now().toString(),
+              'tanggal_input': DateTime.now().toIso8601String(),
             })
             .timeout(const Duration(seconds: 10));
       } else {
@@ -562,11 +579,7 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
               color: lightGreen,
               borderRadius: BorderRadius.circular(18),
             ),
-            child: const Icon(
-              Icons.grass_rounded,
-              color: primaryGreen,
-              size: 28,
-            ),
+            child: Icon(iconPupuk(namaPupuk), color: primaryGreen, size: 28),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -589,6 +602,17 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
                   style: const TextStyle(
                     color: textGrey,
                     fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'ID: $id',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

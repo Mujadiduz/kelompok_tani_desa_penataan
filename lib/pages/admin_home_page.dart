@@ -6,6 +6,7 @@ import 'jadwal_alat_admin_page.dart';
 import 'kelola_alat_page.dart';
 import 'kelola_pupuk_page.dart';
 import 'laporan_page.dart';
+import 'notifikasi_admin_page.dart';
 import 'profil_admin_page.dart';
 import 'verifikasi_anggota_page.dart';
 import 'verifikasi_peminjaman_page.dart';
@@ -36,6 +37,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   late final DatabaseReference calonAnggotaRef;
   late final DatabaseReference bantuanPupukRef;
   late final DatabaseReference peminjamanRef;
+  late final DatabaseReference notifikasiAdminRef;
 
   @override
   void initState() {
@@ -44,6 +46,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     calonAnggotaRef = db.ref('calon_anggota');
     bantuanPupukRef = db.ref('bantuan_pupuk');
     peminjamanRef = db.ref('peminjaman_alat');
+    notifikasiAdminRef = db.ref('notifikasi_admin');
   }
 
   int hitungTotal(dynamic value) {
@@ -62,9 +65,24 @@ class _AdminHomePageState extends State<AdminHomePage> {
         final detail = Map<dynamic, dynamic>.from(item);
         final status = (detail['status'] ?? '').toString().toLowerCase();
 
-        if (status == 'menunggu') {
-          total++;
-        }
+        if (status == 'menunggu') total++;
+      }
+    }
+
+    return total;
+  }
+
+  int hitungNotifBelumDibaca(dynamic value) {
+    if (value == null || value is! Map) return 0;
+
+    int total = 0;
+    final data = Map<dynamic, dynamic>.from(value);
+
+    for (final item in data.values) {
+      if (item is Map) {
+        final notif = Map<dynamic, dynamic>.from(item);
+        final status = (notif['status'] ?? 'belum_dibaca').toString();
+        if (status == 'belum_dibaca') total++;
       }
     }
 
@@ -94,65 +112,74 @@ class _AdminHomePageState extends State<AdminHomePage> {
                       return StreamBuilder<DatabaseEvent>(
                         stream: peminjamanRef.onValue,
                         builder: (context, peminjamanSnapshot) {
-                          final anggotaTotal = hitungTotal(
-                            anggotaSnapshot.data?.snapshot.value,
-                          );
+                          return StreamBuilder<DatabaseEvent>(
+                            stream: notifikasiAdminRef.onValue,
+                            builder: (context, notifSnapshot) {
+                              final anggotaTotal = hitungTotal(
+                                anggotaSnapshot.data?.snapshot.value,
+                              );
 
-                          final calonMenunggu = hitungMenunggu(
-                            calonSnapshot.data?.snapshot.value,
-                          );
+                              final calonMenunggu = hitungMenunggu(
+                                calonSnapshot.data?.snapshot.value,
+                              );
 
-                          final pupukTotal = hitungTotal(
-                            pupukSnapshot.data?.snapshot.value,
-                          );
+                              final pupukTotal = hitungTotal(
+                                pupukSnapshot.data?.snapshot.value,
+                              );
 
-                          final pupukMenunggu = hitungMenunggu(
-                            pupukSnapshot.data?.snapshot.value,
-                          );
+                              final pupukMenunggu = hitungMenunggu(
+                                pupukSnapshot.data?.snapshot.value,
+                              );
 
-                          final peminjamanTotal = hitungTotal(
-                            peminjamanSnapshot.data?.snapshot.value,
-                          );
+                              final peminjamanTotal = hitungTotal(
+                                peminjamanSnapshot.data?.snapshot.value,
+                              );
 
-                          final peminjamanMenunggu = hitungMenunggu(
-                            peminjamanSnapshot.data?.snapshot.value,
-                          );
+                              final peminjamanMenunggu = hitungMenunggu(
+                                peminjamanSnapshot.data?.snapshot.value,
+                              );
 
-                          final totalMenunggu =
-                              calonMenunggu +
-                              pupukMenunggu +
-                              peminjamanMenunggu;
+                              final notifBelumDibaca = hitungNotifBelumDibaca(
+                                notifSnapshot.data?.snapshot.value,
+                              );
 
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _headerAdmin(totalMenunggu),
-                              const SizedBox(height: 22),
-                              _sectionTitle('Ringkasan Data'),
-                              const SizedBox(height: 12),
-                              _summaryGrid(
-                                anggotaTotal: anggotaTotal,
-                                totalMenunggu: totalMenunggu,
-                                pupukTotal: pupukTotal,
-                                peminjamanTotal: peminjamanTotal,
-                              ),
-                              const SizedBox(height: 24),
-                              _sectionTitle('Aksi Cepat'),
-                              const SizedBox(height: 12),
-                              _quickAction(),
-                              const SizedBox(height: 24),
-                              _sectionTitle('Menu Admin'),
-                              const SizedBox(height: 12),
-                              _menuAdmin(),
-                              const SizedBox(height: 24),
-                              _sectionTitle('Status Pengajuan'),
-                              const SizedBox(height: 12),
-                              _statusPengajuan(
-                                calonMenunggu: calonMenunggu,
-                                pupukMenunggu: pupukMenunggu,
-                                peminjamanMenunggu: peminjamanMenunggu,
-                              ),
-                            ],
+                              final totalMenunggu =
+                                  calonMenunggu +
+                                  pupukMenunggu +
+                                  peminjamanMenunggu;
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _headerAdmin(totalMenunggu, notifBelumDibaca),
+                                  const SizedBox(height: 22),
+                                  _sectionTitle('Ringkasan Data'),
+                                  const SizedBox(height: 12),
+                                  _summaryGrid(
+                                    anggotaTotal: anggotaTotal,
+                                    totalMenunggu: totalMenunggu,
+                                    pupukTotal: pupukTotal,
+                                    peminjamanTotal: peminjamanTotal,
+                                  ),
+                                  const SizedBox(height: 24),
+                                  _sectionTitle('Aksi Cepat'),
+                                  const SizedBox(height: 12),
+                                  _quickAction(),
+                                  const SizedBox(height: 24),
+                                  _sectionTitle('Menu Admin'),
+                                  const SizedBox(height: 12),
+                                  _menuAdmin(),
+                                  const SizedBox(height: 24),
+                                  _sectionTitle('Status Pengajuan'),
+                                  const SizedBox(height: 12),
+                                  _statusPengajuan(
+                                    calonMenunggu: calonMenunggu,
+                                    pupukMenunggu: pupukMenunggu,
+                                    peminjamanMenunggu: peminjamanMenunggu,
+                                  ),
+                                ],
+                              );
+                            },
                           );
                         },
                       );
@@ -168,7 +195,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  Widget _headerAdmin(int totalMenunggu) {
+  Widget _headerAdmin(int totalMenunggu, int notifBelumDibaca) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -245,18 +272,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                       ],
                     ),
                   ),
-                  Container(
-                    height: 42,
-                    width: 42,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: const Icon(
-                      Icons.notifications_none_rounded,
-                      color: Colors.white,
-                    ),
-                  ),
+                  _notifAdminButton(notifBelumDibaca),
                 ],
               ),
               const SizedBox(height: 22),
@@ -282,7 +298,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '$totalMenunggu pengajuan masih menunggu verifikasi',
+                        totalMenunggu == 0
+                            ? 'Tidak ada pengajuan menunggu verifikasi'
+                            : '$totalMenunggu pengajuan masih menunggu verifikasi',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
@@ -295,6 +313,49 @@ class _AdminHomePageState extends State<AdminHomePage> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _notifAdminButton(int total) {
+    return InkWell(
+      onTap: () => bukaHalaman(const NotifikasiAdminPage()),
+      borderRadius: BorderRadius.circular(15),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            height: 42,
+            width: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+            ),
+            child: const Icon(Icons.notifications_rounded, color: Colors.white),
+          ),
+          if (total > 0)
+            Positioned(
+              right: -5,
+              top: -5,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white, width: 1.4),
+                ),
+                child: Text(
+                  total > 99 ? '99+' : total.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

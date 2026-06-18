@@ -24,6 +24,7 @@ class _PupukPageState extends State<PupukPage> {
   static const Color orangeStatus = Color(0xffFB8C00);
 
   String? pupukDipilih;
+  String? idPupukDipilih;
 
   final DatabaseReference pupukRef = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -31,14 +32,34 @@ class _PupukPageState extends State<PupukPage> {
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   ).ref('pupuk');
 
+  IconData iconPupuk(String nama) {
+    final value = nama.toLowerCase();
+
+    if (value.contains('urea')) return Icons.water_drop_rounded;
+    if (value.contains('npk')) return Icons.grain_rounded;
+    if (value.contains('organik')) return Icons.eco_rounded;
+    if (value.contains('kandang')) return Icons.grass_rounded;
+    if (value.contains('kompos')) return Icons.local_florist_rounded;
+    if (value.contains('za')) return Icons.science_rounded;
+    if (value.contains('sp')) return Icons.bubble_chart_rounded;
+    if (value.contains('kcl')) return Icons.inventory_2_rounded;
+    if (value.contains('dolomit')) return Icons.terrain_rounded;
+    if (value.contains('hayati')) return Icons.spa_rounded;
+
+    return Icons.eco_rounded;
+  }
+
   List<Map<String, dynamic>> ambilPupukList(dynamic value) {
     if (value == null || value is! Map) return [];
 
     final data = Map<dynamic, dynamic>.from(value);
 
-    return data.values
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
+    return data.entries
+        .map((entry) {
+          final pupuk = Map<String, dynamic>.from(entry.value as Map);
+          pupuk['id_pupuk'] = entry.key.toString();
+          return pupuk;
+        })
         .where((pupuk) {
           final status = (pupuk['status'] ?? 'aktif').toString().toLowerCase();
           return status == 'aktif';
@@ -57,13 +78,14 @@ class _PupukPageState extends State<PupukPage> {
   }
 
   void lanjutPengajuan() {
-    if (pupukDipilih == null) return;
+    if (pupukDipilih == null || idPupukDipilih == null) return;
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder:
             (_) => PupukFormPage(
+              idPupuk: idPupukDipilih!,
               namaPupuk: pupukDipilih!,
               namaUser: widget.nama,
               nikUser: widget.nik,
@@ -153,11 +175,17 @@ class _PupukPageState extends State<PupukPage> {
       itemCount: pupukList.length,
       itemBuilder: (context, index) {
         final pupuk = pupukList[index];
+        final idPupuk = (pupuk['id_pupuk'] ?? '').toString();
         final namaPupuk = (pupuk['nama_pupuk'] ?? '-').toString();
         final stok = int.tryParse((pupuk['stok'] ?? 0).toString()) ?? 0;
         final tersedia = stok > 0;
 
-        return _pilihanPupuk(nama: namaPupuk, stok: stok, tersedia: tersedia);
+        return _pilihanPupuk(
+          idPupuk: idPupuk,
+          nama: namaPupuk,
+          stok: stok,
+          tersedia: tersedia,
+        );
       },
     );
   }
@@ -326,17 +354,19 @@ class _PupukPageState extends State<PupukPage> {
   }
 
   Widget _pilihanPupuk({
+    required String idPupuk,
     required String nama,
     required int stok,
     required bool tersedia,
   }) {
-    final selected = pupukDipilih == nama;
+    final selected = idPupukDipilih == idPupuk;
 
     return InkWell(
       onTap:
           tersedia
               ? () {
                 setState(() {
+                  idPupukDipilih = idPupuk;
                   pupukDipilih = nama;
                 });
               }
@@ -366,19 +396,19 @@ class _PupukPageState extends State<PupukPage> {
           child: Row(
             children: [
               Container(
-                width: 56,
-                height: 56,
+                width: 58,
+                height: 58,
                 decoration: BoxDecoration(
                   color:
                       selected
                           ? primaryGreen.withValues(alpha: 0.14)
                           : lightGreen,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Icon(
-                  Icons.eco_rounded,
+                  iconPupuk(nama),
                   color: tersedia ? primaryGreen : textGrey,
-                  size: 30,
+                  size: 31,
                 ),
               ),
               const SizedBox(width: 14),
@@ -404,6 +434,17 @@ class _PupukPageState extends State<PupukPage> {
                         fontSize: 12,
                         fontWeight:
                             tersedia ? FontWeight.w600 : FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'ID: $idPupuk',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textGrey,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -448,7 +489,10 @@ class _PupukPageState extends State<PupukPage> {
               borderRadius: BorderRadius.circular(18),
             ),
           ),
-          onPressed: pupukDipilih == null ? null : lanjutPengajuan,
+          onPressed:
+              pupukDipilih == null || idPupukDipilih == null
+                  ? null
+                  : lanjutPengajuan,
           child: const Text(
             'Lanjut Pengajuan',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
@@ -460,12 +504,12 @@ class _PupukPageState extends State<PupukPage> {
 
   Widget _stepIndicator() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       decoration: _cardDecoration(),
       child: Row(
         children: [
           _stepCircle('1', 'Pilih', true),
-          _stepLine(true),
+          _stepLine(false),
           _stepCircle('2', 'Data', false),
           _stepLine(false),
           _stepCircle('3', 'Kirim', false),
@@ -477,18 +521,34 @@ class _PupukPageState extends State<PupukPage> {
   Widget _stepCircle(String number, String label, bool active) {
     return Column(
       children: [
-        CircleAvatar(
-          radius: 17,
-          backgroundColor: active ? primaryGreen : const Color(0xffE5E7EB),
-          child: Text(
-            number,
-            style: TextStyle(
-              color: active ? Colors.white : textGrey,
-              fontWeight: FontWeight.w900,
+        Container(
+          height: 38,
+          width: 38,
+          decoration: BoxDecoration(
+            color: active ? primaryGreen : const Color(0xffE5E7EB),
+            shape: BoxShape.circle,
+            boxShadow:
+                active
+                    ? [
+                      BoxShadow(
+                        color: primaryGreen.withValues(alpha: 0.24),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ]
+                    : [],
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: TextStyle(
+                color: active ? Colors.white : textGrey,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 7),
         Text(
           label,
           style: TextStyle(
@@ -504,21 +564,40 @@ class _PupukPageState extends State<PupukPage> {
   Widget _stepLine(bool active) {
     return Expanded(
       child: Container(
-        height: 2,
+        height: 3,
         margin: const EdgeInsets.only(bottom: 24),
-        color: active ? primaryGreen : const Color(0xffE5E7EB),
+        decoration: BoxDecoration(
+          color: active ? primaryGreen : const Color(0xffE5E7EB),
+          borderRadius: BorderRadius.circular(30),
+        ),
       ),
     );
   }
 
   Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: textDark,
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
-      ),
+    return Row(
+      children: [
+        Container(
+          height: 36,
+          width: 36,
+          decoration: BoxDecoration(
+            color: lightGreen,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.grass_rounded, color: primaryGreen, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

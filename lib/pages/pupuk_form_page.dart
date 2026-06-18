@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'pupuk_konfirmasi_page.dart';
 
 class PupukFormPage extends StatefulWidget {
+  final String idPupuk;
   final String namaPupuk;
   final String namaUser;
   final String nikUser;
 
   const PupukFormPage({
     super.key,
+    required this.idPupuk,
     required this.namaPupuk,
     required this.namaUser,
     required this.nikUser,
@@ -27,7 +29,6 @@ class _PupukFormPageState extends State<PupukFormPage> {
   static const Color backgroundColor = Color(0xffF6FAF7);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffFB8C00);
 
   final jumlahPupukController = TextEditingController();
   final catatanController = TextEditingController();
@@ -59,8 +60,8 @@ class _PupukFormPageState extends State<PupukFormPage> {
 
     try {
       final snapshot = await anggotaRef.get().timeout(
-        const Duration(seconds: 10),
-      );
+            const Duration(seconds: 10),
+          );
 
       if (snapshot.exists && snapshot.value != null) {
         final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
@@ -69,12 +70,12 @@ class _PupukFormPageState extends State<PupukFormPage> {
         for (final item in data.values) {
           if (item is Map) {
             final anggota = Map<String, dynamic>.from(item);
-            final nikData = (anggota['nik'] ?? '').toString().replaceAll(
-              RegExp(r'[^0-9]'),
-              '',
-            );
+            final nikData = (anggota['nik'] ?? '')
+                .toString()
+                .replaceAll(RegExp(r'[^0-9]'), '');
 
-            final nikLogin = widget.nikUser.replaceAll(RegExp(r'[^0-9]'), '');
+            final nikLogin =
+                widget.nikUser.replaceAll(RegExp(r'[^0-9]'), '');
 
             if (nikData == nikLogin) {
               anggotaDitemukan = anggota;
@@ -120,10 +121,8 @@ class _PupukFormPageState extends State<PupukFormPage> {
 
   bool melebihiJatah() {
     final jumlahDiajukan =
-        double.tryParse(
-          jumlahPupukController.text.trim().replaceAll(',', '.'),
-        ) ??
-        0;
+        double.tryParse(jumlahPupukController.text.trim().replaceAll(',', '.')) ??
+            0;
 
     return jumlahDiajukan > jatahPupuk;
   }
@@ -131,6 +130,11 @@ class _PupukFormPageState extends State<PupukFormPage> {
   void lanjutKonfirmasi() {
     if (!dataDitemukan) {
       _showSnackBar('Data anggota belum ditemukan', Colors.red);
+      return;
+    }
+
+    if (widget.idPupuk.trim().isEmpty) {
+      _showSnackBar('ID pupuk tidak ditemukan', Colors.red);
       return;
     }
 
@@ -151,17 +155,17 @@ class _PupukFormPageState extends State<PupukFormPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (_) => PupukKonfirmasiPage(
-              namaPupuk: widget.namaPupuk,
-              nama: nama,
-              nik: widget.nikUser.trim(),
-              jumlahPetakSawah: luasSawah,
-              jumlahPupuk: jumlahPupukController.text.trim(),
-              jatahPupuk: jatahPupuk.toStringAsFixed(1),
-              statusJatah: melebihiJatah() ? 'melebihi_jatah' : 'sesuai_jatah',
-              catatan: catatanController.text.trim(),
-            ),
+        builder: (_) => PupukKonfirmasiPage(
+          idPupuk: widget.idPupuk,
+          namaPupuk: widget.namaPupuk,
+          nama: nama,
+          nik: widget.nikUser.trim(),
+          jumlahPetakSawah: luasSawah,
+          jumlahPupuk: jumlahPupukController.text.trim(),
+          jatahPupuk: jatahPupuk.toStringAsFixed(1),
+          statusJatah: melebihiJatah() ? 'melebihi_jatah' : 'sesuai_jatah',
+          catatan: catatanController.text.trim(),
+        ),
       ),
     );
   }
@@ -203,7 +207,9 @@ class _PupukFormPageState extends State<PupukFormPage> {
               if (isLoading)
                 _loadingCard()
               else if (dataDitemukan)
-                _anggotaCard(),
+                _anggotaCard()
+              else
+                _errorCard(),
               const SizedBox(height: 14),
               _formCard(overLimit),
             ],
@@ -303,6 +309,84 @@ class _PupukFormPageState extends State<PupukFormPage> {
     );
   }
 
+  Widget _stepIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          _stepCircle('1', 'Pilih', true, completed: true),
+          _stepLine(true),
+          _stepCircle('2', 'Data', true),
+          _stepLine(false),
+          _stepCircle('3', 'Kirim', false),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepCircle(
+    String number,
+    String label,
+    bool active, {
+    bool completed = false,
+  }) {
+    return Column(
+      children: [
+        Container(
+          height: 38,
+          width: 38,
+          decoration: BoxDecoration(
+            color: active ? primaryGreen : const Color(0xffE5E7EB),
+            shape: BoxShape.circle,
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: primaryGreen.withValues(alpha: 0.24),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Center(
+            child: completed
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 22)
+                : Text(
+                    number,
+                    style: TextStyle(
+                      color: active ? Colors.white : textGrey,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: active ? primaryGreen : textGrey,
+            fontWeight: active ? FontWeight.w900 : FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _stepLine(bool active) {
+    return Expanded(
+      child: Container(
+        height: 3,
+        margin: const EdgeInsets.only(bottom: 24),
+        decoration: BoxDecoration(
+          color: active ? primaryGreen : const Color(0xffE5E7EB),
+          borderRadius: BorderRadius.circular(30),
+        ),
+      ),
+    );
+  }
+
   Widget _pupukCard() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -340,6 +424,15 @@ class _PupukFormPageState extends State<PupukFormPage> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  'ID: ${widget.idPupuk}',
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -355,6 +448,23 @@ class _PupukFormPageState extends State<PupukFormPage> {
       decoration: _cardDecoration(),
       child: const Center(
         child: CircularProgressIndicator(color: primaryGreen),
+      ),
+    );
+  }
+
+  Widget _errorCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: const Text(
+        'Data anggota tidak ditemukan. Pastikan akun sudah terdaftar sebagai anggota.',
+        style: TextStyle(
+          color: Colors.red,
+          fontSize: 13,
+          height: 1.4,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -498,59 +608,6 @@ class _PupukFormPageState extends State<PupukFormPage> {
           'Lanjut Konfirmasi',
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
         ),
-      ),
-    );
-  }
-
-  Widget _stepIndicator() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
-      child: Row(
-        children: [
-          _stepCircle('1', 'Pilih', false),
-          _stepLine(true),
-          _stepCircle('2', 'Data', true),
-          _stepLine(false),
-          _stepCircle('3', 'Kirim', false),
-        ],
-      ),
-    );
-  }
-
-  Widget _stepCircle(String number, String label, bool active) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 17,
-          backgroundColor: active ? primaryGreen : const Color(0xffE5E7EB),
-          child: Text(
-            number,
-            style: TextStyle(
-              color: active ? Colors.white : textGrey,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: active ? primaryGreen : textGrey,
-            fontWeight: active ? FontWeight.w900 : FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _stepLine(bool active) {
-    return Expanded(
-      child: Container(
-        height: 2,
-        margin: const EdgeInsets.only(bottom: 24),
-        color: active ? primaryGreen : const Color(0xffE5E7EB),
       ),
     );
   }

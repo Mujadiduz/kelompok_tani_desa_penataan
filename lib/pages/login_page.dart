@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
+import '../services/notification_service.dart';
 import 'admin_home_page.dart';
 import 'register_page.dart';
 import 'status_keanggotaan_page.dart';
@@ -28,11 +29,21 @@ class _LoginPageState extends State<LoginPage> {
   bool isLoading = false;
   bool hidePassword = true;
 
-  final DatabaseReference anggotaRef = FirebaseDatabase.instanceFor(
+  final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
-  ).ref('anggota');
+  );
+
+  late final DatabaseReference anggotaRef;
+  late final DatabaseReference tokenRef;
+
+  @override
+  void initState() {
+    super.initState();
+    anggotaRef = db.ref('anggota');
+    tokenRef = db.ref('user_tokens');
+  }
 
   Future<void> login() async {
     final inputAwal = nikController.text.trim();
@@ -112,6 +123,10 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       if (loginBerhasil) {
+        await simpanTokenUser(nikLogin, namaLogin);
+
+        if (!mounted) return;
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -131,6 +146,31 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         setState(() => isLoading = false);
       }
+    }
+  }
+
+  Future<void> simpanTokenUser(String nik, String nama) async {
+    try {
+      final token = await NotificationService.getToken();
+
+      debugPrint('FCM TOKEN USER: $token');
+
+      if (token == null || token.isEmpty) {
+        debugPrint('FCM TOKEN KOSONG');
+        return;
+      }
+
+      await tokenRef.child(nik).set({
+        'nik': nik,
+        'nama': nama,
+        'role': 'user',
+        'token': token,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+
+      debugPrint('TOKEN BERHASIL DISIMPAN KE FIREBASE');
+    } catch (e) {
+      debugPrint('GAGAL SIMPAN TOKEN: $e');
     }
   }
 
@@ -226,9 +266,7 @@ class _LoginPageState extends State<LoginPage> {
                     size: 50,
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 const Text(
                   '🌾 Kelompok Tani',
                   textAlign: TextAlign.center,
@@ -238,9 +276,7 @@ class _LoginPageState extends State<LoginPage> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-
                 const SizedBox(height: 4),
-
                 const Text(
                   'Desa Penataan',
                   textAlign: TextAlign.center,
@@ -250,9 +286,7 @@ class _LoginPageState extends State<LoginPage> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,

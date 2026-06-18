@@ -65,6 +65,20 @@ class _RegisterPageState extends State<RegisterPage> {
     });
   }
 
+  Future<void> simpanNotifikasiAdmin({
+    required String judul,
+    required String pesan,
+    required String tipe,
+  }) async {
+    await database.child('notifikasi_admin').push().set({
+      'judul': judul,
+      'pesan': pesan,
+      'tipe': tipe,
+      'status': 'belum_dibaca',
+      'tanggal': DateTime.now().toIso8601String(),
+    });
+  }
+
   Future<void> simpanDataAnggota() async {
     final nama = namaController.text.trim();
     final nik = nikController.text.replaceAll(RegExp(r'[^0-9]'), '');
@@ -110,9 +124,15 @@ class _RegisterPageState extends State<RegisterPage> {
           'foto_ktp_base64': fotoKtpBase64,
           'password': password,
           'status': 'menunggu',
-          'tanggal_daftar': DateTime.now().toString(),
+          'tanggal_daftar': DateTime.now().toIso8601String(),
         })
         .timeout(const Duration(seconds: 20));
+
+    await simpanNotifikasiAdmin(
+      judul: 'Calon Anggota Baru',
+      pesan: '$nama telah mendaftar sebagai calon anggota kelompok tani.',
+      tipe: 'anggota',
+    );
   }
 
   Future<void> kirimPendaftaran() async {
@@ -124,16 +144,12 @@ class _RegisterPageState extends State<RegisterPage> {
       if (!mounted) return;
 
       _showSnackBar('Pendaftaran berhasil dikirim', primaryGreen);
-
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-
       _showSnackBar(e.toString().replaceAll('Exception: ', ''), Colors.red);
     } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -359,9 +375,7 @@ class _RegisterPageState extends State<RegisterPage> {
       ).copyWith(
         suffixIcon: IconButton(
           onPressed: () {
-            setState(() {
-              hidePassword = !hidePassword;
-            });
+            setState(() => hidePassword = !hidePassword);
           },
           icon: Icon(
             hidePassword

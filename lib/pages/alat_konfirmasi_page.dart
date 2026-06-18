@@ -37,31 +37,56 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
 
   bool isLoading = false;
 
-  final DatabaseReference peminjamanRef = FirebaseDatabase.instanceFor(
+  final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
-  ).ref('peminjaman_alat');
+  );
+
+  late final DatabaseReference peminjamanRef;
+  late final DatabaseReference notifikasiAdminRef;
+
+  @override
+  void initState() {
+    super.initState();
+    peminjamanRef = db.ref('peminjaman_alat');
+    notifikasiAdminRef = db.ref('notifikasi_admin');
+  }
+
+  Future<void> simpanNotifikasiAdmin() async {
+    await notifikasiAdminRef.push().set({
+      'judul': 'Pengajuan Peminjaman Baru',
+      'pesan':
+          '${widget.nama} mengajukan peminjaman ${widget.namaAlat} pada tanggal ${widget.tanggalPinjam}.',
+      'tipe': 'peminjaman_alat',
+      'status': 'belum_dibaca',
+      'tanggal': DateTime.now().toIso8601String(),
+    });
+  }
 
   Future<void> ajukanPeminjaman() async {
+    if (isLoading) return;
+
     setState(() => isLoading = true);
 
     try {
       await peminjamanRef
           .push()
           .set({
-            'id_alat': widget.idAlat,
-            'alat': widget.namaAlat,
-            'nama': widget.nama,
-            'nik': widget.nik,
-            'tanggal_pinjam': widget.tanggalPinjam,
-            'tanggal_kembali': widget.tanggalKembali,
-            'catatan': widget.catatan,
+            'id_alat': widget.idAlat.trim(),
+            'alat': widget.namaAlat.trim(),
+            'nama': widget.nama.trim(),
+            'nik': widget.nik.trim(),
+            'tanggal_pinjam': widget.tanggalPinjam.trim(),
+            'tanggal_kembali': widget.tanggalKembali.trim(),
+            'catatan': widget.catatan.trim(),
             'jumlah': 1,
             'status': 'menunggu',
-            'tanggal_pengajuan': DateTime.now().toString(),
+            'tanggal_pengajuan': DateTime.now().toIso8601String(),
           })
           .timeout(const Duration(seconds: 15));
+
+      await simpanNotifikasiAdmin();
 
       if (!mounted) return;
 
@@ -75,9 +100,7 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
       if (!mounted) return;
       _showSnackBar('Gagal mengirim peminjaman: $e', Colors.red);
     } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
