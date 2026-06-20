@@ -22,6 +22,8 @@ class _RiwayatPageState extends State<RiwayatPage> {
   static const Color blueStatus = Color(0xff1976D2);
   static const Color purpleStatus = Color(0xff7B1FA2);
 
+  int selectedTab = 0;
+
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
@@ -59,7 +61,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
   int hitungStatus(List<Map<String, dynamic>> data, List<String> statusList) {
     return data.where((item) {
       final itemStatus =
-          (item['status'] ?? 'menunggu').toString().toLowerCase();
+          (item['status'] ?? 'menunggu').toString().toLowerCase().trim();
       return statusList.contains(itemStatus);
     }).length;
   }
@@ -83,12 +85,12 @@ class _RiwayatPageState extends State<RiwayatPage> {
   }
 
   String teksStatus(String status) {
-    if (status == 'disetujui') return 'Disetujui Admin';
+    if (status == 'disetujui') return 'Disetujui';
     if (status == 'sudah_diambil') return 'Sudah Diambil';
-    if (status == 'dipinjam') return 'Sedang Dipinjam';
+    if (status == 'dipinjam') return 'Dipinjam';
     if (status == 'dikembalikan') return 'Dikembalikan';
-    if (status == 'ditolak') return 'Ditolak Admin';
-    return 'Menunggu Verifikasi';
+    if (status == 'ditolak') return 'Ditolak';
+    return 'Menunggu';
   }
 
   IconData iconAlat(String alat) {
@@ -157,54 +159,33 @@ class _RiwayatPageState extends State<RiwayatPage> {
                 ]);
                 final totalDitolak = hitungStatus(semuaRiwayat, ['ditolak']);
 
-                return CustomScrollView(
-                  slivers: [
-                    SliverToBoxAdapter(child: _header(context)),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
-                        child: _summaryGrid(
-                          total: totalPengajuan,
-                          selesai: totalSelesai,
-                          proses: totalProses,
-                          ditolak: totalDitolak,
-                        ),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
-                        child: _infoBox(),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 24, 18, 0),
-                        child: _sectionTitle(
-                          title: 'Riwayat Bantuan Pupuk',
-                          icon: Icons.grass_rounded,
-                        ),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-                        child: _riwayatPupuk(riwayatPupuk),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 24, 18, 0),
-                        child: _sectionTitle(
-                          title: 'Riwayat Peminjaman Alat',
-                          icon: Icons.agriculture_rounded,
-                        ),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
-                        child: _riwayatAlat(riwayatAlat),
+                final listAktif = selectedTab == 0 ? riwayatPupuk : riwayatAlat;
+
+                return Column(
+                  children: [
+                    _header(context),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+                        children: [
+                          _summaryGrid(
+                            total: totalPengajuan,
+                            selesai: totalSelesai,
+                            proses: totalProses,
+                            ditolak: totalDitolak,
+                          ),
+                          const SizedBox(height: 18),
+                          _tabSelector(
+                            totalPupuk: riwayatPupuk.length,
+                            totalAlat: riwayatAlat.length,
+                          ),
+                          const SizedBox(height: 14),
+                          _infoBox(),
+                          const SizedBox(height: 18),
+                          selectedTab == 0
+                              ? _riwayatPupuk(listAktif)
+                              : _riwayatAlat(listAktif),
+                        ],
                       ),
                     ),
                   ],
@@ -280,7 +261,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Pantau status bantuan pupuk dan peminjaman alat pertanian.',
+                'Pantau bantuan pupuk dan peminjaman alat secara terpisah.',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 13,
@@ -294,18 +275,93 @@ class _RiwayatPageState extends State<RiwayatPage> {
     );
   }
 
-  Widget _backButton(BuildContext context) {
+  Widget _tabSelector({required int totalPupuk, required int totalAlat}) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xffE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _tabButton(
+              title: 'Bantuan Pupuk',
+              total: totalPupuk,
+              icon: Icons.grass_rounded,
+              aktif: selectedTab == 0,
+              color: primaryGreen,
+              onTap: () {
+                setState(() {
+                  selectedTab = 0;
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _tabButton(
+              title: 'Peminjaman Alat',
+              total: totalAlat,
+              icon: Icons.agriculture_rounded,
+              aktif: selectedTab == 1,
+              color: orangeStatus,
+              onTap: () {
+                setState(() {
+                  selectedTab = 1;
+                });
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tabButton({
+    required String title,
+    required int total,
+    required IconData icon,
+    required bool aktif,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
+          color: aktif ? color : color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(18),
         ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+        child: Column(
+          children: [
+            Icon(icon, color: aktif ? Colors.white : color, size: 23),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: aktif ? Colors.white : textDark,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              '$total data',
+              style: TextStyle(
+                color: aktif ? Colors.white70 : textGrey,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -316,112 +372,75 @@ class _RiwayatPageState extends State<RiwayatPage> {
     required int proses,
     required int ditolak,
   }) {
-    return Column(
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _summaryCard(
-                title: 'Total Pengajuan',
-                value: total.toString(),
-                subtitle: 'Semua pupuk dan alat',
-                icon: Icons.assignment_rounded,
-                color: primaryGreen,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _summaryCard(
-                title: 'Selesai',
-                value: selesai.toString(),
-                subtitle: 'Sudah diambil/dikembalikan',
-                icon: Icons.check_circle_rounded,
-                color: primaryGreen,
-              ),
-            ),
-          ],
+        Expanded(
+          child: _summaryMini(
+            title: 'Total',
+            value: total.toString(),
+            icon: Icons.assignment_rounded,
+            color: primaryGreen,
+          ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _summaryCard(
-                title: 'Dalam Proses',
-                value: proses.toString(),
-                subtitle: 'Menunggu atau diproses admin',
-                icon: Icons.hourglass_top_rounded,
-                color: orangeStatus,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _summaryCard(
-                title: 'Ditolak Admin',
-                value: ditolak.toString(),
-                subtitle: 'Tidak disetujui',
-                icon: Icons.cancel_rounded,
-                color: Colors.red,
-              ),
-            ),
-          ],
+        const SizedBox(width: 10),
+        Expanded(
+          child: _summaryMini(
+            title: 'Proses',
+            value: proses.toString(),
+            icon: Icons.hourglass_top_rounded,
+            color: orangeStatus,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _summaryMini(
+            title: 'Selesai',
+            value: selesai.toString(),
+            icon: Icons.check_circle_rounded,
+            color: primaryGreen,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _summaryMini(
+            title: 'Ditolak',
+            value: ditolak.toString(),
+            icon: Icons.cancel_rounded,
+            color: Colors.red,
+          ),
         ),
       ],
     );
   }
 
-  Widget _summaryCard({
+  Widget _summaryMini({
     required String title,
     required String value,
-    required String subtitle,
     required IconData icon,
     required Color color,
   }) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 132),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
       decoration: _cardDecoration(),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 40,
-            width: 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(height: 12),
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 7),
           Text(
             value,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 23,
+            style: TextStyle(
+              color: color,
+              fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 11,
-              height: 1.3,
-              fontWeight: FontWeight.w600,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -434,19 +453,31 @@ class _RiwayatPageState extends State<RiwayatPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xffECFDF5),
+        color:
+            selectedTab == 0
+                ? const Color(0xffECFDF5)
+                : const Color(0xffFFF7ED),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
+        border: Border.all(
+          color:
+              selectedTab == 0
+                  ? primaryGreen.withValues(alpha: 0.16)
+                  : orangeStatus.withValues(alpha: 0.22),
+        ),
       ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 22),
-          SizedBox(width: 10),
+          Icon(
+            selectedTab == 0 ? Icons.grass_rounded : Icons.agriculture_rounded,
+            color: selectedTab == 0 ? primaryGreen : orangeStatus,
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Riwayat menampilkan perkembangan bantuan pupuk dan peminjaman alat mulai dari pengajuan, persetujuan, pengambilan, hingga pengembalian.',
-              style: TextStyle(
+              selectedTab == 0
+                  ? 'Riwayat ini khusus menampilkan pengajuan bantuan pupuk.'
+                  : 'Riwayat ini khusus menampilkan peminjaman alat pertanian.',
+              style: const TextStyle(
                 color: textGrey,
                 fontSize: 12.5,
                 height: 1.45,
@@ -474,6 +505,11 @@ class _RiwayatPageState extends State<RiwayatPage> {
                 (item['status'] ?? 'menunggu').toString().toLowerCase();
 
             final details = <_DetailItem>[
+              _DetailItem(
+                icon: Icons.grass_rounded,
+                label: 'Jenis',
+                value: '${item['jenis_pupuk'] ?? '-'}',
+              ),
               _DetailItem(
                 icon: Icons.scale_rounded,
                 label: 'Jumlah',
@@ -509,8 +545,8 @@ class _RiwayatPageState extends State<RiwayatPage> {
             return _riwayatCard(
               icon: Icons.grass_rounded,
               iconColor: primaryGreen,
-              title: (item['jenis_pupuk'] ?? '-').toString(),
-              subtitle: 'Jenis Pengajuan: Bantuan Pupuk',
+              title: (item['jenis_pupuk'] ?? 'Bantuan Pupuk').toString(),
+              subtitle: 'Kategori: Bantuan Pupuk',
               details: details,
               status: status,
             );
@@ -534,6 +570,16 @@ class _RiwayatPageState extends State<RiwayatPage> {
             final alat = (item['alat'] ?? item['nama_alat'] ?? '-').toString();
 
             final details = <_DetailItem>[
+              _DetailItem(
+                icon: Icons.handyman_rounded,
+                label: 'Alat',
+                value: alat,
+              ),
+              _DetailItem(
+                icon: Icons.inventory_2_rounded,
+                label: 'Jumlah',
+                value: '${item['jumlah'] ?? item['jumlah_alat'] ?? 1} Unit',
+              ),
               _DetailItem(
                 icon: Icons.calendar_today_rounded,
                 label: 'Pinjam',
@@ -589,9 +635,9 @@ class _RiwayatPageState extends State<RiwayatPage> {
 
             return _riwayatCard(
               icon: iconAlat(alat),
-              iconColor: const Color(0xff2F855A),
+              iconColor: orangeStatus,
               title: alat,
-              subtitle: 'Jenis Pengajuan: Peminjaman Alat',
+              subtitle: 'Kategori: Peminjaman Alat',
               details: details,
               status: status,
             );
@@ -773,30 +819,19 @@ class _RiwayatPageState extends State<RiwayatPage> {
     );
   }
 
-  Widget _sectionTitle({required String title, required IconData icon}) {
-    return Row(
-      children: [
-        Container(
-          height: 36,
-          width: 36,
-          decoration: BoxDecoration(
-            color: lightGreen,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: primaryGreen, size: 20),
+  Widget _backButton(BuildContext context) {
+    return InkWell(
+      onTap: () => Navigator.pop(context),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 42,
+        width: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ],
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+      ),
     );
   }
 

@@ -17,6 +17,7 @@ class ProfilPage extends StatelessWidget {
   static const Color backgroundColor = Color(0xffF6FAF7);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
+  static const Color blueStatus = Color(0xff1976D2);
 
   void bukaHalaman(BuildContext context, Widget page) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
@@ -36,22 +37,22 @@ class ProfilPage extends StatelessWidget {
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(24),
           ),
           title: const Text(
             'Keluar dari Akun?',
-            style: TextStyle(color: textDark, fontWeight: FontWeight.w800),
+            style: TextStyle(color: textDark, fontWeight: FontWeight.w900),
           ),
           content: const Text(
-            'Anda akan kembali ke halaman login.',
-            style: TextStyle(color: textGrey),
+            'Anda akan keluar dan kembali ke halaman login.',
+            style: TextStyle(color: textGrey, height: 1.4),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Batal'),
             ),
-            ElevatedButton(
+            ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
@@ -64,7 +65,8 @@ class ProfilPage extends StatelessWidget {
                 Navigator.pop(context);
                 logout(context);
               },
-              child: const Text('Keluar'),
+              icon: const Icon(Icons.logout_rounded, size: 18),
+              label: const Text('Keluar'),
             ),
           ],
         );
@@ -72,28 +74,64 @@ class ProfilPage extends StatelessWidget {
     );
   }
 
+  String inisialNama() {
+    final clean = nama.trim();
+    if (clean.isEmpty) return 'A';
+
+    final parts = clean.split(' ').where((e) => e.isNotEmpty).toList();
+
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+
+    return clean[0].toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
-          child: Column(
-            children: [
-              _headerProfile(context),
-              const SizedBox(height: 22),
-              _sectionTitle('Informasi Anggota'),
-              const SizedBox(height: 12),
-              _infoCard(),
-              const SizedBox(height: 22),
-              _sectionTitle('Menu Profil'),
-              const SizedBox(height: 12),
-              _menuCard(context),
-              const SizedBox(height: 24),
-              _logoutButton(context),
-            ],
-          ),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _headerProfile(context)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
+                child: _statusMemberCard(),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
+                child: _sectionTitle('Informasi Anggota'),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                child: _infoCard(),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
+                child: _sectionTitle('Menu Profil'),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                child: _menuCard(context),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 24, 18, 30),
+                child: _logoutButton(context),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -102,30 +140,33 @@ class ProfilPage extends StatelessWidget {
   Widget _headerProfile(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 26),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen, Color(0xff43A047)],
+          colors: [Color(0xff14532D), Color(0xff2E7D32), Color(0xff66BB6A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(36),
+          bottomRight: Radius.circular(36),
+        ),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+            color: darkGreen.withValues(alpha: 0.24),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -24,
-            bottom: -36,
+            right: -26,
+            bottom: -42,
             child: Icon(
               Icons.eco_rounded,
-              size: 145,
+              size: 160,
               color: Colors.white.withValues(alpha: 0.08),
             ),
           ),
@@ -141,41 +182,55 @@ class ProfilPage extends StatelessWidget {
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 26),
               Container(
-                height: 92,
-                width: 92,
+                height: 96,
+                width: 96,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.35),
+                    color: Colors.white.withValues(alpha: 0.38),
                     width: 2,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  color: Colors.white,
-                  size: 56,
+                child: Center(
+                  child: Text(
+                    inisialNama(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 15),
               Text(
                 nama,
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 23,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 7),
+              const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -184,17 +239,85 @@ class ProfilPage extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.22),
+                  ),
                 ),
                 child: const Text(
                   'Anggota Kelompok Tani',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusMemberCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          Container(
+            height: 58,
+            width: 58,
+            decoration: BoxDecoration(
+              color: lightGreen,
+              borderRadius: BorderRadius.circular(19),
+            ),
+            child: const Icon(
+              Icons.verified_user_rounded,
+              color: primaryGreen,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Status Akun',
+                  style: TextStyle(
+                    color: textDark,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Akun aktif dan dapat menggunakan layanan bantuan pupuk serta peminjaman alat.\nNIK: $nik',
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 12,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+            decoration: BoxDecoration(
+              color: lightGreen,
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: const Text(
+              'AKTIF',
+              style: TextStyle(
+                color: primaryGreen,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ),
         ],
       ),
@@ -223,24 +346,32 @@ class ProfilPage extends StatelessWidget {
       decoration: _cardDecoration(),
       child: Column(
         children: [
-          _infoItem(icon: Icons.badge_rounded, title: 'NIK', value: nik),
+          _infoItem(
+            icon: Icons.badge_rounded,
+            title: 'NIK',
+            value: nik,
+            color: primaryGreen,
+          ),
           const Divider(height: 24),
           _infoItem(
             icon: Icons.verified_user_rounded,
             title: 'Status',
             value: 'Anggota Aktif',
+            color: primaryGreen,
           ),
           const Divider(height: 24),
           _infoItem(
             icon: Icons.location_city_rounded,
             title: 'Desa',
             value: 'Penataan',
+            color: blueStatus,
           ),
           const Divider(height: 24),
           _infoItem(
             icon: Icons.eco_rounded,
             title: 'Kategori',
             value: 'Kelompok Tani',
+            color: primaryGreen,
           ),
         ],
       ),
@@ -248,33 +379,32 @@ class ProfilPage extends StatelessWidget {
   }
 
   Widget _menuCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Column(
-        children: [
-          _menuItem(
-            icon: Icons.person_outline_rounded,
-            title: 'Data Diri',
-            subtitle: 'Lihat informasi lengkap anggota',
-            onTap: () => bukaHalaman(context, DataDiriPage(nik: nik)),
-          ),
-          const Divider(height: 24),
-          _menuItem(
-            icon: Icons.lock_outline_rounded,
-            title: 'Ubah Password',
-            subtitle: 'Perbarui kata sandi akun',
-            onTap: () => bukaHalaman(context, UbahPasswordPage(nik: nik)),
-          ),
-          const Divider(height: 24),
-          _menuItem(
-            icon: Icons.info_outline_rounded,
-            title: 'Tentang Aplikasi',
-            subtitle: 'Informasi sistem kelompok tani',
-            onTap: () => bukaHalaman(context, const TentangAplikasiPage()),
-          ),
-        ],
-      ),
+    return Column(
+      children: [
+        _menuItem(
+          icon: Icons.person_outline_rounded,
+          title: 'Data Diri',
+          subtitle: 'Lihat informasi lengkap anggota',
+          color: primaryGreen,
+          onTap: () => bukaHalaman(context, DataDiriPage(nik: nik)),
+        ),
+        const SizedBox(height: 12),
+        _menuItem(
+          icon: Icons.lock_outline_rounded,
+          title: 'Ubah Password',
+          subtitle: 'Perbarui kata sandi akun',
+          color: blueStatus,
+          onTap: () => bukaHalaman(context, UbahPasswordPage(nik: nik)),
+        ),
+        const SizedBox(height: 12),
+        _menuItem(
+          icon: Icons.info_outline_rounded,
+          title: 'Tentang Aplikasi',
+          subtitle: 'Informasi sistem kelompok tani',
+          color: primaryGreen,
+          onTap: () => bukaHalaman(context, const TentangAplikasiPage()),
+        ),
+      ],
     );
   }
 
@@ -282,17 +412,18 @@ class ProfilPage extends StatelessWidget {
     required IconData icon,
     required String title,
     required String value,
+    required Color color,
   }) {
     return Row(
       children: [
         Container(
-          height: 42,
-          width: 42,
+          height: 44,
+          width: 44,
           decoration: BoxDecoration(
-            color: lightGreen,
-            borderRadius: BorderRadius.circular(14),
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(15),
           ),
-          child: Icon(icon, color: primaryGreen, size: 22),
+          child: Icon(icon, color: color, size: 23),
         ),
         const SizedBox(width: 13),
         Expanded(
@@ -301,7 +432,7 @@ class ProfilPage extends StatelessWidget {
             style: const TextStyle(
               color: textGrey,
               fontSize: 13,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -313,7 +444,7 @@ class ProfilPage extends StatelessWidget {
             style: const TextStyle(
               color: textDark,
               fontSize: 13,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ),
@@ -325,87 +456,160 @@ class ProfilPage extends StatelessWidget {
     required IconData icon,
     required String title,
     required String subtitle,
+    required Color color,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Row(
-        children: [
-          Container(
-            height: 46,
-            width: 46,
-            decoration: BoxDecoration(
-              color: lightGreen,
-              borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: _cardDecoration(),
+        child: Row(
+          children: [
+            Container(
+              height: 54,
+              width: 54,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Icon(icon, color: color, size: 27),
             ),
-            child: Icon(icon, color: primaryGreen, size: 24),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: textDark,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  style: const TextStyle(color: textGrey, fontSize: 12),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: textGrey,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Icon(
-            Icons.arrow_forward_ios_rounded,
-            size: 15,
-            color: textGrey,
-          ),
-        ],
+            Container(
+              height: 34,
+              width: 34,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.arrow_forward_rounded, color: color, size: 18),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _logoutButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
+    return InkWell(
+      onTap: () => konfirmasiLogout(context),
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xffFFEBEE),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.20)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.withValues(alpha: 0.06),
+              blurRadius: 14,
+              offset: const Offset(0, 7),
+            ),
+          ],
         ),
-        onPressed: () => konfirmasiLogout(context),
-        icon: const Icon(Icons.logout_rounded),
-        label: const Text(
-          'Keluar',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+        child: const Row(
+          children: [
+            SizedBox(
+              height: 54,
+              width: 54,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color(0xffFFCDD2),
+                  borderRadius: BorderRadius.all(Radius.circular(18)),
+                ),
+                child: Icon(Icons.logout_rounded, color: Colors.red, size: 27),
+              ),
+            ),
+            SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Keluar',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Keluar dari akun dan kembali ke halaman login',
+                    style: TextStyle(
+                      color: textGrey,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_rounded, color: Colors.red, size: 20),
+          ],
         ),
       ),
     );
   }
 
   Widget _sectionTitle(String title) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        title,
-        style: const TextStyle(
-          color: textDark,
-          fontSize: 18,
-          fontWeight: FontWeight.w800,
+    return Row(
+      children: [
+        Container(
+          height: 36,
+          width: 36,
+          decoration: BoxDecoration(
+            color: lightGreen,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(
+            Icons.person_rounded,
+            color: primaryGreen,
+            size: 20,
+          ),
         ),
-      ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

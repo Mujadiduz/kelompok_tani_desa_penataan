@@ -31,12 +31,14 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
   late final DatabaseReference calonAnggotaRef;
   late final DatabaseReference anggotaRef;
+  late final DatabaseReference notifikasiRef;
 
   @override
   void initState() {
     super.initState();
     calonAnggotaRef = db.ref('calon_anggota');
     anggotaRef = db.ref('anggota');
+    notifikasiRef = db.ref('notifikasi');
   }
 
   Future<void> setujuiAnggota(String id, Map<String, dynamic> anggota) async {
@@ -52,6 +54,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
             'luas_sawah': anggota['luas_sawah'] ?? '',
             'foto_ktp_base64': anggota['foto_ktp_base64'] ?? '',
             'tanggal_daftar': anggota['tanggal_daftar'] ?? '',
+            'tanggal_verifikasi': DateTime.now().toIso8601String(),
             'password': anggota['password'] ?? '',
             'status': 'aktif',
           })
@@ -62,20 +65,37 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
           .remove()
           .timeout(const Duration(seconds: 10));
 
+      await _kirimNotifikasiUser(
+        nik: (anggota['nik'] ?? '').toString(),
+        judul: 'Pendaftaran Disetujui',
+        pesan:
+            'Selamat, pendaftaran Anda sebagai anggota Kelompok Tani Desa Penataan telah disetujui.',
+      );
+
       if (!mounted) return;
-      _showSnackBar('Anggota berhasil disetujui dan dipindahkan', primaryGreen);
+      _showSnackBar('Anggota berhasil disetujui', primaryGreen);
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Gagal menyetujui anggota: $e', Colors.red);
     }
   }
 
-  Future<void> tolakAnggota(String id) async {
+  Future<void> tolakAnggota(String id, Map<String, dynamic> anggota) async {
     try {
       await calonAnggotaRef
           .child(id)
-          .update({'status': 'ditolak'})
+          .update({
+            'status': 'ditolak',
+            'tanggal_verifikasi': DateTime.now().toIso8601String(),
+          })
           .timeout(const Duration(seconds: 10));
+
+      await _kirimNotifikasiUser(
+        nik: (anggota['nik'] ?? '').toString(),
+        judul: 'Pendaftaran Ditolak',
+        pesan:
+            'Mohon maaf, pendaftaran Anda sebagai anggota Kelompok Tani Desa Penataan ditolak oleh admin.',
+      );
 
       if (!mounted) return;
       _showSnackBar('Anggota berhasil ditolak', Colors.red);
@@ -83,6 +103,23 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
       if (!mounted) return;
       _showSnackBar('Gagal menolak anggota: $e', Colors.red);
     }
+  }
+
+  Future<void> _kirimNotifikasiUser({
+    required String nik,
+    required String judul,
+    required String pesan,
+  }) async {
+    if (nik.isEmpty) return;
+
+    await notifikasiRef.child(nik).push().set({
+      'judul': judul,
+      'pesan': pesan,
+      'status': 'belum_dibaca',
+      'dibaca': false,
+      'tanggal': DateTime.now().toIso8601String(),
+      'tipe': 'verifikasi_anggota',
+    });
   }
 
   Future<void> tampilkanKonfirmasi({
@@ -109,7 +146,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
           ),
           content: Text(
             isSetuju
-                ? 'Data $nama akan dipindahkan menjadi anggota aktif.'
+                ? 'Data $nama akan disetujui dan masuk sebagai anggota aktif.'
                 : 'Pengajuan anggota dari $nama akan ditolak.',
             style: const TextStyle(color: textGrey),
           ),
@@ -135,12 +172,13 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
       },
     );
 
+    if (!mounted) return;
     if (hasil != true) return;
 
     if (isSetuju) {
       await setujuiAnggota(id, anggota);
     } else {
-      await tolakAnggota(id);
+      await tolakAnggota(id, anggota);
     }
   }
 
@@ -209,6 +247,30 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     );
   }
 
+  String normalStatus(Map<String, dynamic> item) {
+    return (item['status'] ?? 'menunggu').toString().toLowerCase().trim();
+  }
+
+  int countStatus(List<MapEntry<String, dynamic>> data, String status) {
+    if (status == 'semua') return data.length;
+
+    return data.where((entry) {
+      final item = Map<String, dynamic>.from(entry.value as Map);
+      return normalStatus(item) == status;
+    }).length;
+  }
+
+  List<MapEntry<String, dynamic>> filterData(
+    List<MapEntry<String, dynamic>> data,
+  ) {
+    if (selectedFilter == 'semua') return data;
+
+    return data.where((entry) {
+      final item = Map<String, dynamic>.from(entry.value as Map);
+      return normalStatus(item) == selectedFilter;
+    }).toList();
+  }
+
   Color warnaStatus(String status) {
     if (status == 'disetujui') return primaryGreen;
     if (status == 'ditolak') return Colors.red;
@@ -227,19 +289,9 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     return 'Menunggu';
   }
 
-  List<MapEntry<String, dynamic>> filterData(
-    List<MapEntry<String, dynamic>> data,
-  ) {
-    if (selectedFilter == 'semua') return data;
-
-    return data.where((entry) {
-      final item = Map<dynamic, dynamic>.from(entry.value as Map);
-      final status = (item['status'] ?? 'menunggu').toString().toLowerCase();
-      return status == selectedFilter;
-    }).toList();
-  }
-
   void _showSnackBar(String message, Color color) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -254,81 +306,99 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
-        child: Column(
-          children: [
-            _header(),
-            _filterStatus(),
-            Expanded(
-              child: StreamBuilder<DatabaseEvent>(
-                stream: calonAnggotaRef.onValue,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return _messageState(
+        child: StreamBuilder<DatabaseEvent>(
+          stream: calonAnggotaRef.onValue,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Column(
+                children: [
+                  _header(0),
+                  Expanded(
+                    child: _messageState(
                       icon: Icons.error_outline_rounded,
                       title: 'Terjadi Kesalahan',
                       message: snapshot.error.toString(),
-                    );
-                  }
+                    ),
+                  ),
+                ],
+              );
+            }
 
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Column(
+                children: [
+                  _header(0),
+                  const Expanded(
+                    child: Center(
                       child: CircularProgressIndicator(color: primaryGreen),
-                    );
-                  }
+                    ),
+                  ),
+                ],
+              );
+            }
 
-                  if (!snapshot.hasData ||
-                      snapshot.data!.snapshot.value == null) {
-                    return _messageState(
-                      icon: Icons.inbox_outlined,
-                      title: 'Belum Ada Data',
-                      message: 'Belum ada data calon anggota yang masuk.',
-                    );
-                  }
+            final rawData = snapshot.data?.snapshot.value;
 
-                  final rawData = snapshot.data!.snapshot.value;
+            List<MapEntry<String, dynamic>> semuaData = [];
 
-                  if (rawData is! Map) {
-                    return _messageState(
-                      icon: Icons.warning_amber_rounded,
-                      title: 'Format Data Salah',
-                      message: 'Struktur data Firebase tidak sesuai.',
-                    );
-                  }
+            if (rawData is Map) {
+              final data = Map<String, dynamic>.from(rawData);
+              semuaData = data.entries.toList().reversed.toList();
+            }
 
-                  final data = Map<String, dynamic>.from(rawData);
-                  final semuaData = data.entries.toList().reversed.toList();
-                  final anggotaList = filterData(semuaData);
+            final totalSemua = countStatus(semuaData, 'semua');
+            final totalMenunggu = countStatus(semuaData, 'menunggu');
+            final totalDisetujui = countStatus(semuaData, 'disetujui');
+            final totalDitolak = countStatus(semuaData, 'ditolak');
+            final anggotaList = filterData(semuaData);
 
-                  if (anggotaList.isEmpty) {
-                    return _messageState(
-                      icon: Icons.search_off_rounded,
-                      title: 'Data Tidak Ditemukan',
-                      message: 'Tidak ada calon anggota dengan status ini.',
-                    );
-                  }
+            return Column(
+              children: [
+                _header(totalMenunggu),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+                    children: [
+                      _statusControlPanel(
+                        totalSemua: totalSemua,
+                        totalMenunggu: totalMenunggu,
+                        totalDisetujui: totalDisetujui,
+                        totalDitolak: totalDitolak,
+                      ),
+                      const SizedBox(height: 14),
+                      if (semuaData.isEmpty)
+                        _messageState(
+                          icon: Icons.inbox_outlined,
+                          title: 'Belum Ada Data',
+                          message: 'Belum ada data calon anggota yang masuk.',
+                        )
+                      else if (anggotaList.isEmpty)
+                        _messageState(
+                          icon: Icons.search_off_rounded,
+                          title: 'Data Tidak Ditemukan',
+                          message: 'Tidak ada calon anggota dengan status ini.',
+                        )
+                      else
+                        ...anggotaList.map((entry) {
+                          final id = entry.key.toString();
+                          final anggota = Map<String, dynamic>.from(
+                            entry.value as Map,
+                          );
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
-                    itemCount: anggotaList.length,
-                    itemBuilder: (context, index) {
-                      final id = anggotaList[index].key.toString();
-                      final anggota = Map<String, dynamic>.from(
-                        anggotaList[index].value as Map,
-                      );
-
-                      return _anggotaCard(id, anggota);
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
+                          return _anggotaCard(id, anggota);
+                        }),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _header() {
+  Widget _header(int totalMenunggu) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 22),
@@ -381,15 +451,205 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                 ],
               ),
               const SizedBox(height: 18),
-              const Text(
-                'Periksa data calon anggota sebelum disetujui menjadi anggota kelompok tani.',
-                style: TextStyle(
+              Text(
+                totalMenunggu == 0
+                    ? 'Semua calon anggota sudah diproses oleh admin.'
+                    : '$totalMenunggu calon anggota masih menunggu verifikasi.',
+                style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 13,
                   height: 1.4,
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusControlPanel({
+    required int totalSemua,
+    required int totalMenunggu,
+    required int totalDisetujui,
+    required int totalDitolak,
+  }) {
+    final aman = totalMenunggu == 0;
+
+    final filters = [
+      _FilterItem(
+        label: 'Semua',
+        value: 'semua',
+        total: totalSemua,
+        icon: Icons.list_alt_rounded,
+        color: primaryGreen,
+      ),
+      _FilterItem(
+        label: 'Menunggu',
+        value: 'menunggu',
+        total: totalMenunggu,
+        icon: Icons.schedule_rounded,
+        color: orangeStatus,
+      ),
+      _FilterItem(
+        label: 'Disetujui',
+        value: 'disetujui',
+        total: totalDisetujui,
+        icon: Icons.check_circle_rounded,
+        color: primaryGreen,
+      ),
+      _FilterItem(
+        label: 'Ditolak',
+        value: 'ditolak',
+        total: totalDitolak,
+        icon: Icons.cancel_rounded,
+        color: Colors.red,
+      ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                height: 46,
+                width: 46,
+                decoration: BoxDecoration(
+                  color:
+                      aman
+                          ? primaryGreen.withValues(alpha: 0.12)
+                          : orangeStatus.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  aman ? Icons.verified_rounded : Icons.priority_high_rounded,
+                  color: aman ? primaryGreen : orangeStatus,
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Status Verifikasi',
+                      style: TextStyle(
+                        color: textDark,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      aman
+                          ? 'Tidak ada calon anggota yang perlu diverifikasi.'
+                          : 'Ada $totalMenunggu calon anggota yang belum diverifikasi.',
+                      style: TextStyle(
+                        color: aman ? primaryGreen : const Color(0xff92400E),
+                        fontSize: 12.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          GridView.builder(
+            itemCount: filters.length,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisExtent: 72,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemBuilder: (context, index) {
+              final item = filters[index];
+              final aktif = selectedFilter == item.value;
+
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    selectedFilter = item.value;
+                  });
+                },
+                borderRadius: BorderRadius.circular(18),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color:
+                        aktif ? item.color : item.color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color:
+                          aktif
+                              ? item.color
+                              : item.color.withValues(alpha: 0.20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        height: 36,
+                        width: 36,
+                        decoration: BoxDecoration(
+                          color:
+                              aktif
+                                  ? Colors.white.withValues(alpha: 0.22)
+                                  : item.color.withValues(alpha: 0.13),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Icon(
+                          item.icon,
+                          color: aktif ? Colors.white : item.color,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              item.total.toString(),
+                              style: TextStyle(
+                                color: aktif ? Colors.white : item.color,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            Text(
+                              item.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: aktif ? Colors.white : textGrey,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -412,57 +672,12 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     );
   }
 
-  Widget _filterStatus() {
-    final filters = [
-      _FilterItem(label: 'Semua', value: 'semua'),
-      _FilterItem(label: 'Menunggu', value: 'menunggu'),
-      _FilterItem(label: 'Ditolak', value: 'ditolak'),
-    ];
-
-    return SizedBox(
-      height: 64,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        scrollDirection: Axis.horizontal,
-        itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final item = filters[index];
-          final aktif = selectedFilter == item.value;
-
-          return ChoiceChip(
-            label: Text(item.label),
-            selected: aktif,
-            showCheckmark: false,
-            backgroundColor: Colors.white,
-            selectedColor: primaryGreen,
-            labelStyle: TextStyle(
-              color: aktif ? Colors.white : textGrey,
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
-            ),
-            side: BorderSide(
-              color: aktif ? primaryGreen : const Color(0xffE5E7EB),
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
-            onSelected: (_) {
-              setState(() {
-                selectedFilter = item.value;
-              });
-            },
-          );
-        },
-      ),
-    );
-  }
-
   Widget _anggotaCard(String id, Map<String, dynamic> anggota) {
-    final status = (anggota['status'] ?? 'menunggu').toString().toLowerCase();
+    final status = normalStatus(anggota);
     final fotoKtpBase64 = (anggota['foto_ktp_base64'] ?? '').toString();
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
@@ -489,6 +704,11 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                 Icons.landscape_rounded,
                 'Luas Sawah',
                 '${anggota['luas_sawah'] ?? '-'} Ha',
+              ),
+              _infoRow(
+                Icons.calendar_month_rounded,
+                'Tanggal Daftar',
+                anggota['tanggal_daftar'] ?? '-',
               ),
             ],
           ),
@@ -571,15 +791,29 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
         ),
         const SizedBox(width: 13),
         Expanded(
-          child: Text(
-            (anggota['nama'] ?? '-').toString(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                (anggota['nama'] ?? '-').toString(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                (anggota['nik'] ?? '-').toString(),
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
         _statusBadge(status),
@@ -645,7 +879,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
         style: TextStyle(
           color: warnaStatus(status),
           fontSize: 10,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );
@@ -678,7 +912,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   }) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 28),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -736,6 +970,15 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 class _FilterItem {
   final String label;
   final String value;
+  final int total;
+  final IconData icon;
+  final Color color;
 
-  const _FilterItem({required this.label, required this.value});
+  const _FilterItem({
+    required this.label,
+    required this.value,
+    required this.total,
+    required this.icon,
+    required this.color,
+  });
 }

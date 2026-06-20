@@ -49,6 +49,10 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     return value.toStringAsFixed(1);
   }
 
+  String normalStatus(Map<String, dynamic> item) {
+    return (item['status'] ?? 'menunggu').toString().toLowerCase().trim();
+  }
+
   Future<void> simpanNotifikasi({
     required String nik,
     required String judul,
@@ -62,6 +66,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
       'pesan': pesan,
       'tipe': tipe,
       'status': 'belum_dibaca',
+      'dibaca': false,
       'tanggal': DateTime.now().toIso8601String(),
     });
   }
@@ -72,10 +77,13 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     Map<String, dynamic> dataPupuk,
   ) async {
     try {
-      await bantuanPupukRef.child(id).update({
-        'status': status,
-        'tanggal_verifikasi': DateTime.now().toIso8601String(),
-      });
+      await bantuanPupukRef
+          .child(id)
+          .update({
+            'status': status,
+            'tanggal_verifikasi': DateTime.now().toIso8601String(),
+          })
+          .timeout(const Duration(seconds: 10));
 
       final nik = (dataPupuk['nik'] ?? '').toString();
       final jenisPupuk = (dataPupuk['jenis_pupuk'] ?? 'pupuk').toString();
@@ -151,18 +159,23 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
       final stokBaru = stokSekarang - jumlahDiajukan;
       final now = DateTime.now();
 
-      await stokPupukRef.child(idPupuk).update({
-        'stok': stokBaru,
-      });
+      await stokPupukRef
+          .child(idPupuk)
+          .update({'stok': stokBaru})
+          .timeout(const Duration(seconds: 10));
 
-      await bantuanPupukRef.child(idBantuan).update({
-        'status': 'sudah_diambil',
-        'jumlah_pupuk_diambil': jumlahDiajukan,
-        'tanggal_pengambilan':
-            '${now.year}-${_duaDigit(now.month)}-${_duaDigit(now.day)}',
-        'waktu_pengambilan': '${_duaDigit(now.hour)}:${_duaDigit(now.minute)}',
-        'tanggal_diambil': now.toIso8601String(),
-      });
+      await bantuanPupukRef
+          .child(idBantuan)
+          .update({
+            'status': 'sudah_diambil',
+            'jumlah_pupuk_diambil': jumlahDiajukan,
+            'tanggal_pengambilan':
+                '${now.year}-${_duaDigit(now.month)}-${_duaDigit(now.day)}',
+            'waktu_pengambilan':
+                '${_duaDigit(now.hour)}:${_duaDigit(now.minute)}',
+            'tanggal_diambil': now.toIso8601String(),
+          })
+          .timeout(const Duration(seconds: 10));
 
       final nik = (dataPupuk['nik'] ?? '').toString();
       final jenisPupuk = (dataPupuk['jenis_pupuk'] ?? 'pupuk').toString();
@@ -181,9 +194,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
       if (!mounted) return;
       _showSnackBar('Gagal menandai pengambilan: $e', Colors.red);
     } finally {
-      if (mounted) {
-        setState(() => isProcessing = false);
-      }
+      if (mounted) setState(() => isProcessing = false);
     }
   }
 
@@ -296,6 +307,44 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     }
   }
 
+  Map<String, int> hitungStatus(List<MapEntry<String, dynamic>> data) {
+    int menunggu = 0;
+    int disetujui = 0;
+    int ditolak = 0;
+    int sudahDiambil = 0;
+
+    for (final entry in data) {
+      if (entry.value is Map) {
+        final item = Map<String, dynamic>.from(entry.value as Map);
+        final status = normalStatus(item);
+
+        if (status == 'menunggu') menunggu++;
+        if (status == 'disetujui') disetujui++;
+        if (status == 'ditolak') ditolak++;
+        if (status == 'sudah_diambil') sudahDiambil++;
+      }
+    }
+
+    return {
+      'semua': data.length,
+      'menunggu': menunggu,
+      'disetujui': disetujui,
+      'ditolak': ditolak,
+      'sudah_diambil': sudahDiambil,
+    };
+  }
+
+  List<MapEntry<String, dynamic>> filterData(
+    List<MapEntry<String, dynamic>> data,
+  ) {
+    if (selectedFilter == 'semua') return data;
+
+    return data.where((entry) {
+      final item = Map<String, dynamic>.from(entry.value as Map);
+      return normalStatus(item) == selectedFilter;
+    }).toList();
+  }
+
   Color warnaStatus(String status) {
     if (status == 'disetujui') return blueStatus;
     if (status == 'ditolak') return Colors.red;
@@ -336,19 +385,9 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     return value.toString().padLeft(2, '0');
   }
 
-  List<MapEntry<String, dynamic>> filterData(
-    List<MapEntry<String, dynamic>> data,
-  ) {
-    if (selectedFilter == 'semua') return data;
-
-    return data.where((entry) {
-      final item = Map<dynamic, dynamic>.from(entry.value as Map);
-      final status = (item['status'] ?? 'menunggu').toString().toLowerCase();
-      return status == selectedFilter;
-    }).toList();
-  }
-
   void _showSnackBar(String message, Color color) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -365,76 +404,97 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
       body: Stack(
         children: [
           SafeArea(
-            child: Column(
-              children: [
-                _header(),
-                _filterStatus(),
-                Expanded(
-                  child: StreamBuilder<DatabaseEvent>(
-                    stream: bantuanPupukRef.onValue,
-                    builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return _messageState(
+            child: StreamBuilder<DatabaseEvent>(
+              stream: bantuanPupukRef.onValue,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Column(
+                    children: [
+                      _header(0),
+                      Expanded(
+                        child: _messageState(
                           icon: Icons.error_outline_rounded,
                           title: 'Terjadi Kesalahan',
                           message: snapshot.error.toString(),
-                        );
-                      }
+                        ),
+                      ),
+                    ],
+                  );
+                }
 
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Column(
+                    children: [
+                      _header(0),
+                      const Expanded(
+                        child: Center(
                           child: CircularProgressIndicator(color: primaryGreen),
-                        );
-                      }
+                        ),
+                      ),
+                    ],
+                  );
+                }
 
-                      if (!snapshot.hasData ||
-                          snapshot.data!.snapshot.value == null) {
-                        return _messageState(
-                          icon: Icons.inbox_outlined,
-                          title: 'Belum Ada Pengajuan',
-                          message: 'Belum ada pengajuan bantuan pupuk.',
-                        );
-                      }
+                final rawData = snapshot.data?.snapshot.value;
 
-                      final rawData = snapshot.data!.snapshot.value;
+                List<MapEntry<String, dynamic>> semuaData = [];
 
-                      if (rawData is! Map) {
-                        return _messageState(
-                          icon: Icons.warning_amber_rounded,
-                          title: 'Format Data Salah',
-                          message: 'Struktur data Firebase tidak sesuai.',
-                        );
-                      }
+                if (rawData is Map) {
+                  final data = Map<String, dynamic>.from(rawData);
+                  semuaData = data.entries.toList().reversed.toList();
+                }
 
-                      final data = Map<String, dynamic>.from(rawData);
-                      final semuaData = data.entries.toList().reversed.toList();
-                      final pupukList = filterData(semuaData);
+                final jumlahStatus = hitungStatus(semuaData);
+                final totalMenunggu = jumlahStatus['menunggu'] ?? 0;
+                final totalSemua = jumlahStatus['semua'] ?? 0;
+                final totalDisetujui = jumlahStatus['disetujui'] ?? 0;
+                final totalDitolak = jumlahStatus['ditolak'] ?? 0;
+                final totalSudahDiambil = jumlahStatus['sudah_diambil'] ?? 0;
+                final pupukList = filterData(semuaData);
 
-                      if (pupukList.isEmpty) {
-                        return _messageState(
-                          icon: Icons.search_off_rounded,
-                          title: 'Data Tidak Ditemukan',
-                          message:
-                              'Tidak ada pengajuan pupuk dengan status ini.',
-                        );
-                      }
+                return Column(
+                  children: [
+                    _header(totalMenunggu),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+                        children: [
+                          _statusControlPanel(
+                            totalSemua: totalSemua,
+                            totalMenunggu: totalMenunggu,
+                            totalDisetujui: totalDisetujui,
+                            totalDitolak: totalDitolak,
+                            totalSudahDiambil: totalSudahDiambil,
+                          ),
+                          const SizedBox(height: 14),
+                          if (semuaData.isEmpty)
+                            _messageState(
+                              icon: Icons.inbox_outlined,
+                              title: 'Belum Ada Pengajuan',
+                              message: 'Belum ada pengajuan bantuan pupuk.',
+                            )
+                          else if (pupukList.isEmpty)
+                            _messageState(
+                              icon: Icons.search_off_rounded,
+                              title: 'Data Tidak Ditemukan',
+                              message:
+                                  'Tidak ada pengajuan pupuk dengan status ini.',
+                            )
+                          else
+                            ...pupukList.map((entry) {
+                              final id = entry.key.toString();
+                              final pupuk = Map<String, dynamic>.from(
+                                entry.value as Map,
+                              );
 
-                      return ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
-                        itemCount: pupukList.length,
-                        itemBuilder: (context, index) {
-                          final id = pupukList[index].key.toString();
-                          final pupuk = Map<String, dynamic>.from(
-                            pupukList[index].value as Map,
-                          );
-
-                          return _pupukCard(id, pupuk);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
+                              return _pupukCard(id, pupuk);
+                            }),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
           if (isProcessing)
@@ -449,7 +509,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     );
   }
 
-  Widget _header() {
+  Widget _header(int totalMenunggu) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 22),
@@ -491,7 +551,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Text(
-                      'Verifikasi Pupuk',
+                      'Verifikasi Bantuan Pupuk',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -502,9 +562,11 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                 ],
               ),
               const SizedBox(height: 18),
-              const Text(
-                'Periksa pengajuan, setujui bantuan, dan tandai pupuk yang sudah diambil oleh anggota.',
-                style: TextStyle(
+              Text(
+                totalMenunggu == 0
+                    ? 'Semua pengajuan bantuan pupuk sudah diproses.'
+                    : '$totalMenunggu pengajuan bantuan pupuk masih menunggu verifikasi admin.',
+                style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 13,
                   height: 1.4,
@@ -517,76 +579,209 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     );
   }
 
-  Widget _backButton() {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-      ),
-    );
-  }
+  Widget _statusControlPanel({
+    required int totalSemua,
+    required int totalMenunggu,
+    required int totalDisetujui,
+    required int totalDitolak,
+    required int totalSudahDiambil,
+  }) {
+    final aman = totalMenunggu == 0;
 
-  Widget _filterStatus() {
     final filters = [
-      const _FilterItem(label: 'Semua', value: 'semua'),
-      const _FilterItem(label: 'Menunggu', value: 'menunggu'),
-      const _FilterItem(label: 'Disetujui', value: 'disetujui'),
-      const _FilterItem(label: 'Ditolak', value: 'ditolak'),
-      const _FilterItem(label: 'Sudah Diambil', value: 'sudah_diambil'),
+      _FilterItem(
+        label: 'Semua',
+        value: 'semua',
+        total: totalSemua,
+        icon: Icons.list_alt_rounded,
+        color: primaryGreen,
+      ),
+      _FilterItem(
+        label: 'Menunggu',
+        value: 'menunggu',
+        total: totalMenunggu,
+        icon: Icons.schedule_rounded,
+        color: orangeStatus,
+      ),
+      _FilterItem(
+        label: 'Disetujui',
+        value: 'disetujui',
+        total: totalDisetujui,
+        icon: Icons.check_circle_rounded,
+        color: blueStatus,
+      ),
+      _FilterItem(
+        label: 'Ditolak',
+        value: 'ditolak',
+        total: totalDitolak,
+        icon: Icons.cancel_rounded,
+        color: Colors.red,
+      ),
+      _FilterItem(
+        label: 'Diambil',
+        value: 'sudah_diambil',
+        total: totalSudahDiambil,
+        icon: Icons.inventory_rounded,
+        color: primaryGreen,
+      ),
     ];
 
-    return SizedBox(
-      height: 64,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        scrollDirection: Axis.horizontal,
-        itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final item = filters[index];
-          final aktif = selectedFilter == item.value;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                height: 46,
+                width: 46,
+                decoration: BoxDecoration(
+                  color:
+                      aman
+                          ? primaryGreen.withValues(alpha: 0.12)
+                          : orangeStatus.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  aman ? Icons.verified_rounded : Icons.priority_high_rounded,
+                  color: aman ? primaryGreen : orangeStatus,
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Status Pengajuan',
+                      style: TextStyle(
+                        color: textDark,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      aman
+                          ? 'Tidak ada pengajuan pupuk yang perlu diverifikasi.'
+                          : 'Ada $totalMenunggu pengajuan bantuan pupuk yang belum diverifikasi.',
+                      style: TextStyle(
+                        color: aman ? primaryGreen : const Color(0xff92400E),
+                        fontSize: 12.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          GridView.builder(
+            itemCount: filters.length,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisExtent: 72,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemBuilder: (context, index) {
+              final item = filters[index];
+              final aktif = selectedFilter == item.value;
 
-          return ChoiceChip(
-            label: Text(item.label),
-            selected: aktif,
-            showCheckmark: false,
-            backgroundColor: Colors.white,
-            selectedColor: primaryGreen,
-            labelStyle: TextStyle(
-              color: aktif ? Colors.white : textGrey,
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
-            ),
-            side: BorderSide(
-              color: aktif ? primaryGreen : const Color(0xffE5E7EB),
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
-            onSelected: (_) {
-              setState(() {
-                selectedFilter = item.value;
-              });
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    selectedFilter = item.value;
+                  });
+                },
+                borderRadius: BorderRadius.circular(18),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color:
+                        aktif ? item.color : item.color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color:
+                          aktif
+                              ? item.color
+                              : item.color.withValues(alpha: 0.20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        height: 36,
+                        width: 36,
+                        decoration: BoxDecoration(
+                          color:
+                              aktif
+                                  ? Colors.white.withValues(alpha: 0.22)
+                                  : item.color.withValues(alpha: 0.13),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Icon(
+                          item.icon,
+                          color: aktif ? Colors.white : item.color,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              item.total.toString(),
+                              style: TextStyle(
+                                color: aktif ? Colors.white : item.color,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            Text(
+                              item.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: aktif ? Colors.white : textGrey,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             },
-          );
-        },
+          ),
+        ],
       ),
     );
   }
 
   Widget _pupukCard(String id, Map<String, dynamic> pupuk) {
-    final status = (pupuk['status'] ?? 'menunggu').toString().toLowerCase();
+    final status = normalStatus(pupuk);
     final statusJatah = (pupuk['status_jatah'] ?? 'sesuai_jatah').toString();
     final idPupuk = (pupuk['id_pupuk'] ?? '').toString();
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
@@ -725,15 +920,29 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
         ),
         const SizedBox(width: 13),
         Expanded(
-          child: Text(
-            (pupuk['nama'] ?? '-').toString(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                (pupuk['nama'] ?? '-').toString(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                (pupuk['nik'] ?? '-').toString(),
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
         _badge(
@@ -835,6 +1044,22 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     );
   }
 
+  Widget _backButton() {
+    return InkWell(
+      onTap: () => Navigator.pop(context),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 42,
+        width: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+      ),
+    );
+  }
+
   Widget _messageState({
     required IconData icon,
     required String title,
@@ -842,7 +1067,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
   }) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 28),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -900,6 +1125,15 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
 class _FilterItem {
   final String label;
   final String value;
+  final int total;
+  final IconData icon;
+  final Color color;
 
-  const _FilterItem({required this.label, required this.value});
+  const _FilterItem({
+    required this.label,
+    required this.value,
+    required this.total,
+    required this.icon,
+    required this.color,
+  });
 }

@@ -18,6 +18,8 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
   static const Color backgroundColor = Color(0xffF6FAF7);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
+  static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color redStatus = Color(0xffDC2626);
 
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -33,21 +35,44 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
     notifRef = db.ref('notifikasi').child(widget.nik);
   }
 
+  List<MapEntry<String, dynamic>> ambilNotif(dynamic value) {
+    if (value == null || value is! Map) return [];
+    final data = Map<String, dynamic>.from(value);
+    return data.entries.toList().reversed.toList();
+  }
+
+  bool isBelumDibaca(Map<String, dynamic> data) {
+    final status = (data['status'] ?? '').toString().toLowerCase().trim();
+    final dibaca = data['dibaca'];
+    return status == 'belum_dibaca' || dibaca == false;
+  }
+
   Future<void> tandaiDibaca(String id) async {
-    await notifRef.child(id).update({'status': 'dibaca'});
+    await notifRef.child(id).update({'status': 'dibaca', 'dibaca': true});
+  }
+
+  Future<void> tandaiSemuaDibaca(List<MapEntry<String, dynamic>> data) async {
+    for (final item in data) {
+      await notifRef.child(item.key).update({
+        'status': 'dibaca',
+        'dibaca': true,
+      });
+    }
   }
 
   IconData iconNotif(String tipe) {
     if (tipe == 'bantuan_pupuk') return Icons.grass_rounded;
     if (tipe == 'peminjaman_alat') return Icons.agriculture_rounded;
     if (tipe == 'keanggotaan') return Icons.groups_rounded;
+    if (tipe == 'verifikasi_anggota') return Icons.verified_user_rounded;
     return Icons.notifications_rounded;
   }
 
   Color warnaNotif(String tipe) {
     if (tipe == 'bantuan_pupuk') return primaryGreen;
-    if (tipe == 'peminjaman_alat') return const Color(0xffFB8C00);
+    if (tipe == 'peminjaman_alat') return orangeStatus;
     if (tipe == 'keanggotaan') return const Color(0xff1976D2);
+    if (tipe == 'verifikasi_anggota') return const Color(0xff1976D2);
     return primaryGreen;
   }
 
@@ -66,19 +91,6 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
     }
   }
 
-  List<MapEntry<String, dynamic>> ambilNotif(dynamic value) {
-    if (value == null || value is! Map) return [];
-
-    final data = Map<String, dynamic>.from(value);
-    return data.entries.toList().reversed.toList();
-  }
-
-  Future<void> tandaiSemuaDibaca(List<MapEntry<String, dynamic>> data) async {
-    for (final item in data) {
-      await notifRef.child(item.key).update({'status': 'dibaca'});
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,10 +100,11 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
           stream: notifRef.onValue,
           builder: (context, snapshot) {
             final listNotif = ambilNotif(snapshot.data?.snapshot.value);
+
             final belumDibaca =
                 listNotif.where((entry) {
                   final data = Map<String, dynamic>.from(entry.value as Map);
-                  return (data['status'] ?? 'belum_dibaca') == 'belum_dibaca';
+                  return isBelumDibaca(data);
                 }).length;
 
             return Column(
@@ -121,25 +134,26 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
           end: Alignment.bottomRight,
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
         boxShadow: [
           BoxShadow(
             color: darkGreen.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           Positioned(
-            right: -24,
-            bottom: -36,
+            right: -28,
+            bottom: -42,
             child: Icon(
               Icons.notifications_active_rounded,
-              size: 145,
+              size: 150,
               color: Colors.white.withValues(alpha: 0.08),
             ),
           ),
@@ -156,41 +170,59 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
                   if (listNotif.isNotEmpty)
                     TextButton(
-                      onPressed: () => tandaiSemuaDibaca(listNotif),
+                      onPressed:
+                          belumDibaca == 0
+                              ? null
+                              : () => tandaiSemuaDibaca(listNotif),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        disabledForegroundColor: Colors.white.withValues(
+                          alpha: 0.45,
+                        ),
+                      ),
                       child: const Text(
                         'Baca Semua',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.w900),
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Text(
+                      belumDibaca == 0
+                          ? 'Semua Notifikasi Dibaca'
+                          : 'Ada Notifikasi Baru',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        height: 1.15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  _unreadBadge(belumDibaca),
+                ],
+              ),
+              const SizedBox(height: 10),
               Text(
                 belumDibaca == 0
-                    ? 'Semua notifikasi sudah dibaca'
-                    : '$belumDibaca notifikasi belum dibaca',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Informasi status keanggotaan, bantuan pupuk, dan peminjaman alat.',
+                    ? 'Tidak ada pemberitahuan baru terkait layanan kelompok tani.'
+                    : '$belumDibaca notifikasi belum dibaca terkait status keanggotaan, bantuan pupuk, atau peminjaman alat.',
                 style: TextStyle(
-                  color: Colors.white70,
+                  color: Colors.white.withValues(alpha: 0.78),
                   fontSize: 13,
                   height: 1.45,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -200,16 +232,65 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
     );
   }
 
+  Widget _unreadBadge(int total) {
+    final text = total > 99 ? '99+' : total.toString();
+
+    return Container(
+      constraints: const BoxConstraints(minWidth: 54, minHeight: 54),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: total > 0 ? redStatus : Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+        boxShadow:
+            total > 0
+                ? [
+                  BoxShadow(
+                    color: redStatus.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+                : [],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            total > 0 ? text : '0',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 19,
+              height: 1,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'baru',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.88),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _backButton(BuildContext context) {
     return InkWell(
       onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(15),
       child: Container(
-        height: 42,
-        width: 42,
+        height: 44,
+        width: 44,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         ),
         child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
@@ -257,9 +338,8 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
     final judul = (data['judul'] ?? '-').toString();
     final pesan = (data['pesan'] ?? '-').toString();
     final tipe = (data['tipe'] ?? '').toString();
-    final status = (data['status'] ?? 'belum_dibaca').toString();
     final tanggal = (data['tanggal'] ?? '').toString();
-    final belumDibaca = status == 'belum_dibaca';
+    final belumDibaca = isBelumDibaca(data);
     final color = warnaNotif(tipe);
 
     return InkWell(
@@ -267,16 +347,17 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
         if (belumDibaca) tandaiDibaca(id);
       },
       borderRadius: BorderRadius.circular(24),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
         margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: belumDibaca ? color.withValues(alpha: 0.055) : Colors.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color:
                 belumDibaca
-                    ? color.withValues(alpha: 0.35)
+                    ? color.withValues(alpha: 0.36)
                     : const Color(0xffE5E7EB),
           ),
           boxShadow: [
@@ -291,13 +372,13 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              height: 52,
-              width: 52,
+              height: 54,
+              width: 54,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(17),
+                borderRadius: BorderRadius.circular(18),
               ),
-              child: Icon(iconNotif(tipe), color: color, size: 27),
+              child: Icon(iconNotif(tipe), color: color, size: 28),
             ),
             const SizedBox(width: 13),
             Expanded(
@@ -309,6 +390,8 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                       Expanded(
                         child: Text(
                           judul,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: textDark,
                             fontSize: 15.5,
@@ -317,15 +400,17 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                           ),
                         ),
                       ),
-                      if (belumDibaca)
+                      if (belumDibaca) ...[
+                        const SizedBox(width: 8),
                         Container(
                           height: 9,
                           width: 9,
-                          decoration: BoxDecoration(
-                            color: color,
+                          decoration: const BoxDecoration(
+                            color: redStatus,
                             shape: BoxShape.circle,
                           ),
                         ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -338,14 +423,43 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    formatTanggal(tanggal),
-                    style: const TextStyle(
-                      color: textGrey,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  const SizedBox(height: 11),
+                  Row(
+                    children: [
+                      Icon(Icons.access_time_rounded, size: 14, color: color),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          formatTanggal(tanggal),
+                          style: const TextStyle(
+                            color: textGrey,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              belumDibaca
+                                  ? redStatus.withValues(alpha: 0.10)
+                                  : lightGreen,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Text(
+                          belumDibaca ? 'Belum dibaca' : 'Dibaca',
+                          style: TextStyle(
+                            color: belumDibaca ? redStatus : primaryGreen,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -368,8 +482,8 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              height: 86,
-              width: 86,
+              height: 88,
+              width: 88,
               decoration: const BoxDecoration(
                 color: lightGreen,
                 shape: BoxShape.circle,
@@ -394,6 +508,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                 color: textGrey,
                 fontSize: 13,
                 height: 1.4,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

@@ -22,6 +22,7 @@ class _AlatPageState extends State<AlatPage> {
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color blueStatus = Color(0xff1976D2);
 
   String? idAlatDipilih;
   String? namaAlatDipilih;
@@ -139,11 +140,29 @@ class _AlatPageState extends State<AlatPage> {
   Color warnaAlat(String nama) {
     final alat = nama.toLowerCase();
 
-    if (alat.contains('sprayer')) return const Color(0xff2563EB);
+    if (alat.contains('sprayer')) return blueStatus;
     if (alat.contains('cangkul')) return const Color(0xffD97706);
     if (alat.contains('traktor')) return orangeStatus;
 
     return primaryGreen;
+  }
+
+  String teksStatusStok(int tersedia) {
+    if (tersedia <= 0) return 'Tidak tersedia';
+    if (tersedia <= 1) return 'Terbatas';
+    return 'Tersedia';
+  }
+
+  Color warnaStatusStok(int tersedia) {
+    if (tersedia <= 0) return Colors.red;
+    if (tersedia <= 1) return orangeStatus;
+    return primaryGreen;
+  }
+
+  Color backgroundStatusStok(int tersedia) {
+    if (tersedia <= 0) return const Color(0xffFFEBEE);
+    if (tersedia <= 1) return const Color(0xffFFF3E0);
+    return lightGreen;
   }
 
   void lanjutPilihJadwal() {
@@ -188,35 +207,25 @@ class _AlatPageState extends State<AlatPage> {
                   children: [
                     _header(context),
                     Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _stepIndicator(),
-                            const SizedBox(height: 18),
-                            _summaryCard(
-                              totalJenis: totalJenis,
-                              totalUnit: unitSemua,
-                              tersedia: unitTersedia,
-                            ),
-                            const SizedBox(height: 18),
-                            _infoCard(),
-                            const SizedBox(height: 22),
-                            _sectionTitle('Pilih Alat Pertanian'),
-                            const SizedBox(height: 12),
-                            Expanded(
-                              child: _buildContent(
-                                alatSnapshot,
-                                alatList,
-                                peminjamanList,
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+                        children: [
+                          _stepIndicator(),
+                          const SizedBox(height: 16),
+                          _premiumSummary(
+                            totalJenis: totalJenis,
+                            totalUnit: unitSemua,
+                            tersedia: unitTersedia,
+                          ),
+                          const SizedBox(height: 18),
+                          _infoCard(),
+                          const SizedBox(height: 22),
+                          _sectionTitle('Daftar Alat Pertanian'),
+                          const SizedBox(height: 12),
+                          _buildContent(alatSnapshot, alatList, peminjamanList),
+                        ],
                       ),
                     ),
-                    _bottomButton(),
                   ],
                 );
               },
@@ -224,6 +233,7 @@ class _AlatPageState extends State<AlatPage> {
           },
         ),
       ),
+      bottomNavigationBar: _bottomButton(),
     );
   }
 
@@ -233,9 +243,7 @@ class _AlatPageState extends State<AlatPage> {
     List<Map<String, dynamic>> peminjamanList,
   ) {
     if (alatSnapshot.connectionState == ConnectionState.waiting) {
-      return const Center(
-        child: CircularProgressIndicator(color: primaryGreen),
-      );
+      return _loadingState();
     }
 
     if (alatSnapshot.hasError) {
@@ -254,29 +262,28 @@ class _AlatPageState extends State<AlatPage> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 18),
-      itemCount: alatList.length,
-      itemBuilder: (context, index) {
-        final idAlat = alatList[index].key.toString();
-        final alat = Map<String, dynamic>.from(alatList[index].value as Map);
-        final namaAlat = (alat['nama_alat'] ?? '-').toString();
-        final jumlahUnit =
-            int.tryParse((alat['jumlah_unit'] ?? 0).toString()) ?? 0;
-        final dipinjam = hitungDipinjam(idAlat, namaAlat, peminjamanList);
-        final tersedia = jumlahUnit - dipinjam;
-        final stokTersedia = tersedia < 0 ? 0 : tersedia;
+    return Column(
+      children:
+          alatList.map((entry) {
+            final idAlat = entry.key.toString();
+            final alat = Map<String, dynamic>.from(entry.value as Map);
+            final namaAlat = (alat['nama_alat'] ?? '-').toString();
+            final jumlahUnit =
+                int.tryParse((alat['jumlah_unit'] ?? 0).toString()) ?? 0;
+            final dipinjam = hitungDipinjam(idAlat, namaAlat, peminjamanList);
+            final tersedia = jumlahUnit - dipinjam;
+            final stokTersedia = tersedia < 0 ? 0 : tersedia;
 
-        return _pilihanAlat(
-          idAlat: idAlat,
-          nama: namaAlat,
-          stokTersedia: stokTersedia,
-          jumlahUnit: jumlahUnit,
-          icon: iconAlat(namaAlat),
-          color: warnaAlat(namaAlat),
-          tersedia: stokTersedia > 0,
-        );
-      },
+            return _pilihanAlat(
+              idAlat: idAlat,
+              nama: namaAlat,
+              stokTersedia: stokTersedia,
+              jumlahUnit: jumlahUnit,
+              icon: iconAlat(namaAlat),
+              color: warnaAlat(namaAlat),
+              tersedia: stokTersedia > 0,
+            );
+          }).toList(),
     );
   }
 
@@ -286,30 +293,30 @@ class _AlatPageState extends State<AlatPage> {
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen, Color(0xff43A047)],
+          colors: [Color(0xff14532D), Color(0xff2E7D32), Color(0xff66BB6A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+          bottomLeft: Radius.circular(34),
+          bottomRight: Radius.circular(34),
         ),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+            color: darkGreen.withValues(alpha: 0.24),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -24,
-            bottom: -36,
+            right: -26,
+            bottom: -42,
             child: Icon(
               Icons.agriculture_rounded,
-              size: 145,
+              size: 160,
               color: Colors.white.withValues(alpha: 0.08),
             ),
           ),
@@ -326,7 +333,7 @@ class _AlatPageState extends State<AlatPage> {
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
@@ -334,20 +341,62 @@ class _AlatPageState extends State<AlatPage> {
               ),
               const SizedBox(height: 22),
               const Text(
-                'Pilih Alat',
+                'Pilih Alat Pertanian',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: 25,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 7),
               const Text(
-                'Pilih alat pertanian desa yang tersedia untuk digunakan.',
+                'Pilih alat pertanian desa yang tersedia, lalu lanjutkan ke pemilihan jadwal peminjaman.',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 13,
                   height: 1.45,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.24),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      height: 42,
+                      width: 42,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '${widget.nama}\nNIK: ${widget.nik}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          height: 1.35,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -373,67 +422,77 @@ class _AlatPageState extends State<AlatPage> {
     );
   }
 
-  Widget _summaryCard({
+  Widget _premiumSummary({
     required int totalJenis,
     required int totalUnit,
     required int tersedia,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Row(
-        children: [
-          _summaryItem(
+    return Row(
+      children: [
+        Expanded(
+          child: _summaryMini(
             icon: Icons.handyman_rounded,
             title: 'Jenis',
             value: totalJenis.toString(),
             color: primaryGreen,
           ),
-          Container(width: 1, height: 44, color: const Color(0xffE5E7EB)),
-          _summaryItem(
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _summaryMini(
             icon: Icons.inventory_2_rounded,
-            title: 'Unit',
+            title: 'Total Unit',
             value: totalUnit.toString(),
             color: orangeStatus,
           ),
-          Container(width: 1, height: 44, color: const Color(0xffE5E7EB)),
-          _summaryItem(
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _summaryMini(
             icon: Icons.check_circle_rounded,
             title: 'Tersedia',
             value: tersedia.toString(),
-            color: primaryGreen,
+            color: blueStatus,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _summaryItem({
+  Widget _summaryMini({
     required IconData icon,
     required String title,
     required String value,
     required Color color,
   }) {
-    return Expanded(
+    return Container(
+      height: 112,
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 6),
+          Icon(icon, color: color, size: 25),
+          const Spacer(),
           Text(
             value,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 14,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 19,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: textGrey,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+              color: textDark,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -443,23 +502,23 @@ class _AlatPageState extends State<AlatPage> {
 
   Widget _infoCard() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: lightGreen,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
+        color: const Color(0xffECFDF5),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: primaryGreen),
+          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 22),
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Stok alat akan berkurang ketika admin menandai alat benar-benar dipinjam.',
+              'Ketersediaan alat dihitung otomatis dari total unit dikurangi alat yang sedang dipinjam. Stok berkurang saat admin menandai alat dipinjam.',
               style: TextStyle(
                 color: textGrey,
-                fontSize: 12,
+                fontSize: 12.5,
                 height: 1.45,
                 fontWeight: FontWeight.w600,
               ),
@@ -480,6 +539,7 @@ class _AlatPageState extends State<AlatPage> {
     required bool tersedia,
   }) {
     final selected = idAlatDipilih == idAlat;
+    final statusColor = warnaStatusStok(stokTersedia);
 
     return InkWell(
       onTap:
@@ -491,24 +551,25 @@ class _AlatPageState extends State<AlatPage> {
                 });
               }
               : null,
-      borderRadius: BorderRadius.circular(24),
-      child: Opacity(
-        opacity: tersedia ? 1 : 0.48,
+      borderRadius: BorderRadius.circular(26),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 220),
+        opacity: tersedia ? 1 : 0.56,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 240),
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            color: selected ? const Color(0xffF0FDF4) : Colors.white,
+            borderRadius: BorderRadius.circular(26),
             border: Border.all(
               color: selected ? primaryGreen : const Color(0xffE5E7EB),
-              width: selected ? 1.6 : 1,
+              width: selected ? 1.7 : 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.045),
-                blurRadius: 14,
+                color: Colors.black.withValues(alpha: selected ? 0.07 : 0.045),
+                blurRadius: selected ? 18 : 14,
                 offset: const Offset(0, 7),
               ),
             ],
@@ -516,13 +577,30 @@ class _AlatPageState extends State<AlatPage> {
           child: Row(
             children: [
               Container(
-                width: 56,
-                height: 56,
+                width: 62,
+                height: 62,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(18),
+                  gradient:
+                      selected
+                          ? LinearGradient(
+                            colors: [color, color.withValues(alpha: 0.70)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                          : null,
+                  color: selected ? null : color.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(22),
                 ),
-                child: Icon(icon, color: tersedia ? color : textGrey, size: 30),
+                child: Icon(
+                  icon,
+                  color:
+                      selected
+                          ? Colors.white
+                          : tersedia
+                          ? color
+                          : textGrey,
+                  size: 32,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -539,26 +617,77 @@ class _AlatPageState extends State<AlatPage> {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: backgroundStatusStok(stokTersedia),
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Text(
+                            teksStatusStok(stokTersedia),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            '$stokTersedia dari $jumlahUnit unit',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 7),
                     Text(
-                      tersedia
-                          ? 'Tersedia $stokTersedia dari $jumlahUnit unit'
-                          : 'Stok alat sedang habis',
-                      style: TextStyle(
-                        color: tersedia ? textGrey : Colors.red,
-                        fontSize: 12,
-                        fontWeight:
-                            tersedia ? FontWeight.w600 : FontWeight.w800,
+                      'ID Alat: $idAlat',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textGrey,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                selected
-                    ? Icons.check_circle_rounded
-                    : Icons.radio_button_unchecked_rounded,
-                color: selected ? primaryGreen : textGrey,
+              const SizedBox(width: 8),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: selected ? primaryGreen : Colors.transparent,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected ? primaryGreen : const Color(0xffD1D5DB),
+                    width: 1.5,
+                  ),
+                ),
+                child:
+                    selected
+                        ? const Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 19,
+                        )
+                        : null,
               ),
             ],
           ),
@@ -568,35 +697,40 @@ class _AlatPageState extends State<AlatPage> {
   }
 
   Widget _bottomButton() {
+    final aktif = idAlatDipilih != null && namaAlatDipilih != null;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
       decoration: BoxDecoration(
         color: backgroundColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, -5),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, -6),
           ),
         ],
       ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 54,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primaryGreen,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: primaryGreen.withValues(alpha: 0.45),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryGreen,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.42),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(19),
+              ),
             ),
-          ),
-          onPressed: idAlatDipilih == null ? null : lanjutPilihJadwal,
-          child: const Text(
-            'Lanjut Pilih Jadwal',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+            onPressed: aktif ? lanjutPilihJadwal : null,
+            child: Text(
+              aktif ? 'Lanjut Pilih Jadwal' : 'Pilih Alat Terlebih Dahulu',
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+            ),
           ),
         ),
       ),
@@ -610,7 +744,7 @@ class _AlatPageState extends State<AlatPage> {
       child: Row(
         children: [
           _stepCircle('1', 'Pilih', true),
-          _stepLine(true),
+          _stepLine(false),
           _stepCircle('2', 'Jadwal', false),
           _stepLine(false),
           _stepCircle('3', 'Data', false),
@@ -624,14 +758,32 @@ class _AlatPageState extends State<AlatPage> {
   Widget _stepCircle(String number, String label, bool active) {
     return Column(
       children: [
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: active ? primaryGreen : const Color(0xffE5E7EB),
-          child: Text(
-            number,
-            style: TextStyle(
-              color: active ? Colors.white : textGrey,
-              fontWeight: FontWeight.w900,
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          height: 34,
+          width: 34,
+          decoration: BoxDecoration(
+            color: active ? primaryGreen : const Color(0xffE5E7EB),
+            shape: BoxShape.circle,
+            boxShadow:
+                active
+                    ? [
+                      BoxShadow(
+                        color: primaryGreen.withValues(alpha: 0.24),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ]
+                    : [],
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: TextStyle(
+                color: active ? Colors.white : textGrey,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ),
@@ -650,22 +802,92 @@ class _AlatPageState extends State<AlatPage> {
 
   Widget _stepLine(bool active) {
     return Expanded(
-      child: Container(
-        height: 2,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        height: 3,
         margin: const EdgeInsets.only(bottom: 24),
-        color: active ? primaryGreen : const Color(0xffE5E7EB),
+        decoration: BoxDecoration(
+          color: active ? primaryGreen : const Color(0xffE5E7EB),
+          borderRadius: BorderRadius.circular(30),
+        ),
       ),
     );
   }
 
   Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: textDark,
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
-      ),
+    return Row(
+      children: [
+        Container(
+          height: 36,
+          width: 36,
+          decoration: BoxDecoration(
+            color: lightGreen,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(
+            Icons.agriculture_rounded,
+            color: primaryGreen,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _loadingState() {
+    return Column(
+      children: List.generate(3, (index) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.all(16),
+          decoration: _cardDecoration(),
+          child: Row(
+            children: [
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: const Color(0xffE5E7EB),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  children: [
+                    Container(
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: const Color(0xffE5E7EB),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: const Color(0xffE5E7EB),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 
@@ -674,48 +896,44 @@ class _AlatPageState extends State<AlatPage> {
     required String title,
     required String message,
   }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: _cardDecoration(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                height: 72,
-                width: 72,
-                decoration: const BoxDecoration(
-                  color: lightGreen,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: primaryGreen, size: 36),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: textDark,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: textGrey,
-                  fontSize: 12,
-                  height: 1.4,
-                ),
-              ),
-            ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: _cardDecoration(),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 76,
+            width: 76,
+            decoration: const BoxDecoration(
+              color: lightGreen,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: primaryGreen, size: 38),
           ),
-        ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 12,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

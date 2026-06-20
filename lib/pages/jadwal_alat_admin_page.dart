@@ -19,7 +19,6 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
   static const Color orangeStatus = Color(0xffFB8C00);
   static const Color redStatus = Color(0xffE53935);
   static const Color blueStatus = Color(0xff1976D2);
-  static const Color purpleStatus = Color(0xff7B1FA2);
 
   String idAlatDipilih = '';
   String namaAlatDipilih = '';

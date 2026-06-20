@@ -18,6 +18,7 @@ class _LaporanPageState extends State<LaporanPage> {
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color blueStatus = Color(0xff1976D2);
 
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -74,7 +75,7 @@ class _LaporanPageState extends State<LaporanPage> {
       if (item is Map) {
         final mapItem = Map<dynamic, dynamic>.from(item);
         final status =
-            (mapItem['status'] ?? 'menunggu').toString().toLowerCase();
+            (mapItem['status'] ?? 'menunggu').toString().toLowerCase().trim();
 
         if (status == statusTarget) {
           total++;
@@ -99,7 +100,11 @@ class _LaporanPageState extends State<LaporanPage> {
         if (status == 'sudah_diambil') {
           total +=
               double.tryParse(
-                (mapItem['jumlah_pupuk'] ?? 0).toString().replaceAll(',', '.'),
+                (mapItem['jumlah_pupuk_diambil'] ??
+                        mapItem['jumlah_pupuk'] ??
+                        0)
+                    .toString()
+                    .replaceAll(',', '.'),
               ) ??
               0;
         }
@@ -109,66 +114,112 @@ class _LaporanPageState extends State<LaporanPage> {
     return total;
   }
 
+  double persen(int bagian, int total) {
+    if (total <= 0) return 0;
+    return bagian / total;
+  }
+
+  String formatTanggalCetak() {
+    final now = DateTime.now();
+
+    return '${now.day.toString().padLeft(2, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.year} '
+        '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')}';
+  }
+
   Future<void> cetakLaporanPdf() async {
     final pdf = pw.Document();
 
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'LAPORAN KELOMPOK TANI DESA PENATAAN',
-                style: pw.TextStyle(
-                  fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              pw.Text('Tanggal Cetak: ${DateTime.now()}'),
-              pw.SizedBox(height: 18),
-              pw.Text(
-                'Rekap Anggota',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              ),
-              pw.Text('Total Anggota Aktif: $totalAnggota'),
-              pw.Text('Calon Anggota Baru: $totalCalon'),
-              pw.Text('Calon Menunggu: $calonMenunggu'),
-              pw.Text('Calon Disetujui: $calonDisetujui'),
-              pw.Text('Calon Ditolak: $calonDitolak'),
-              pw.SizedBox(height: 14),
-              pw.Text(
-                'Laporan Bantuan Pupuk',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              ),
-              pw.Text('Total Pengajuan: $totalPupuk'),
-              pw.Text('Menunggu Verifikasi: $pupukMenunggu'),
-              pw.Text('Disetujui Admin: $pupukDisetujui'),
-              pw.Text('Sudah Diambil: $pupukSudahDiambil'),
-              pw.Text('Ditolak Admin: $pupukDitolak'),
-              pw.Text(
-                'Total Pupuk Disalurkan: '
+          return [
+            pw.Text(
+              'LAPORAN KELOMPOK TANI DESA PENATAAN',
+              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              'Sistem Informasi Kelompok Tani Berbasis Flutter dan Firebase Realtime Database',
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text('Tanggal Cetak: ${formatTanggalCetak()}'),
+            pw.SizedBox(height: 18),
+
+            _pdfSectionTitle('Rekap Anggota'),
+            _pdfTable([
+              ['Total Anggota Aktif', totalAnggota.toString()],
+              ['Total Calon Anggota', totalCalon.toString()],
+              ['Calon Menunggu', calonMenunggu.toString()],
+              ['Calon Disetujui', calonDisetujui.toString()],
+              ['Calon Ditolak', calonDitolak.toString()],
+            ]),
+
+            pw.SizedBox(height: 14),
+            _pdfSectionTitle('Laporan Bantuan Pupuk'),
+            _pdfTable([
+              ['Total Pengajuan', totalPupuk.toString()],
+              ['Menunggu Verifikasi', pupukMenunggu.toString()],
+              ['Disetujui Admin', pupukDisetujui.toString()],
+              ['Sudah Diambil', pupukSudahDiambil.toString()],
+              ['Ditolak Admin', pupukDitolak.toString()],
+              [
+                'Total Pupuk Disalurkan',
                 '${totalKgDisalurkan.toStringAsFixed(1)} Kg',
-              ),
-              pw.SizedBox(height: 14),
-              pw.Text(
-                'Laporan Peminjaman Alat',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              ),
-              pw.Text('Total Peminjaman: $totalPeminjaman'),
-              pw.Text('Menunggu Verifikasi: $peminjamanMenunggu'),
-              pw.Text('Disetujui Admin: $peminjamanDisetujui'),
-              pw.Text('Sedang Dipinjam: $peminjamanDipinjam'),
-              pw.Text('Sudah Dikembalikan: $peminjamanDikembalikan'),
-              pw.Text('Ditolak Admin: $peminjamanDitolak'),
-            ],
-          );
+              ],
+            ]),
+
+            pw.SizedBox(height: 14),
+            _pdfSectionTitle('Laporan Peminjaman Alat'),
+            _pdfTable([
+              ['Total Peminjaman', totalPeminjaman.toString()],
+              ['Menunggu Verifikasi', peminjamanMenunggu.toString()],
+              ['Disetujui Admin', peminjamanDisetujui.toString()],
+              ['Sedang Dipinjam', peminjamanDipinjam.toString()],
+              ['Sudah Dikembalikan', peminjamanDikembalikan.toString()],
+              ['Ditolak Admin', peminjamanDitolak.toString()],
+            ]),
+
+            pw.SizedBox(height: 28),
+            pw.Divider(),
+            pw.Text(
+              'Dicetak melalui Aplikasi Kelompok Tani Desa Penataan',
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+          ];
         },
       ),
     );
 
     await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+  }
+
+  pw.Widget _pdfSectionTitle(String title) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 6),
+      child: pw.Text(
+        title,
+        style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+      ),
+    );
+  }
+
+  pw.Widget _pdfTable(List<List<String>> data) {
+    return pw.TableHelper.fromTextArray(
+      headers: ['Keterangan', 'Jumlah'],
+      data: data,
+      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+      cellStyle: const pw.TextStyle(fontSize: 10),
+      headerDecoration: const pw.BoxDecoration(),
+      cellAlignment: pw.Alignment.centerLeft,
+      columnWidths: {
+        0: const pw.FlexColumnWidth(3),
+        1: const pw.FlexColumnWidth(1),
+      },
+    );
   }
 
   @override
@@ -236,10 +287,15 @@ class _LaporanPageState extends State<LaporanPage> {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _header(context),
           const SizedBox(height: 20),
+          _summaryUtama(),
+          const SizedBox(height: 18),
           _pdfButton(),
+          const SizedBox(height: 18),
+          _progressSection(),
           const SizedBox(height: 18),
           _laporanCard(
             title: 'Rekap Anggota',
@@ -366,19 +422,168 @@ class _LaporanPageState extends State<LaporanPage> {
     );
   }
 
-  Widget _backButton(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
+  Widget _summaryUtama() {
+    return Row(
+      children: [
+        Expanded(
+          child: _summaryCard(
+            title: 'Anggota',
+            value: totalAnggota.toString(),
+            icon: Icons.groups_rounded,
+            color: primaryGreen,
+          ),
         ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _summaryCard(
+            title: 'Pupuk',
+            value: totalPupuk.toString(),
+            icon: Icons.grass_rounded,
+            color: blueStatus,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _summaryCard(
+            title: 'Alat',
+            value: totalPeminjaman.toString(),
+            icon: Icons.agriculture_rounded,
+            color: orangeStatus,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _summaryCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: _cardDecoration(),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 27),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _progressSection() {
+    final progressPupuk = persen(pupukSudahDiambil, totalPupuk);
+    final progressAlat = persen(peminjamanDikembalikan, totalPeminjaman);
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Progress Laporan',
+            style: TextStyle(
+              color: textDark,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _progressItem(
+            title: 'Penyaluran Pupuk',
+            subtitle:
+                '$pupukSudahDiambil dari $totalPupuk pengajuan sudah diambil',
+            value: progressPupuk,
+            color: primaryGreen,
+          ),
+          const SizedBox(height: 16),
+          _progressItem(
+            title: 'Pengembalian Alat',
+            subtitle:
+                '$peminjamanDikembalikan dari $totalPeminjaman peminjaman sudah dikembalikan',
+            value: progressAlat,
+            color: orangeStatus,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _progressItem({
+    required String title,
+    required String subtitle,
+    required double value,
+    required Color color,
+  }) {
+    final persenText = '${(value * 100).toStringAsFixed(0)}%';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Text(
+              persenText,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: textGrey,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 9),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: LinearProgressIndicator(
+            value: value,
+            minHeight: 9,
+            backgroundColor: color.withValues(alpha: 0.12),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
     );
   }
 
@@ -474,6 +679,22 @@ class _LaporanPageState extends State<LaporanPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _backButton(BuildContext context) {
+    return InkWell(
+      onTap: () => Navigator.pop(context),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 42,
+        width: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
     );
   }

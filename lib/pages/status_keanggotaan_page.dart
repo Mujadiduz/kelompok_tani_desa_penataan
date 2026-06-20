@@ -51,23 +51,22 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     });
 
     try {
-      final calonRef = db.ref('calon_anggota');
-      final anggotaRef = db.ref('anggota');
+      final calonSnapshot = await db
+          .ref('calon_anggota')
+          .get()
+          .timeout(const Duration(seconds: 10));
 
       Map<String, dynamic>? hasil;
-
-      final calonSnapshot = await calonRef.get().timeout(
-        const Duration(seconds: 10),
-      );
 
       if (calonSnapshot.exists && calonSnapshot.value != null) {
         hasil = cariDataByNik(calonSnapshot.value, nikInput);
       }
 
       if (hasil == null) {
-        final anggotaSnapshot = await anggotaRef.get().timeout(
-          const Duration(seconds: 10),
-        );
+        final anggotaSnapshot = await db
+            .ref('anggota')
+            .get()
+            .timeout(const Duration(seconds: 10));
 
         if (anggotaSnapshot.exists && anggotaSnapshot.value != null) {
           hasil = cariDataByNik(anggotaSnapshot.value, nikInput);
@@ -106,9 +105,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
           '',
         );
 
-        if (nikData == nikInput) {
-          return anggota;
-        }
+        if (nikData == nikInput) return anggota;
       }
     }
 
@@ -116,6 +113,8 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   }
 
   void _showSnackBar(String pesan, Color color) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(pesan),
@@ -126,8 +125,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   }
 
   Color warnaStatus(String status) {
-    if (status == 'aktif') return primaryGreen;
-    if (status == 'disetujui') return primaryGreen;
+    if (status == 'aktif' || status == 'disetujui') return primaryGreen;
     if (status == 'ditolak') return Colors.red;
     return orangeStatus;
   }
@@ -155,11 +153,35 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     return 'Menunggu Verifikasi';
   }
 
+  String pesanStatus(String status) {
+    if (status == 'aktif' || status == 'disetujui') {
+      return 'Pendaftaran Anda sudah disetujui. Silakan login menggunakan NIK dan password yang didaftarkan.';
+    }
+
+    if (status == 'ditolak') {
+      return 'Pendaftaran Anda ditolak. Silakan hubungi admin kelompok tani untuk informasi lebih lanjut.';
+    }
+
+    return 'Pendaftaran Anda masih menunggu proses verifikasi oleh admin kelompok tani.';
+  }
+
   String ambilLuasSawah() {
     return (dataAnggota?['luas_sawah'] ??
             dataAnggota?['jumlah_petak_sawah'] ??
             '-')
         .toString();
+  }
+
+  String formatTanggal(dynamic value) {
+    final text = value?.toString() ?? '';
+    if (text.isEmpty) return '-';
+
+    try {
+      final date = DateTime.parse(text);
+      return '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+    } catch (_) {
+      return text;
+    }
   }
 
   @override
@@ -176,17 +198,36 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
-          child: Column(
-            children: [
-              _header(context),
-              const SizedBox(height: 22),
-              _inputCard(),
-              const SizedBox(height: 18),
-              if (dataAnggota != null) _hasilCard(status),
-            ],
-          ),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _header(context)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                child: _stepCard(),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                child: _inputCard(),
+              ),
+            ),
+            if (dataAnggota != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
+                  child: _hasilCard(status),
+                ),
+              )
+            else
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
+                  child: _emptyInfoCard(),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -195,30 +236,33 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   Widget _header(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 26),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen, Color(0xff43A047)],
+          colors: [Color(0xff14532D), Color(0xff2E7D32), Color(0xff66BB6A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(36),
+          bottomRight: Radius.circular(36),
+        ),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+            color: darkGreen.withValues(alpha: 0.24),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -24,
-            bottom: -36,
+            right: -26,
+            bottom: -42,
             child: Icon(
               Icons.fact_check_rounded,
-              size: 145,
+              size: 160,
               color: Colors.white.withValues(alpha: 0.08),
             ),
           ),
@@ -235,28 +279,67 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 24),
               const Text(
-                'Cek Status',
+                'Cek Status Pendaftaran',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: 25,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 7),
               const Text(
-                'Masukkan NIK untuk melihat status pendaftaran anggota kelompok tani.',
+                'Masukkan NIK untuk mengetahui apakah pendaftaran sudah disetujui, ditolak, atau masih menunggu verifikasi.',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 13,
                   height: 1.45,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.24),
+                  ),
+                ),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                      height: 42,
+                      width: 42,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Color(0x24FFFFFF),
+                          borderRadius: BorderRadius.all(Radius.circular(14)),
+                        ),
+                        child: Icon(Icons.badge_rounded, color: Colors.white),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Gunakan NIK yang sama dengan data pendaftaran calon anggota.',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          height: 1.35,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -282,6 +365,82 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     );
   }
 
+  Widget _stepCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          Expanded(
+            child: _stepItem(
+              icon: Icons.edit_document,
+              title: 'Daftar',
+              active: true,
+            ),
+          ),
+          _stepLine(),
+          Expanded(
+            child: _stepItem(
+              icon: Icons.admin_panel_settings_rounded,
+              title: 'Verifikasi',
+              active: dataAnggota != null,
+            ),
+          ),
+          _stepLine(),
+          Expanded(
+            child: _stepItem(
+              icon: Icons.verified_rounded,
+              title: 'Keputusan',
+              active: dataAnggota != null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepItem({
+    required IconData icon,
+    required String title,
+    required bool active,
+  }) {
+    return Column(
+      children: [
+        Container(
+          height: 42,
+          width: 42,
+          decoration: BoxDecoration(
+            color: active ? primaryGreen : const Color(0xffE5E7EB),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: active ? Colors.white : textGrey, size: 21),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: active ? primaryGreen : textGrey,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _stepLine() {
+    return Container(
+      width: 24,
+      height: 3,
+      margin: const EdgeInsets.only(bottom: 26),
+      decoration: BoxDecoration(
+        color: const Color(0xffE5E7EB),
+        borderRadius: BorderRadius.circular(30),
+      ),
+    );
+  }
+
   Widget _inputCard() {
     return Container(
       width: double.infinity,
@@ -300,13 +459,19 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Masukkan NIK yang digunakan saat pendaftaran.',
-            style: TextStyle(color: textGrey, fontSize: 13, height: 1.4),
+            'Masukkan 16 digit NIK yang digunakan saat pendaftaran.',
+            style: TextStyle(
+              color: textGrey,
+              fontSize: 13,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 18),
           TextField(
             controller: nikController,
             keyboardType: TextInputType.number,
+            maxLength: 16,
             decoration: _inputDecoration(
               label: 'Masukkan NIK',
               icon: Icons.badge_rounded,
@@ -320,7 +485,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryGreen,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: primaryGreen.withValues(alpha: 0.65),
+                disabledBackgroundColor: primaryGreen.withValues(alpha: 0.45),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
@@ -339,7 +504,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
                       )
                       : const Icon(Icons.search_rounded),
               label: Text(
-                isLoading ? 'Mengecek...' : 'Cek Status',
+                isLoading ? 'Mengecek Status...' : 'Cek Status',
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
                   fontSize: 15,
@@ -360,61 +525,82 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
       padding: const EdgeInsets.all(18),
       decoration: _cardDecoration(),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                height: 56,
-                width: 56,
-                decoration: BoxDecoration(
-                  color: backgroundStatus(status),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Icon(iconStatus(status), color: color, size: 30),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  (dataAnggota!['nama'] ?? '-').toString(),
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _infoBox(
-            children: [
-              _infoRow(Icons.badge_rounded, 'NIK', dataAnggota!['nik'] ?? '-'),
-              _infoRow(
-                Icons.home_rounded,
-                'Alamat',
-                dataAnggota!['alamat'] ?? '-',
-              ),
-              _infoRow(
-                Icons.wc_rounded,
-                'Jenis Kelamin',
-                dataAnggota!['jenis_kelamin'] ?? '-',
-              ),
-              _infoRow(
-                Icons.landscape_rounded,
-                'Luas Sawah',
-                '${ambilLuasSawah()} Ha',
-              ),
-            ],
+          Container(
+            height: 78,
+            width: 78,
+            decoration: BoxDecoration(
+              color: backgroundStatus(status),
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: Icon(iconStatus(status), color: color, size: 43),
           ),
           const SizedBox(height: 14),
-          _statusBadge(status),
+          Text(
+            teksStatus(status),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            pesanStatus(status),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 12.5,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _profileMiniCard(status),
+          const SizedBox(height: 14),
+          _detailBox(),
         ],
       ),
     );
   }
 
-  Widget _infoBox({required List<Widget> children}) {
+  Widget _profileMiniCard(String status) {
+    final color = warnaStatus(status);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: backgroundStatus(status),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: color.withValues(alpha: 0.14),
+            child: Icon(Icons.person_rounded, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              (dataAnggota!['nama'] ?? '-').toString(),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: textDark,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailBox() {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
@@ -422,7 +608,62 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xffE5E7EB)),
       ),
-      child: Column(children: children),
+      child: Column(
+        children: [
+          _infoRow(Icons.badge_rounded, 'NIK', dataAnggota!['nik'] ?? '-'),
+          _infoRow(
+            Icons.phone_rounded,
+            'Telepon',
+            dataAnggota!['telepon'] ?? '-',
+          ),
+          _infoRow(Icons.home_rounded, 'Alamat', dataAnggota!['alamat'] ?? '-'),
+          _infoRow(
+            Icons.wc_rounded,
+            'Jenis Kelamin',
+            dataAnggota!['jenis_kelamin'] ?? '-',
+          ),
+          _infoRow(
+            Icons.landscape_rounded,
+            'Luas Sawah',
+            '${ambilLuasSawah()} Ha',
+          ),
+          _infoRow(
+            Icons.calendar_today_rounded,
+            'Tanggal Daftar',
+            formatTanggal(dataAnggota!['tanggal_daftar']),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyInfoCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xffECFDF5),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 24),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Hasil status akan tampil di sini setelah NIK dicek. Pastikan NIK sesuai dengan data pendaftaran.',
+              style: TextStyle(
+                color: textGrey,
+                fontSize: 12.8,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -460,36 +701,6 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     );
   }
 
-  Widget _statusBadge(String status) {
-    final color = warnaStatus(status);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: backgroundStatus(status),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withValues(alpha: 0.16)),
-      ),
-      child: Row(
-        children: [
-          Icon(iconStatus(status), color: color, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              teksStatus(status),
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   InputDecoration _inputDecoration({
     required String label,
     required IconData icon,
@@ -498,6 +709,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
       labelText: label,
       labelStyle: const TextStyle(color: textGrey),
       prefixIcon: Icon(icon, color: primaryGreen),
+      counterText: '',
       filled: true,
       fillColor: const Color(0xffF9FAFB),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),

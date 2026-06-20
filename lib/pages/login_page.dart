@@ -2,7 +2,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
-import '../services/notification_service.dart';
 import 'admin_home_page.dart';
 import 'register_page.dart';
 import 'status_keanggotaan_page.dart';
@@ -16,199 +15,225 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
-  static const Color lightGreen = Color(0xffE8F5E9);
-  static const Color backgroundColor = Color(0xffF6FAF7);
-  static const Color textDark = Color(0xff1F2937);
-  static const Color textGrey = Color(0xff6B7280);
+  static const Color primaryGreen = Color(0xFF2E7D32);
+  static const Color darkGreen = Color(0xFF1B5E20);
+  static const Color lightGreen = Color(0xFF66BB6A);
+  static const Color background = Color(0xFFF6FBF6);
+  static const Color textDark = Color(0xFF1D2B1F);
+  static const Color adminPurple = Color(0xFF5B21B6);
 
-  final nikController = TextEditingController();
-  final passwordController = TextEditingController();
+  final TextEditingController nikController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  final FocusNode nikFocus = FocusNode();
+  final FocusNode passwordFocus = FocusNode();
+
+  final DatabaseReference database =
+      FirebaseDatabase.instanceFor(
+        app: Firebase.app(),
+        databaseURL:
+            'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
+      ).ref();
 
   bool isLoading = false;
-  bool hidePassword = true;
+  bool obscurePassword = true;
+  bool isAdminMode = false;
 
-  final FirebaseDatabase db = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL:
-        'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
-  );
-
-  late final DatabaseReference anggotaRef;
-  late final DatabaseReference tokenRef;
-
-  @override
-  void initState() {
-    super.initState();
-    anggotaRef = db.ref('anggota');
-    tokenRef = db.ref('user_tokens');
-  }
-
-  Future<void> login() async {
-    final inputAwal = nikController.text.trim();
-    final nikInput = inputAwal.replaceAll(RegExp(r'[^0-9]'), '');
-    final passwordInput = passwordController.text.trim();
-
-    if (inputAwal.isEmpty || passwordInput.isEmpty) {
-      tampilPesan('NIK dan password wajib diisi', Colors.red);
-      return;
-    }
-
-    setState(() => isLoading = true);
-
-    if (inputAwal.toLowerCase() == 'admin' && passwordInput == 'admin123') {
-      if (!mounted) return;
-
-      setState(() => isLoading = false);
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminHomePage()),
-      );
-      return;
-    }
-
-    if (nikInput.length != 16) {
-      if (!mounted) return;
-
-      setState(() => isLoading = false);
-
-      tampilPesan(
-        'NIK harus 16 digit. Saat ini terbaca ${nikInput.length} digit.',
-        Colors.red,
-      );
-      return;
-    }
-
-    try {
-      final snapshot = await anggotaRef.get().timeout(
-        const Duration(seconds: 10),
-      );
-
-      bool loginBerhasil = false;
-      String namaLogin = '';
-      String nikLogin = '';
-
-      if (snapshot.exists && snapshot.value != null) {
-        final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
-
-        for (final item in data.values) {
-          if (item is Map) {
-            final anggota = Map<dynamic, dynamic>.from(item);
-
-            final nikFirebase = (anggota['nik'] ?? '').toString().replaceAll(
-              RegExp(r'[^0-9]'),
-              '',
-            );
-
-            final passwordFirebase =
-                (anggota['password'] ?? '').toString().trim();
-
-            final statusFirebase =
-                (anggota['status'] ?? '').toString().toLowerCase();
-
-            if (nikFirebase == nikInput &&
-                passwordFirebase == passwordInput &&
-                statusFirebase == 'aktif') {
-              namaLogin = (anggota['nama'] ?? '').toString();
-              nikLogin = nikFirebase;
-              loginBerhasil = true;
-              break;
-            }
-          }
-        }
-      }
-
-      if (!mounted) return;
-
-      if (loginBerhasil) {
-        await simpanTokenUser(nikLogin, namaLogin);
-
-        if (!mounted) return;
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => UserHomePage(nama: namaLogin, nik: nikLogin),
-          ),
-        );
-      } else {
-        tampilPesan(
-          'Login gagal. Akun belum disetujui admin atau data tidak sesuai.',
-          Colors.red,
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      tampilPesan('Gagal login: $e', Colors.red);
-    } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
-    }
-  }
-
-  Future<void> simpanTokenUser(String nik, String nama) async {
-    try {
-      final token = await NotificationService.getToken();
-
-      debugPrint('FCM TOKEN USER: $token');
-
-      if (token == null || token.isEmpty) {
-        debugPrint('FCM TOKEN KOSONG');
-        return;
-      }
-
-      await tokenRef.child(nik).set({
-        'nik': nik,
-        'nama': nama,
-        'role': 'user',
-        'token': token,
-        'updated_at': DateTime.now().toIso8601String(),
-      });
-
-      debugPrint('TOKEN BERHASIL DISIMPAN KE FIREBASE');
-    } catch (e) {
-      debugPrint('GAGAL SIMPAN TOKEN: $e');
-    }
-  }
-
-  void tampilPesan(String pesan, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(pesan),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void bukaHalaman(Widget page) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-  }
+  Color get activeColor => isAdminMode ? adminPurple : primaryGreen;
+  Color get activeDark => isAdminMode ? const Color(0xFF3B0764) : darkGreen;
 
   @override
   void dispose() {
     nikController.dispose();
     passwordController.dispose();
+    nikFocus.dispose();
+    passwordFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> login() async {
+    FocusScope.of(context).unfocus();
+
+    final nik = nikController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (isAdminMode) {
+      await _loginAdmin(password);
+    } else {
+      await _loginAnggota(nik, password);
+    }
+  }
+
+  Future<void> _loginAdmin(String password) async {
+    if (password.isEmpty) {
+      _showMessage('Password admin wajib diisi.');
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 350));
+
+      if (!mounted) return;
+
+      if (password != 'admin123') {
+        _showMessage('Password admin salah.');
+        return;
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminHomePage()),
+      );
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _loginAnggota(String nik, String password) async {
+    if (nik.isEmpty || password.isEmpty) {
+      _showMessage('NIK dan password wajib diisi.');
+      return;
+    }
+
+    if (nik.length != 16) {
+      _showMessage('NIK harus terdiri dari 16 digit.');
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      final snapshot =
+          await database
+              .child('anggota')
+              .orderByChild('nik')
+              .equalTo(nik)
+              .get();
+
+      if (!mounted) return;
+
+      if (!snapshot.exists || snapshot.value == null) {
+        _showMessage('NIK tidak ditemukan.');
+        return;
+      }
+
+      final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
+      final anggota = Map<dynamic, dynamic>.from(data.values.first as Map);
+
+      final passwordDb = anggota['password']?.toString().trim() ?? '';
+      final statusDb = anggota['status']?.toString().trim().toLowerCase() ?? '';
+      final nama = anggota['nama']?.toString() ?? 'Anggota';
+
+      if (passwordDb != password) {
+        _showMessage('Password salah.');
+        return;
+      }
+
+      if (statusDb != 'aktif') {
+        _showMessage('Akun anggota belum aktif.');
+        return;
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => UserHomePage(nama: nama, nik: nik)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      debugPrint('ERROR LOGIN USER: $e');
+      _showMessage('Login gagal membaca data anggota.');
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  void _changeMode(bool adminMode) {
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      isAdminMode = adminMode;
+      nikController.clear();
+      passwordController.clear();
+      obscurePassword = true;
+    });
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: activeDark,
+        margin: const EdgeInsets.all(18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 24, 22, 28),
-          child: Column(
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
+        backgroundColor: background,
+        body: SafeArea(
+          child: Stack(
             children: [
-              _headerLogin(),
-              const SizedBox(height: 24),
-              _formLogin(),
-              const SizedBox(height: 18),
-              _footerText(),
+              Positioned(
+                top: -100,
+                right: -90,
+                child: _decorCircle(230, activeColor.withValues(alpha: 0.13)),
+              ),
+              Positioned(
+                top: 125,
+                left: -120,
+                child: _decorCircle(190, lightGreen.withValues(alpha: 0.10)),
+              ),
+              Positioned(
+                bottom: -120,
+                left: -90,
+                child: _decorCircle(250, activeColor.withValues(alpha: 0.09)),
+              ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      28,
+                      24,
+                      24 + keyboardHeight,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight - 52,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _topBadge(),
+                          const SizedBox(height: 22),
+                          _heroSection(),
+                          const SizedBox(height: 22),
+                          _loginCard(),
+                          const SizedBox(height: 18),
+                          if (!isAdminMode) _registerSection(),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -216,97 +241,170 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _headerLogin() {
-    return Container(
+  Widget _topBadge() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: activeColor.withValues(alpha: 0.10)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isAdminMode
+                  ? Icons.admin_panel_settings_rounded
+                  : Icons.eco_rounded,
+              color: activeColor,
+              size: 17,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              isAdminMode
+                  ? 'Panel Admin Kelompok Tani'
+                  : 'Kelompok Tani Desa Penataan',
+              style: TextStyle(
+                color: activeDark,
+                fontWeight: FontWeight.w900,
+                fontSize: 12.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _heroSection() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 26, 20, 28),
+      padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen, Color(0xff43A047)],
+        gradient: LinearGradient(
+          colors:
+              isAdminMode
+                  ? const [Color(0xFF3B0764), Color(0xFF5B21B6)]
+                  : const [darkGreen, primaryGreen],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.22),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: activeColor.withValues(alpha: 0.30),
+            blurRadius: 28,
+            offset: const Offset(0, 16),
           ),
         ],
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -28,
-            bottom: -40,
+            right: -18,
+            top: -18,
             child: Icon(
-              Icons.eco_rounded,
-              size: 160,
+              isAdminMode
+                  ? Icons.admin_panel_settings_rounded
+                  : Icons.agriculture_rounded,
+              size: 125,
               color: Colors.white.withValues(alpha: 0.08),
             ),
           ),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.30),
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.eco_rounded,
-                    color: Colors.white,
-                    size: 50,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 66,
+                height: 66,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
                   ),
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  '🌾 Kelompok Tani',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                  ),
+                child: Icon(
+                  isAdminMode
+                      ? Icons.admin_panel_settings_rounded
+                      : Icons.agriculture_rounded,
+                  color: Colors.white,
+                  size: 36,
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Desa Penataan',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                isAdminMode ? 'Masuk Admin' : 'Selamat Datang',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: const Text(
-                    'Masuk untuk mengakses layanan kelompok tani',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isAdminMode
+                    ? 'Akses panel admin untuk mengelola verifikasi, data anggota, bantuan pupuk, peminjaman alat, dan laporan.'
+                    : 'Masuk untuk mengajukan bantuan pupuk, meminjam alat pertanian, dan melihat riwayat layanan.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.86),
+                  fontSize: 14.5,
+                  height: 1.55,
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _miniInfo(
+                    isAdminMode
+                        ? Icons.verified_user_rounded
+                        : Icons.verified_user_rounded,
+                    isAdminMode ? 'Admin' : 'Aman',
+                  ),
+                  _miniInfo(Icons.storage_rounded, 'Realtime'),
+                  _miniInfo(Icons.mobile_friendly_rounded, 'Mobile'),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniInfo(IconData icon, String title) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 5),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -314,147 +412,368 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _formLogin() {
-    return Container(
+  Widget _loginCard() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: activeColor.withValues(alpha: 0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 30,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Masuk Akun',
-            style: TextStyle(
-              color: textDark,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Gunakan NIK dan password yang sudah disetujui admin.',
-            style: TextStyle(color: textGrey, fontSize: 13, height: 1.4),
+          _modeSwitcher(),
+          const SizedBox(height: 22),
+          Row(
+            children: [
+              Container(
+                height: 46,
+                width: 46,
+                decoration: BoxDecoration(
+                  color: activeColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  isAdminMode ? Icons.security_rounded : Icons.person_rounded,
+                  color: activeColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isAdminMode ? 'Login Admin' : 'Login Anggota',
+                      style: const TextStyle(
+                        color: textDark,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isAdminMode
+                          ? 'Masukkan password admin.'
+                          : 'Gunakan NIK yang sudah disetujui.',
+                      style: TextStyle(
+                        color: Colors.black.withValues(alpha: 0.52),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 22),
-          TextField(
-            controller: nikController,
-            keyboardType: TextInputType.text,
-            textInputAction: TextInputAction.next,
-            decoration: _inputDecoration(
-              label: 'NIK / Admin',
-              icon: Icons.badge_outlined,
+          if (!isAdminMode) ...[
+            _inputField(
+              controller: nikController,
+              focusNode: nikFocus,
+              label: 'NIK',
+              hint: 'Masukkan 16 digit NIK',
+              icon: Icons.badge_rounded,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) => passwordFocus.requestFocus(),
             ),
-          ),
-          const SizedBox(height: 14),
-          TextField(
+            const SizedBox(height: 16),
+          ],
+          _inputField(
             controller: passwordController,
-            obscureText: hidePassword,
+            focusNode: passwordFocus,
+            label: 'Password',
+            hint: isAdminMode ? 'Masukkan password admin' : 'Masukkan password',
+            icon: Icons.lock_rounded,
+            obscureText: obscurePassword,
             textInputAction: TextInputAction.done,
-            onSubmitted: (_) {
-              if (!isLoading) login();
-            },
-            decoration: _inputDecoration(
-              label: 'Password',
-              icon: Icons.lock_outline_rounded,
-            ).copyWith(
-              suffixIcon: IconButton(
-                onPressed: () {
-                  setState(() {
-                    hidePassword = !hidePassword;
-                  });
-                },
-                icon: Icon(
-                  hidePassword
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded,
-                  color: textGrey,
-                ),
+            onSubmitted: (_) => isLoading ? null : login(),
+            suffixIcon: IconButton(
+              onPressed: () {
+                setState(() => obscurePassword = !obscurePassword);
+              },
+              icon: Icon(
+                obscurePassword
+                    ? Icons.visibility_off_rounded
+                    : Icons.visibility_rounded,
+                color: activeColor,
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
           SizedBox(
             width: double.infinity,
-            height: 54,
+            height: 56,
             child: ElevatedButton(
+              onPressed: isLoading ? null : login,
               style: ElevatedButton.styleFrom(
-                backgroundColor: primaryGreen,
+                backgroundColor: activeColor,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: primaryGreen.withValues(alpha: 0.65),
+                disabledBackgroundColor: activeColor.withValues(alpha: 0.45),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
                 ),
               ),
-              onPressed: isLoading ? null : login,
               child:
                   isLoading
                       ? const SizedBox(
-                        height: 22,
-                        width: 22,
+                        width: 23,
+                        height: 23,
                         child: CircularProgressIndicator(
-                          color: Colors.white,
                           strokeWidth: 2.4,
+                          color: Colors.white,
                         ),
                       )
-                      : const Text(
-                        'Masuk',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                        ),
+                      : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            isAdminMode ? 'Masuk Admin' : 'Masuk Sekarang',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward_rounded, size: 20),
+                        ],
                       ),
             ),
           ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(child: _dividerLine()),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  'atau',
-                  style: TextStyle(color: textGrey, fontSize: 12),
+          if (!isAdminMode) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () {
+                  FocusScope.of(context).unfocus();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const StatusKeanggotaanPage(),
+                    ),
+                  );
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  child: Text(
+                    'Cek status pendaftaran anggota',
+                    style: TextStyle(
+                      color: primaryGreen,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13.5,
+                    ),
+                  ),
                 ),
-              ),
-              Expanded(child: _dividerLine()),
-            ],
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: primaryGreen,
-                side: const BorderSide(color: primaryGreen),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-              ),
-              onPressed: () => bukaHalaman(const RegisterPage()),
-              icon: const Icon(Icons.person_add_alt_1_rounded),
-              label: const Text(
-                'Daftar Calon Anggota',
-                style: TextStyle(fontWeight: FontWeight.w900),
               ),
             ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _modeSwitcher() {
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F8F0),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: activeColor.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _modeItem(
+              title: 'Anggota',
+              icon: Icons.person_rounded,
+              selected: !isAdminMode,
+              onTap: () => _changeMode(false),
+            ),
           ),
-          const SizedBox(height: 10),
-          Center(
-            child: TextButton.icon(
-              onPressed: () => bukaHalaman(const StatusKeanggotaanPage()),
-              icon: const Icon(
-                Icons.fact_check_outlined,
+          Expanded(
+            child: _modeItem(
+              title: 'Admin',
+              icon: Icons.admin_panel_settings_rounded,
+              selected: isAdminMode,
+              onTap: () => _changeMode(true),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _modeItem({
+    required String title,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: isLoading ? null : onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        decoration: BoxDecoration(
+          color: selected ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow:
+              selected
+                  ? [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.22),
+                      blurRadius: 14,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                  : [],
+        ),
+        child: Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
                 size: 18,
-                color: primaryGreen,
+                color:
+                    selected
+                        ? Colors.white
+                        : Colors.black.withValues(alpha: 0.48),
               ),
-              label: const Text(
-                'Cek Status Keanggotaan',
+              const SizedBox(width: 7),
+              Text(
+                title,
                 style: TextStyle(
-                  color: primaryGreen,
-                  fontWeight: FontWeight.w800,
+                  color:
+                      selected
+                          ? Colors.white
+                          : Colors.black.withValues(alpha: 0.55),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w900,
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _inputField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String label,
+    required String hint,
+    required IconData icon,
+    bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text,
+    TextInputAction textInputAction = TextInputAction.done,
+    ValueChanged<String>? onSubmitted,
+    Widget? suffixIcon,
+  }) {
+    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      onSubmitted: onSubmitted,
+      style: const TextStyle(
+        color: textDark,
+        fontWeight: FontWeight.w800,
+        fontSize: 15,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Container(
+          margin: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: activeColor.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(icon, color: activeColor, size: 21),
+        ),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: const Color(0xFFF4FAF4),
+        labelStyle: TextStyle(
+          color: Colors.black.withValues(alpha: 0.60),
+          fontWeight: FontWeight.w700,
+        ),
+        hintStyle: TextStyle(
+          color: Colors.black.withValues(alpha: 0.34),
+          fontWeight: FontWeight.w600,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 18,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(19),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(19),
+          borderSide: BorderSide(color: activeColor.withValues(alpha: 0.08)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(19),
+          borderSide: BorderSide(color: activeColor, width: 1.4),
+        ),
+      ),
+    );
+  }
+
+  Widget _registerSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.08)),
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            'Belum punya akun?',
+            style: TextStyle(
+              color: Colors.black.withValues(alpha: 0.55),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () {
+              FocusScope.of(context).unfocus();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RegisterPage()),
+              );
+            },
+            child: const Text(
+              'Daftar Anggota',
+              style: TextStyle(
+                color: primaryGreen,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
@@ -463,56 +782,11 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _dividerLine() {
-    return Container(height: 1, color: textGrey.withValues(alpha: 0.22));
-  }
-
-  Widget _footerText() {
-    return const Text(
-      '© Kelompok Tani Desa Penataan',
-      style: TextStyle(
-        color: textGrey,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration({
-    required String label,
-    required IconData icon,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: textGrey),
-      prefixIcon: Icon(icon, color: primaryGreen),
-      filled: true,
-      fillColor: const Color(0xffF9FAFB),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xffE5E7EB)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: primaryGreen, width: 1.5),
-      ),
-    );
-  }
-
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(28),
-      border: Border.all(color: const Color(0xffE5E7EB)),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.055),
-          blurRadius: 18,
-          offset: const Offset(0, 8),
-        ),
-      ],
+  Widget _decorCircle(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

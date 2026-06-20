@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'alat_page.dart';
 import 'notifikasi_page.dart';
+import 'pengumuman_page.dart';
 import 'profil_page.dart';
 import 'pupuk_page.dart';
 import 'riwayat_page.dart';
@@ -20,12 +21,14 @@ class UserHomePage extends StatefulWidget {
 
 class _UserHomePageState extends State<UserHomePage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
-  static const Color lightGreen = Color(0xffE8F5E9);
+  static const Color darkGreen = Color(0xff14532D);
+  static const Color softGreen = Color(0xffE8F5E9);
   static const Color backgroundColor = Color(0xffF6FAF7);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color blueStatus = Color(0xff1976D2);
+  static const Color redStatus = Color(0xffDC2626);
 
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -33,28 +36,30 @@ class _UserHomePageState extends State<UserHomePage> {
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 
-  List<Map<String, dynamic>> ambilDataByNik(dynamic value, String nikUser) {
+  List<Map<String, dynamic>> ambilDataByNik(dynamic value) {
     if (value == null || value is! Map) return [];
 
     final data = Map<dynamic, dynamic>.from(value);
 
-    final list =
-        data.values
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .where((item) {
-              final nikData = (item['nik'] ?? '').toString().trim();
-              return nikData == nikUser.trim();
-            })
-            .toList();
-
-    return list.reversed.toList();
+    return data.values
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .where((item) {
+          final nikData = (item['nik'] ?? '').toString().trim();
+          return nikData == widget.nik.trim();
+        })
+        .toList()
+        .reversed
+        .toList();
   }
 
-  List<Map<String, dynamic>> ambilDataMenunggu(dynamic value, String nikUser) {
-    return ambilDataByNik(value, nikUser).where((item) {
+  List<Map<String, dynamic>> filterStatus(
+    List<Map<String, dynamic>> data,
+    List<String> statusList,
+  ) {
+    return data.where((item) {
       final status = (item['status'] ?? 'menunggu').toString().toLowerCase();
-      return status == 'menunggu';
+      return statusList.contains(status);
     }).toList();
   }
 
@@ -67,8 +72,10 @@ class _UserHomePageState extends State<UserHomePage> {
     for (final item in data.values) {
       if (item is Map) {
         final notif = Map<dynamic, dynamic>.from(item);
-        final status = (notif['status'] ?? 'belum_dibaca').toString();
-        if (status == 'belum_dibaca') {
+        final status = (notif['status'] ?? '').toString();
+        final dibaca = notif['dibaca'];
+
+        if (status == 'belum_dibaca' || dibaca == false) {
           total++;
         }
       }
@@ -77,8 +84,113 @@ class _UserHomePageState extends State<UserHomePage> {
     return total;
   }
 
+  List<Map<String, dynamic>> ambilPengumumanAktif(dynamic value) {
+    if (value == null || value is! Map) return [];
+
+    final data = Map<dynamic, dynamic>.from(value);
+
+    final list =
+        data.entries
+            .where((entry) => entry.value is Map)
+            .map((entry) {
+              final item = Map<String, dynamic>.from(entry.value);
+              item['id'] = entry.key.toString();
+              return item;
+            })
+            .where((item) {
+              final status = (item['status'] ?? '').toString().toLowerCase();
+              return status == 'aktif';
+            })
+            .toList();
+
+    list.sort((a, b) {
+      final waktuA = _nilaiWaktuPengumuman(a);
+      final waktuB = _nilaiWaktuPengumuman(b);
+      return waktuB.compareTo(waktuA);
+    });
+
+    return list;
+  }
+
+  int _nilaiWaktuPengumuman(Map<String, dynamic> item) {
+    final createdAt = item['created_at'] ?? item['createdAt'] ?? item['waktu'];
+
+    if (createdAt is int) return createdAt;
+    if (createdAt is double) return createdAt.toInt();
+
+    final tanggal = (item['tanggal'] ?? item['tgl'] ?? '').toString();
+    final parsed = DateTime.tryParse(tanggal);
+    return parsed?.millisecondsSinceEpoch ?? 0;
+  }
+
   void bukaHalaman(Widget page) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+  }
+
+  String salamWaktu() {
+    final jam = DateTime.now().hour;
+
+    if (jam < 11) return 'Selamat pagi';
+    if (jam < 15) return 'Selamat siang';
+    if (jam < 18) return 'Selamat sore';
+    return 'Selamat malam';
+  }
+
+  String tanggalHariIni() {
+    final now = DateTime.now();
+    final bulan = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+
+    return '${now.day} ${bulan[now.month - 1]} ${now.year}';
+  }
+
+  String tanggalPengumuman(Map<String, dynamic> item) {
+    final tanggal = (item['tanggal'] ?? item['tgl'] ?? '').toString();
+    if (tanggal.trim().isNotEmpty) return tanggal;
+
+    final createdAt = item['created_at'] ?? item['createdAt'] ?? item['waktu'];
+
+    if (createdAt is int) {
+      final date = DateTime.fromMillisecondsSinceEpoch(createdAt);
+      return '${date.day} ${_namaBulan(date.month)} ${date.year}';
+    }
+
+    if (createdAt is double) {
+      final date = DateTime.fromMillisecondsSinceEpoch(createdAt.toInt());
+      return '${date.day} ${_namaBulan(date.month)} ${date.year}';
+    }
+
+    return 'Pengumuman desa';
+  }
+
+  String _namaBulan(int bulan) {
+    const namaBulan = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+    return namaBulan[bulan - 1];
   }
 
   @override
@@ -86,6 +198,7 @@ class _UserHomePageState extends State<UserHomePage> {
     final bantuanRef = db.ref('bantuan_pupuk');
     final peminjamanRef = db.ref('peminjaman_alat');
     final notifikasiRef = db.ref('notifikasi').child(widget.nik);
+    final pengumumanRef = db.ref('pengumuman');
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -99,60 +212,75 @@ class _UserHomePageState extends State<UserHomePage> {
                 return StreamBuilder<DatabaseEvent>(
                   stream: notifikasiRef.onValue,
                   builder: (context, notifSnapshot) {
-                    final semuaBantuan = ambilDataByNik(
-                      bantuanSnapshot.data?.snapshot.value,
-                      widget.nik,
-                    );
+                    return StreamBuilder<DatabaseEvent>(
+                      stream: pengumumanRef.onValue,
+                      builder: (context, pengumumanSnapshot) {
+                        final semuaBantuan = ambilDataByNik(
+                          bantuanSnapshot.data?.snapshot.value,
+                        );
 
-                    final semuaPeminjaman = ambilDataByNik(
-                      peminjamanSnapshot.data?.snapshot.value,
-                      widget.nik,
-                    );
+                        final semuaPeminjaman = ambilDataByNik(
+                          peminjamanSnapshot.data?.snapshot.value,
+                        );
 
-                    final bantuanMenunggu = ambilDataMenunggu(
-                      bantuanSnapshot.data?.snapshot.value,
-                      widget.nik,
-                    );
+                        final bantuanMenunggu = filterStatus(semuaBantuan, [
+                          'menunggu',
+                        ]);
 
-                    final peminjamanMenunggu = ambilDataMenunggu(
-                      peminjamanSnapshot.data?.snapshot.value,
-                      widget.nik,
-                    );
+                        final peminjamanMenunggu = filterStatus(
+                          semuaPeminjaman,
+                          ['menunggu'],
+                        );
 
-                    final totalMenunggu =
-                        bantuanMenunggu.length + peminjamanMenunggu.length;
+                        final totalMenunggu =
+                            bantuanMenunggu.length + peminjamanMenunggu.length;
 
-                    final totalNotifBelumDibaca = hitungNotifBelumDibaca(
-                      notifSnapshot.data?.snapshot.value,
-                    );
+                        final totalNotif = hitungNotifBelumDibaca(
+                          notifSnapshot.data?.snapshot.value,
+                        );
 
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _header(totalMenunggu, totalNotifBelumDibaca),
-                          const SizedBox(height: 22),
-                          _statusCard(),
-                          const SizedBox(height: 22),
-                          _sectionTitle('Ringkasan Aktivitas'),
-                          const SizedBox(height: 12),
-                          _summaryGrid(
-                            bantuanTotal: semuaBantuan.length,
-                            peminjamanTotal: semuaPeminjaman.length,
-                            totalMenunggu: totalMenunggu,
+                        final pengumumanAktif = ambilPengumumanAktif(
+                          pengumumanSnapshot.data?.snapshot.value,
+                        );
+
+                        return SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _headerPremium(totalMenunggu, totalNotif),
+                              const SizedBox(height: 18),
+                              _keanggotaanCard(),
+                              const SizedBox(height: 18),
+                              _ringkasanHariIni(
+                                bantuanMenunggu: bantuanMenunggu.length,
+                                alatMenunggu: peminjamanMenunggu.length,
+                                totalNotif: totalNotif,
+                              ),
+                              const SizedBox(height: 24),
+                              _sectionTitle('Layanan Utama'),
+                              const SizedBox(height: 12),
+                              _layananGrid(),
+                              const SizedBox(height: 24),
+                              _sectionTitle('Pengajuan Saya'),
+                              const SizedBox(height: 12),
+                              _pengajuanSaya(
+                                bantuanList: bantuanMenunggu,
+                                peminjamanList: peminjamanMenunggu,
+                              ),
+                              const SizedBox(height: 24),
+                              _sectionTitleWithAction(
+                                title: 'Pengumuman Terbaru',
+                                actionText: 'Lihat Semua',
+                                onTap:
+                                    () => bukaHalaman(const PengumumanPage()),
+                              ),
+                              const SizedBox(height: 12),
+                              _pengumumanTerbaru(pengumumanAktif),
+                            ],
                           ),
-                          const SizedBox(height: 24),
-                          _sectionTitle('Menu Utama'),
-                          const SizedBox(height: 12),
-                          _quickMenu(),
-                          const SizedBox(height: 24),
-                          _prosesSection(
-                            bantuanList: bantuanMenunggu,
-                            peminjamanList: peminjamanMenunggu,
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     );
                   },
                 );
@@ -165,33 +293,34 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _header(int totalMenunggu, int totalNotifBelumDibaca) {
+  Widget _headerPremium(int totalMenunggu, int totalNotif) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen, Color(0xff43A047)],
+          colors: [darkGreen, primaryGreen, Color(0xff66BB6A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(34),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+            color: darkGreen.withValues(alpha: 0.26),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           Positioned(
-            right: -24,
-            bottom: -34,
+            right: -30,
+            bottom: -42,
             child: Icon(
-              Icons.eco_rounded,
-              size: 150,
+              Icons.agriculture_rounded,
+              size: 170,
               color: Colors.white.withValues(alpha: 0.08),
             ),
           ),
@@ -200,32 +329,21 @@ class _UserHomePageState extends State<UserHomePage> {
             children: [
               Row(
                 children: [
-                  Container(
-                    height: 58,
-                    width: 58,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.35),
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      color: Colors.white,
-                      size: 34,
-                    ),
-                  ),
+                  _avatarUser(),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Selamat Datang,',
-                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                        Text(
+                          salamWaktu(),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.76),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 4),
                         Text(
                           widget.nama,
                           maxLines: 1,
@@ -233,65 +351,63 @@ class _UserHomePageState extends State<UserHomePage> {
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 23,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                         const SizedBox(height: 3),
-                        const Text(
-                          'Sistem Informasi Kelompok Tani Desa Penataan',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        Text(
+                          tanggalHariIni(),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.80),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  _notifButton(totalNotifBelumDibaca),
+                  _notifButton(totalNotif),
                 ],
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 24),
               Container(
-                padding: const EdgeInsets.all(14),
+                width: double.infinity,
+                padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(22),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.22),
+                    color: Colors.white.withValues(alpha: 0.25),
                   ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.pending_actions_rounded,
-                      color: Colors.white,
-                      size: 22,
+                    Container(
+                      height: 44,
+                      width: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Icon(
+                        totalMenunggu == 0
+                            ? Icons.check_circle_rounded
+                            : Icons.pending_actions_rounded,
+                        color: Colors.white,
+                      ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            totalMenunggu == 0
-                                ? 'Tidak ada pengajuan menunggu'
-                                : '$totalMenunggu pengajuan menunggu verifikasi',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          const Text(
-                            'Bantuan pupuk dan peminjaman alat',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        totalMenunggu == 0
+                            ? 'Semua pengajuan kamu sedang aman. Silakan gunakan layanan sesuai kebutuhan.'
+                            : '$totalMenunggu pengajuan masih menunggu verifikasi admin.',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          height: 1.35,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ],
@@ -304,21 +420,44 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _notifButton(int totalNotifBelumDibaca) {
+  Widget _avatarUser() {
+    final initial =
+        widget.nama.trim().isEmpty ? 'A' : widget.nama.trim()[0].toUpperCase();
+
+    return Container(
+      height: 58,
+      width: 58,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+      ),
+      child: Center(
+        child: Text(
+          initial,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 25,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _notifButton(int totalNotif) {
     return InkWell(
-      onTap: () {
-        bukaHalaman(NotifikasiPage(nik: widget.nik));
-      },
-      borderRadius: BorderRadius.circular(16),
+      onTap: () => bukaHalaman(NotifikasiPage(nik: widget.nik)),
+      borderRadius: BorderRadius.circular(17),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Container(
-            height: 46,
-            width: 46,
+            height: 48,
+            width: 48,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(17),
               border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
             ),
             child: const Icon(
@@ -327,35 +466,39 @@ class _UserHomePageState extends State<UserHomePage> {
               size: 25,
             ),
           ),
-          if (totalNotifBelumDibaca > 0)
-            Positioned(
-              right: -4,
-              top: -4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-                child: Text(
-                  totalNotifBelumDibaca > 99
-                      ? '99+'
-                      : totalNotifBelumDibaca.toString(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ),
+          Positioned(right: -8, top: -8, child: _notificationBadge(totalNotif)),
         ],
       ),
     );
   }
 
-  Widget _statusCard() {
+  Widget _notificationBadge(int total) {
+    if (total <= 0) return const SizedBox.shrink();
+
+    final text = total > 99 ? '99+' : total.toString();
+
+    return Container(
+      constraints: const BoxConstraints(minWidth: 23, minHeight: 23),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: redStatus,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          height: 1,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget _keanggotaanCard() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
@@ -365,7 +508,7 @@ class _UserHomePageState extends State<UserHomePage> {
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: lightGreen,
+              color: softGreen,
               borderRadius: BorderRadius.circular(18),
             ),
             child: const Icon(
@@ -384,7 +527,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   style: TextStyle(
                     color: textDark,
                     fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 5),
@@ -394,15 +537,16 @@ class _UserHomePageState extends State<UserHomePage> {
                     color: textGrey,
                     fontSize: 12,
                     height: 1.4,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
             decoration: BoxDecoration(
-              color: lightGreen,
+              color: softGreen,
               borderRadius: BorderRadius.circular(30),
             ),
             child: const Text(
@@ -410,7 +554,7 @@ class _UserHomePageState extends State<UserHomePage> {
               style: TextStyle(
                 color: primaryGreen,
                 fontSize: 10,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
@@ -419,197 +563,243 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _summaryGrid({
-    required int bantuanTotal,
-    required int peminjamanTotal,
-    required int totalMenunggu,
+  Widget _ringkasanHariIni({
+    required int bantuanMenunggu,
+    required int alatMenunggu,
+    required int totalNotif,
   }) {
-    return Row(
-      children: [
-        Expanded(
-          child: _summaryCard(
-            title: 'Bantuan',
-            value: bantuanTotal.toString(),
-            subtitle: 'Lihat pupuk',
-            icon: Icons.grass_rounded,
-            color: primaryGreen,
-            onTap: () {
-              bukaHalaman(PupukPage(nama: widget.nama, nik: widget.nik));
-            },
-          ),
+    final totalMenunggu = bantuanMenunggu + alatMenunggu;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors:
+              totalMenunggu == 0
+                  ? [Colors.white, softGreen]
+                  : [Colors.white, const Color(0xffFFF7ED)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _summaryCard(
-            title: 'Peminjaman',
-            value: peminjamanTotal.toString(),
-            subtitle: 'Lihat alat',
-            icon: Icons.agriculture_rounded,
-            color: const Color(0xff2F855A),
-            onTap: () {
-              bukaHalaman(AlatPage(nama: widget.nama, nik: widget.nik));
-            },
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xffE5E7EB)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.045),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _summaryCard(
-            title: 'Proses',
-            value: totalMenunggu.toString(),
-            subtitle: 'Lihat riwayat',
-            icon: Icons.hourglass_top_rounded,
-            color: orangeStatus,
-            onTap: () {
-              bukaHalaman(RiwayatPage(nik: widget.nik));
-            },
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                height: 52,
+                width: 52,
+                decoration: BoxDecoration(
+                  color:
+                      totalMenunggu == 0
+                          ? primaryGreen.withValues(alpha: 0.12)
+                          : orangeStatus.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Icon(
+                  totalMenunggu == 0
+                      ? Icons.check_circle_rounded
+                      : Icons.hourglass_top_rounded,
+                  color: totalMenunggu == 0 ? primaryGreen : orangeStatus,
+                  size: 29,
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Ringkasan Hari Ini',
+                      style: TextStyle(
+                        color: textDark,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      totalMenunggu == 0
+                          ? 'Tidak ada pengajuan yang menunggu.'
+                          : '$totalMenunggu pengajuan sedang menunggu admin.',
+                      style: const TextStyle(
+                        color: textGrey,
+                        fontSize: 12.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _miniDashboardCard(
+                  title: 'Pupuk',
+                  value: bantuanMenunggu.toString(),
+                  subtitle: 'Menunggu',
+                  icon: Icons.eco_rounded,
+                  color: primaryGreen,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _miniDashboardCard(
+                  title: 'Alat',
+                  value: alatMenunggu.toString(),
+                  subtitle: 'Menunggu',
+                  icon: Icons.agriculture_rounded,
+                  color: orangeStatus,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _miniDashboardCard(
+                  title: 'Notif',
+                  value: totalNotif.toString(),
+                  subtitle: 'Baru',
+                  icon: Icons.notifications_rounded,
+                  color: blueStatus,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _summaryCard({
+  Widget _miniDashboardCard({
     required String title,
     required String value,
     required String subtitle,
     required IconData icon,
     required Color color,
-    required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      child: Container(
-        height: 132,
-        padding: const EdgeInsets.all(13),
-        decoration: _cardDecoration(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              height: 38,
-              width: 38,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(icon, color: color, size: 21),
+    return Container(
+      height: 104,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 23),
+          const Spacer(),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
             ),
-            const Spacer(),
-            Text(
-              value,
-              style: const TextStyle(
-                color: textDark,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-              ),
+          ),
+          Text(
+            title,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w900,
             ),
-            Text(
-              title,
-              style: const TextStyle(
-                color: textDark,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
+          ),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: textGrey, fontSize: 10),
-                  ),
-                ),
-                Icon(Icons.arrow_forward_rounded, size: 14, color: color),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _quickMenu() {
+  Widget _layananGrid() {
     final menus = [
       _HomeMenu(
         title: 'Bantuan Pupuk',
-        subtitle: 'Ajukan kebutuhan pupuk subsidi',
+        subtitle: 'Ajukan kebutuhan pupuk',
         icon: Icons.eco_rounded,
         color: primaryGreen,
         page: PupukPage(nama: widget.nama, nik: widget.nik),
       ),
       _HomeMenu(
         title: 'Peminjaman Alat',
-        subtitle: 'Pinjam alat pertanian desa',
+        subtitle: 'Pinjam alat pertanian',
         icon: Icons.agriculture_rounded,
-        color: const Color(0xffFB8C00),
+        color: orangeStatus,
         page: AlatPage(nama: widget.nama, nik: widget.nik),
       ),
     ];
 
-    return Column(
-      children:
-          menus.map((menu) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _menuCard(menu),
-            );
-          }).toList(),
+    return GridView.builder(
+      itemCount: menus.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisExtent: 150,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemBuilder: (context, index) => _menuGridCard(menus[index]),
     );
   }
 
-  Widget _menuCard(_HomeMenu menu) {
+  Widget _menuGridCard(_HomeMenu menu) {
     return InkWell(
       onTap: () => bukaHalaman(menu.page),
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(26),
       child: Container(
-        padding: const EdgeInsets.all(15),
+        padding: const EdgeInsets.all(16),
         decoration: _cardDecoration(),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 52,
-              height: 52,
+              height: 48,
+              width: 48,
               decoration: BoxDecoration(
-                color: menu.color.withValues(alpha: 0.13),
+                color: menu.color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(17),
               ),
-              child: Icon(menu.icon, color: menu.color, size: 28),
+              child: Icon(menu.icon, color: menu.color, size: 27),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    menu.title,
-                    style: const TextStyle(
-                      color: textDark,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    menu.subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: textGrey,
-                      fontSize: 12,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
+            const Spacer(),
+            Text(
+              menu.title,
+              style: const TextStyle(
+                color: textDark,
+                fontSize: 14.5,
+                fontWeight: FontWeight.w900,
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 15,
-              color: textGrey,
+            const SizedBox(height: 4),
+            Text(
+              menu.subtitle,
+              style: const TextStyle(
+                color: textGrey,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -617,7 +807,7 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _prosesSection({
+  Widget _pengajuanSaya({
     required List<Map<String, dynamic>> bantuanList,
     required List<Map<String, dynamic>> peminjamanList,
   }) {
@@ -627,9 +817,14 @@ class _UserHomePageState extends State<UserHomePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xffFFFBEB),
+        color: total == 0 ? softGreen : const Color(0xffFFFBEB),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xffFED7AA)),
+        border: Border.all(
+          color:
+              total == 0
+                  ? primaryGreen.withValues(alpha: 0.22)
+                  : const Color(0xffFED7AA),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.035),
@@ -641,29 +836,34 @@ class _UserHomePageState extends State<UserHomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _prosesHeader(total),
+          _pengajuanHeader(total),
           const SizedBox(height: 12),
           if (total == 0)
             const Text(
-              'Tidak ada pengajuan yang sedang diproses. Data yang sudah disetujui atau ditolak dapat dilihat pada menu Riwayat.',
-              style: TextStyle(color: textGrey, fontSize: 13, height: 1.4),
+              'Tidak ada pengajuan yang sedang menunggu. Pengajuan yang sudah diproses dapat dilihat pada halaman Riwayat.',
+              style: TextStyle(
+                color: textGrey,
+                fontSize: 13,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ...bantuanList.map(
-            (item) => _prosesCard(
+            (item) => _pengajuanItem(
               icon: Icons.grass_rounded,
               color: primaryGreen,
               title: 'Bantuan Pupuk',
               subtitle:
-                  'Jenis: ${item['jenis_pupuk'] ?? '-'} • Jumlah: ${item['jumlah_pupuk'] ?? item['jumlah'] ?? '-'} Kg',
+                  '${item['jenis_pupuk'] ?? '-'} • ${item['jumlah_pupuk'] ?? '-'} Kg',
             ),
           ),
           ...peminjamanList.map(
-            (item) => _prosesCard(
+            (item) => _pengajuanItem(
               icon: Icons.agriculture_rounded,
               color: orangeStatus,
               title: 'Peminjaman Alat',
               subtitle:
-                  'Alat: ${item['alat'] ?? item['nama_alat'] ?? '-'} • Pinjam: ${item['tanggal_pinjam'] ?? '-'}',
+                  '${item['alat'] ?? item['nama_alat'] ?? '-'} • ${item['tanggal_pinjam'] ?? '-'}',
             ),
           ),
         ],
@@ -671,45 +871,44 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _prosesHeader(int total) {
+  Widget _pengajuanHeader(int total) {
     return Row(
       children: [
         Container(
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: orangeStatus.withValues(alpha: 0.14),
+            color:
+                total == 0
+                    ? primaryGreen.withValues(alpha: 0.14)
+                    : orangeStatus.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(15),
           ),
-          child: const Icon(Icons.hourglass_top_rounded, color: orangeStatus),
+          child: Icon(
+            total == 0
+                ? Icons.check_circle_rounded
+                : Icons.hourglass_top_rounded,
+            color: total == 0 ? primaryGreen : orangeStatus,
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Sedang Diproses',
-                style: TextStyle(
-                  color: textDark,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(
-                total == 0
-                    ? 'Belum ada pengajuan menunggu'
-                    : '$total pengajuan menunggu persetujuan admin',
-                style: const TextStyle(color: textGrey, fontSize: 12),
-              ),
-            ],
+          child: Text(
+            total == 0
+                ? 'Tidak Ada Pengajuan Menunggu'
+                : '$total Pengajuan Menunggu',
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _prosesCard({
+  Widget _pengajuanItem({
     required IconData icon,
     required Color color,
     required String title,
@@ -738,7 +937,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   title,
                   style: const TextStyle(
                     color: textDark,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -759,12 +958,198 @@ class _UserHomePageState extends State<UserHomePage> {
               'Menunggu',
               style: TextStyle(
                 color: orangeStatus,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
                 fontSize: 10,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _pengumumanTerbaru(List<Map<String, dynamic>> list) {
+    if (list.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: _cardDecoration(),
+        child: Column(
+          children: [
+            Container(
+              width: 62,
+              height: 62,
+              decoration: BoxDecoration(
+                color: softGreen,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: const Icon(
+                Icons.campaign_rounded,
+                color: primaryGreen,
+                size: 34,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Belum Ada Pengumuman',
+              style: TextStyle(
+                color: textDark,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Pengumuman dari kelompok tani atau desa akan tampil di sini jika sudah tersedia.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: textGrey,
+                fontSize: 12.5,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final item = list.first;
+    final judul = (item['judul'] ?? 'Pengumuman Desa').toString();
+    final isi =
+        (item['isi'] ?? item['deskripsi'] ?? item['keterangan'] ?? '-')
+            .toString();
+
+    return InkWell(
+      onTap: () => bukaHalaman(const PengumumanPage()),
+      borderRadius: BorderRadius.circular(28),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [darkGreen, primaryGreen],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: darkGreen.withValues(alpha: 0.18),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -24,
+              bottom: -34,
+              child: Icon(
+                Icons.campaign_rounded,
+                size: 130,
+                color: Colors.white.withValues(alpha: 0.07),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      height: 46,
+                      width: 46,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.20),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.campaign_rounded,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        tanggalPengumuman(item),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.78),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'Aktif',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  judul,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    height: 1.25,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isi,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.80),
+                    fontSize: 12.5,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Text(
+                      'Baca pengumuman',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Colors.white,
+                      size: 17,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -775,8 +1160,40 @@ class _UserHomePageState extends State<UserHomePage> {
       style: const TextStyle(
         color: textDark,
         fontSize: 18,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w900,
       ),
+    );
+  }
+
+  Widget _sectionTitleWithAction({
+    required String title,
+    required String actionText,
+    required VoidCallback onTap,
+  }) {
+    return Row(
+      children: [
+        Expanded(child: _sectionTitle(title)),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: softGreen,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
+            ),
+            child: Text(
+              actionText,
+              style: const TextStyle(
+                color: primaryGreen,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -832,7 +1249,7 @@ class _UserHomePageState extends State<UserHomePage> {
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(24),
       border: Border.all(color: const Color(0xffE5E7EB)),
       boxShadow: [
         BoxShadow(

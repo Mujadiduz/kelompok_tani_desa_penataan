@@ -22,6 +22,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   static const Color purpleStatus = Color(0xff7B1FA2);
 
   String selectedFilter = 'semua';
+  bool isProcessing = false;
 
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -41,6 +42,10 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     notifikasiRef = db.ref('notifikasi');
   }
 
+  String normalStatus(Map<dynamic, dynamic> item) {
+    return (item['status'] ?? 'menunggu').toString().toLowerCase().trim();
+  }
+
   Future<void> simpanNotifikasi({
     required String nik,
     required String judul,
@@ -54,6 +59,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
       'pesan': pesan,
       'tipe': tipe,
       'status': 'belum_dibaca',
+      'dibaca': false,
       'tanggal': DateTime.now().toIso8601String(),
     });
   }
@@ -64,10 +70,13 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     Map<dynamic, dynamic> item,
   ) async {
     try {
-      await peminjamanRef.child(id).update({
-        'status': status,
-        'tanggal_verifikasi': DateTime.now().toIso8601String(),
-      });
+      await peminjamanRef
+          .child(id)
+          .update({
+            'status': status,
+            'tanggal_verifikasi': DateTime.now().toIso8601String(),
+          })
+          .timeout(const Duration(seconds: 10));
 
       final nik = (item['nik'] ?? '').toString();
       final alat = (item['alat'] ?? item['nama_alat'] ?? 'alat').toString();
@@ -105,6 +114,10 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   }
 
   Future<void> tandaiDipinjam(String id, Map<dynamic, dynamic> item) async {
+    if (isProcessing) return;
+
+    setState(() => isProcessing = true);
+
     try {
       final idAlat = (item['id_alat'] ?? '').toString();
       final namaAlat = (item['alat'] ?? item['nama_alat'] ?? '').toString();
@@ -115,12 +128,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
           1;
 
       if (idAlat.isEmpty) {
-        if (!mounted) return;
-        _showSnackBar(
-          'ID alat tidak ditemukan pada data peminjaman',
-          Colors.red,
-        );
-        return;
+        throw Exception('ID alat tidak ditemukan pada data peminjaman');
       }
 
       final alatSnapshot = await alatRef
@@ -133,9 +141,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
       );
 
       if (!alatSnapshot.exists || alatSnapshot.value == null) {
-        if (!mounted) return;
-        _showSnackBar('Data alat tidak ditemukan', Colors.red);
-        return;
+        throw Exception('Data alat tidak ditemukan');
       }
 
       final dataAlat = Map<dynamic, dynamic>.from(alatSnapshot.value as Map);
@@ -156,19 +162,20 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
       final sisaTersedia = totalUnit - sedangDipinjam;
 
       if (sisaTersedia < jumlahPinjam) {
-        if (!mounted) return;
-        _showSnackBar('Stok alat tidak mencukupi', Colors.red);
-        return;
+        throw Exception('Stok alat tidak mencukupi');
       }
 
       final now = DateTime.now();
 
-      await peminjamanRef.child(id).update({
-        'status': 'dipinjam',
-        'tanggal_diambil': _formatTanggal(now),
-        'waktu_diambil': _formatWaktu(now),
-        'alat': namaAlat,
-      });
+      await peminjamanRef
+          .child(id)
+          .update({
+            'status': 'dipinjam',
+            'tanggal_diambil': _formatTanggal(now),
+            'waktu_diambil': _formatWaktu(now),
+            'alat': namaAlat,
+          })
+          .timeout(const Duration(seconds: 10));
 
       final nik = (item['nik'] ?? '').toString();
 
@@ -185,10 +192,16 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Gagal menandai dipinjam: $e', Colors.red);
+    } finally {
+      if (mounted) setState(() => isProcessing = false);
     }
   }
 
   Future<void> tandaiDikembalikan(String id, Map<dynamic, dynamic> item) async {
+    if (isProcessing) return;
+
+    setState(() => isProcessing = true);
+
     try {
       final now = DateTime.now();
       final tanggalKembali = (item['tanggal_kembali'] ?? '').toString();
@@ -196,13 +209,16 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
       final nik = (item['nik'] ?? '').toString();
       final alat = (item['alat'] ?? item['nama_alat'] ?? 'alat').toString();
 
-      await peminjamanRef.child(id).update({
-        'status': 'dikembalikan',
-        'tanggal_dikembalikan': _formatTanggal(now),
-        'waktu_dikembalikan': _formatWaktu(now),
-        'status_pengembalian': hasil.status,
-        'jumlah_hari_terlambat': hasil.hariTerlambat,
-      });
+      await peminjamanRef
+          .child(id)
+          .update({
+            'status': 'dikembalikan',
+            'tanggal_dikembalikan': _formatTanggal(now),
+            'waktu_dikembalikan': _formatWaktu(now),
+            'status_pengembalian': hasil.status,
+            'jumlah_hari_terlambat': hasil.hariTerlambat,
+          })
+          .timeout(const Duration(seconds: 10));
 
       final pesanTerlambat =
           hasil.status == 'terlambat'
@@ -221,6 +237,8 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Gagal menandai pengembalian: $e', Colors.red);
+    } finally {
+      if (mounted) setState(() => isProcessing = false);
     }
   }
 
@@ -237,7 +255,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
       if (entry.value is Map) {
         final item = Map<dynamic, dynamic>.from(entry.value as Map);
         final itemIdAlat = (item['id_alat'] ?? '').toString();
-        final status = (item['status'] ?? '').toString().toLowerCase();
+        final status = normalStatus(item);
 
         if (itemIdAlat == idAlat && status == 'dipinjam') {
           final jumlah =
@@ -413,6 +431,47 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     }
   }
 
+  Map<String, int> hitungStatus(List<MapEntry<String, dynamic>> data) {
+    int menunggu = 0;
+    int disetujui = 0;
+    int dipinjam = 0;
+    int dikembalikan = 0;
+    int ditolak = 0;
+
+    for (final entry in data) {
+      if (entry.value is Map) {
+        final item = Map<dynamic, dynamic>.from(entry.value as Map);
+        final status = normalStatus(item);
+
+        if (status == 'menunggu') menunggu++;
+        if (status == 'disetujui') disetujui++;
+        if (status == 'dipinjam') dipinjam++;
+        if (status == 'dikembalikan') dikembalikan++;
+        if (status == 'ditolak') ditolak++;
+      }
+    }
+
+    return {
+      'semua': data.length,
+      'menunggu': menunggu,
+      'disetujui': disetujui,
+      'dipinjam': dipinjam,
+      'dikembalikan': dikembalikan,
+      'ditolak': ditolak,
+    };
+  }
+
+  List<MapEntry<String, dynamic>> filterData(
+    List<MapEntry<String, dynamic>> data,
+  ) {
+    if (selectedFilter == 'semua') return data;
+
+    return data.where((entry) {
+      final item = Map<dynamic, dynamic>.from(entry.value as Map);
+      return normalStatus(item) == selectedFilter;
+    }).toList();
+  }
+
   Color warnaStatus(String status) {
     if (status == 'disetujui') return blueStatus;
     if (status == 'dipinjam') return purpleStatus;
@@ -445,18 +504,6 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     if (namaAlat.contains('traktor')) return Icons.agriculture_rounded;
 
     return Icons.handyman_rounded;
-  }
-
-  List<MapEntry<String, dynamic>> filterData(
-    List<MapEntry<String, dynamic>> data,
-  ) {
-    if (selectedFilter == 'semua') return data;
-
-    return data.where((entry) {
-      final item = Map<dynamic, dynamic>.from(entry.value as Map);
-      final status = (item['status'] ?? 'menunggu').toString().toLowerCase();
-      return status == selectedFilter;
-    }).toList();
   }
 
   String _formatTanggal(DateTime date) {
@@ -561,6 +608,8 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   }
 
   void _showSnackBar(String pesan, Color color) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(pesan),
@@ -574,82 +623,117 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _headerPage(),
-            _filterStatus(),
-            Expanded(
-              child: StreamBuilder<DatabaseEvent>(
-                stream: peminjamanRef.onValue,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return _messageState(
-                      icon: Icons.error_outline_rounded,
-                      title: 'Terjadi Kesalahan',
-                      message: snapshot.error.toString(),
-                    );
-                  }
-
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: primaryGreen),
-                    );
-                  }
-
-                  if (!snapshot.hasData ||
-                      snapshot.data!.snapshot.value == null) {
-                    return _messageState(
-                      icon: Icons.inventory_2_outlined,
-                      title: 'Belum Ada Pengajuan',
-                      message: 'Data peminjaman alat belum tersedia.',
-                    );
-                  }
-
-                  final rawData = snapshot.data!.snapshot.value;
-
-                  if (rawData is! Map) {
-                    return _messageState(
-                      icon: Icons.warning_amber_rounded,
-                      title: 'Format Data Tidak Sesuai',
-                      message: 'Periksa kembali struktur data Firebase.',
-                    );
-                  }
-
-                  final data = Map<String, dynamic>.from(rawData);
-                  final semuaData = data.entries.toList().reversed.toList();
-                  final peminjamanList = filterData(semuaData);
-
-                  if (peminjamanList.isEmpty) {
-                    return _messageState(
-                      icon: Icons.search_off_rounded,
-                      title: 'Data Tidak Ditemukan',
-                      message: 'Tidak ada peminjaman dengan status ini.',
-                    );
-                  }
-
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
-                    itemCount: peminjamanList.length,
-                    itemBuilder: (context, index) {
-                      final id = peminjamanList[index].key.toString();
-                      final item = Map<dynamic, dynamic>.from(
-                        peminjamanList[index].value as Map,
-                      );
-
-                      return _peminjamanCard(id, item);
-                    },
+      body: Stack(
+        children: [
+          SafeArea(
+            child: StreamBuilder<DatabaseEvent>(
+              stream: peminjamanRef.onValue,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Column(
+                    children: [
+                      _headerPage(0),
+                      Expanded(
+                        child: _messageState(
+                          icon: Icons.error_outline_rounded,
+                          title: 'Terjadi Kesalahan',
+                          message: snapshot.error.toString(),
+                        ),
+                      ),
+                    ],
                   );
-                },
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Column(
+                    children: [
+                      _headerPage(0),
+                      const Expanded(
+                        child: Center(
+                          child: CircularProgressIndicator(color: primaryGreen),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                final rawData = snapshot.data?.snapshot.value;
+
+                List<MapEntry<String, dynamic>> semuaData = [];
+
+                if (rawData is Map) {
+                  final data = Map<String, dynamic>.from(rawData);
+                  semuaData = data.entries.toList().reversed.toList();
+                }
+
+                final jumlahStatus = hitungStatus(semuaData);
+                final totalMenunggu = jumlahStatus['menunggu'] ?? 0;
+                final totalSemua = jumlahStatus['semua'] ?? 0;
+                final totalDisetujui = jumlahStatus['disetujui'] ?? 0;
+                final totalDipinjam = jumlahStatus['dipinjam'] ?? 0;
+                final totalDikembalikan = jumlahStatus['dikembalikan'] ?? 0;
+                final totalDitolak = jumlahStatus['ditolak'] ?? 0;
+                final peminjamanList = filterData(semuaData);
+
+                return Column(
+                  children: [
+                    _headerPage(totalMenunggu),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+                        children: [
+                          _statusControlPanel(
+                            totalSemua: totalSemua,
+                            totalMenunggu: totalMenunggu,
+                            totalDisetujui: totalDisetujui,
+                            totalDipinjam: totalDipinjam,
+                            totalDikembalikan: totalDikembalikan,
+                            totalDitolak: totalDitolak,
+                          ),
+                          const SizedBox(height: 14),
+                          if (semuaData.isEmpty)
+                            _messageState(
+                              icon: Icons.inventory_2_outlined,
+                              title: 'Belum Ada Pengajuan',
+                              message: 'Data peminjaman alat belum tersedia.',
+                            )
+                          else if (peminjamanList.isEmpty)
+                            _messageState(
+                              icon: Icons.search_off_rounded,
+                              title: 'Data Tidak Ditemukan',
+                              message:
+                                  'Tidak ada peminjaman alat dengan status ini.',
+                            )
+                          else
+                            ...peminjamanList.map((entry) {
+                              final id = entry.key.toString();
+                              final item = Map<dynamic, dynamic>.from(
+                                entry.value as Map,
+                              );
+
+                              return _peminjamanCard(id, item);
+                            }),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          if (isProcessing)
+            Container(
+              color: Colors.black.withValues(alpha: 0.20),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _headerPage() {
+  Widget _headerPage(int totalMenunggu) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
@@ -702,9 +786,11 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
                 ],
               ),
               const SizedBox(height: 18),
-              const Text(
-                'Admin dapat menyetujui, menandai alat dipinjam, dan menandai alat dikembalikan.',
-                style: TextStyle(
+              Text(
+                totalMenunggu == 0
+                    ? 'Semua pengajuan peminjaman alat sudah diproses.'
+                    : '$totalMenunggu pengajuan peminjaman alat masih menunggu verifikasi admin.',
+                style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 13,
                   height: 1.4,
@@ -717,84 +803,62 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     );
   }
 
-  Widget _backButton() {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-      ),
-    );
-  }
+  Widget _statusControlPanel({
+    required int totalSemua,
+    required int totalMenunggu,
+    required int totalDisetujui,
+    required int totalDipinjam,
+    required int totalDikembalikan,
+    required int totalDitolak,
+  }) {
+    final aman = totalMenunggu == 0;
 
-  Widget _filterStatus() {
     final filters = [
-      const _FilterItem(label: 'Semua', value: 'semua'),
-      const _FilterItem(label: 'Menunggu', value: 'menunggu'),
-      const _FilterItem(label: 'Disetujui', value: 'disetujui'),
-      const _FilterItem(label: 'Dipinjam', value: 'dipinjam'),
-      const _FilterItem(label: 'Dikembalikan', value: 'dikembalikan'),
-      const _FilterItem(label: 'Ditolak', value: 'ditolak'),
+      _FilterItem(
+        label: 'Semua',
+        value: 'semua',
+        total: totalSemua,
+        icon: Icons.list_alt_rounded,
+        color: primaryGreen,
+      ),
+      _FilterItem(
+        label: 'Menunggu',
+        value: 'menunggu',
+        total: totalMenunggu,
+        icon: Icons.schedule_rounded,
+        color: orangeStatus,
+      ),
+      _FilterItem(
+        label: 'Disetujui',
+        value: 'disetujui',
+        total: totalDisetujui,
+        icon: Icons.check_circle_rounded,
+        color: blueStatus,
+      ),
+      _FilterItem(
+        label: 'Dipinjam',
+        value: 'dipinjam',
+        total: totalDipinjam,
+        icon: Icons.output_rounded,
+        color: purpleStatus,
+      ),
+      _FilterItem(
+        label: 'Kembali',
+        value: 'dikembalikan',
+        total: totalDikembalikan,
+        icon: Icons.assignment_turned_in_rounded,
+        color: primaryGreen,
+      ),
+      _FilterItem(
+        label: 'Ditolak',
+        value: 'ditolak',
+        total: totalDitolak,
+        icon: Icons.cancel_rounded,
+        color: Colors.red,
+      ),
     ];
 
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 18),
-        scrollDirection: Axis.horizontal,
-        itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final item = filters[index];
-          final aktif = selectedFilter == item.value;
-
-          return ChoiceChip(
-            label: Text(item.label),
-            selected: aktif,
-            showCheckmark: false,
-            backgroundColor: Colors.white,
-            selectedColor: primaryGreen,
-            labelStyle: TextStyle(
-              color: aktif ? Colors.white : textGrey,
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
-            ),
-            side: BorderSide(
-              color: aktif ? primaryGreen : const Color(0xffE5E7EB),
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
-            onSelected: (_) {
-              setState(() {
-                selectedFilter = item.value;
-              });
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _peminjamanCard(String id, Map<dynamic, dynamic> item) {
-    final nama = (item['nama'] ?? '-').toString();
-    final nik = (item['nik'] ?? '-').toString();
-    final alat = (item['alat'] ?? item['nama_alat'] ?? '-').toString();
-    final jumlah = (item['jumlah'] ?? item['jumlah_alat'] ?? '1').toString();
-    final tanggalPinjam = (item['tanggal_pinjam'] ?? '-').toString();
-    final tanggalKembali = (item['tanggal_kembali'] ?? '-').toString();
-    final catatan = (item['catatan'] ?? '-').toString();
-    final status = (item['status'] ?? 'menunggu').toString().toLowerCase();
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
       child: Column(
@@ -802,49 +866,174 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
         children: [
           Row(
             children: [
-              Container(
-                height: 52,
-                width: 52,
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                height: 46,
+                width: 46,
                 decoration: BoxDecoration(
-                  color: lightGreen,
-                  borderRadius: BorderRadius.circular(17),
+                  color:
+                      aman
+                          ? primaryGreen.withValues(alpha: 0.12)
+                          : orangeStatus.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(iconAlat(alat), color: primaryGreen, size: 28),
+                child: Icon(
+                  aman ? Icons.verified_rounded : Icons.priority_high_rounded,
+                  color: aman ? primaryGreen : orangeStatus,
+                ),
               ),
               const SizedBox(width: 13),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      alat,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                    const Text(
+                      'Status Peminjaman',
+                      style: TextStyle(
                         color: textDark,
                         fontSize: 16,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      nama,
-                      style: const TextStyle(
-                        color: textGrey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                      aman
+                          ? 'Tidak ada pengajuan alat yang perlu diverifikasi.'
+                          : 'Ada $totalMenunggu pengajuan peminjaman alat yang belum diverifikasi.',
+                      style: TextStyle(
+                        color: aman ? primaryGreen : const Color(0xff92400E),
+                        fontSize: 12.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
               ),
-              _statusBadge(status),
             ],
           ),
+          const SizedBox(height: 14),
+          GridView.builder(
+            itemCount: filters.length,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisExtent: 72,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemBuilder: (context, index) {
+              final item = filters[index];
+              final aktif = selectedFilter == item.value;
+
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    selectedFilter = item.value;
+                  });
+                },
+                borderRadius: BorderRadius.circular(18),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color:
+                        aktif ? item.color : item.color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color:
+                          aktif
+                              ? item.color
+                              : item.color.withValues(alpha: 0.20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        height: 36,
+                        width: 36,
+                        decoration: BoxDecoration(
+                          color:
+                              aktif
+                                  ? Colors.white.withValues(alpha: 0.22)
+                                  : item.color.withValues(alpha: 0.13),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Icon(
+                          item.icon,
+                          color: aktif ? Colors.white : item.color,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              item.total.toString(),
+                              style: TextStyle(
+                                color: aktif ? Colors.white : item.color,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            Text(
+                              item.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: aktif ? Colors.white : textGrey,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _peminjamanCard(String id, Map<dynamic, dynamic> item) {
+    final nama = (item['nama'] ?? '-').toString();
+    final nik = (item['nik'] ?? '-').toString();
+    final alat = (item['alat'] ?? item['nama_alat'] ?? '-').toString();
+    final idAlat = (item['id_alat'] ?? '-').toString();
+    final jumlah = (item['jumlah'] ?? item['jumlah_alat'] ?? '1').toString();
+    final tanggalPinjam = (item['tanggal_pinjam'] ?? '-').toString();
+    final tanggalKembali = (item['tanggal_kembali'] ?? '-').toString();
+    final catatan = (item['catatan'] ?? '-').toString();
+    final status = normalStatus(item);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _cardTop(alat: alat, nama: nama, status: status),
           const SizedBox(height: 16),
           _infoBox(
             children: [
+              _infoRow(Icons.person_rounded, 'Nama', nama),
               _infoRow(Icons.badge_outlined, 'NIK', nik),
+              _infoRow(Icons.qr_code_rounded, 'ID Alat', idAlat),
               _infoRow(Icons.inventory_2_rounded, 'Jumlah', '$jumlah Unit'),
               _infoRow(
                 Icons.calendar_today_rounded,
@@ -952,6 +1141,54 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     );
   }
 
+  Widget _cardTop({
+    required String alat,
+    required String nama,
+    required String status,
+  }) {
+    return Row(
+      children: [
+        Container(
+          height: 52,
+          width: 52,
+          decoration: BoxDecoration(
+            color: lightGreen,
+            borderRadius: BorderRadius.circular(17),
+          ),
+          child: Icon(iconAlat(alat), color: primaryGreen, size: 28),
+        ),
+        const SizedBox(width: 13),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                alat,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                nama,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        _statusBadge(status),
+      ],
+    );
+  }
+
   Widget _statusBadge(String status) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1039,12 +1276,28 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
             borderRadius: BorderRadius.circular(15),
           ),
         ),
-        onPressed: onPressed,
+        onPressed: isProcessing ? null : onPressed,
         icon: Icon(icon, size: 18),
         label: Text(
           title,
           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
         ),
+      ),
+    );
+  }
+
+  Widget _backButton() {
+    return InkWell(
+      onTap: () => Navigator.pop(context),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 42,
+        width: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
     );
   }
@@ -1056,7 +1309,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   }) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 28),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -1114,8 +1367,17 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
 class _FilterItem {
   final String label;
   final String value;
+  final int total;
+  final IconData icon;
+  final Color color;
 
-  const _FilterItem({required this.label, required this.value});
+  const _FilterItem({
+    required this.label,
+    required this.value,
+    required this.total,
+    required this.icon,
+    required this.color,
+  });
 }
 
 class _HasilKeterlambatan {
