@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+
+import '../services/notification_helper.dart';
 
 class VerifikasiAnggotaPage extends StatefulWidget {
   const VerifikasiAnggotaPage({super.key});
@@ -20,8 +23,10 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color redStatus = Color(0xffDC2626);
 
   String selectedFilter = 'semua';
+  bool isProcessing = false;
 
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -31,95 +36,92 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
   late final DatabaseReference calonAnggotaRef;
   late final DatabaseReference anggotaRef;
-  late final DatabaseReference notifikasiRef;
 
   @override
   void initState() {
     super.initState();
     calonAnggotaRef = db.ref('calon_anggota');
     anggotaRef = db.ref('anggota');
-    notifikasiRef = db.ref('notifikasi');
+  }
+
+  String _text(dynamic value) {
+    if (value == null) return '-';
+    final result = value.toString().trim();
+    return result.isEmpty ? '-' : result;
+  }
+
+  String ambilNik(Map<String, dynamic> item) {
+    return _text(item['nik'] ?? item['nik_anggota'] ?? item['nik_user']);
+  }
+
+  String ambilNama(Map<String, dynamic> item) {
+    return _text(item['nama'] ?? item['nama_anggota'] ?? item['nama_user']);
+  }
+
+  String normalStatus(Map<String, dynamic> item) {
+    final status = _text(item['status']).toLowerCase();
+    return status == '-' ? 'menunggu' : status;
   }
 
   Future<void> setujuiAnggota(String id, Map<String, dynamic> anggota) async {
+    if (isProcessing) return;
+    setState(() => isProcessing = true);
+
     try {
-      await anggotaRef
-          .child(id)
-          .set({
-            'nama': anggota['nama'] ?? '',
-            'nik': anggota['nik'] ?? '',
-            'telepon': anggota['telepon'] ?? '',
-            'alamat': anggota['alamat'] ?? '',
-            'jenis_kelamin': anggota['jenis_kelamin'] ?? '',
-            'luas_sawah': anggota['luas_sawah'] ?? '',
-            'foto_ktp_base64': anggota['foto_ktp_base64'] ?? '',
-            'tanggal_daftar': anggota['tanggal_daftar'] ?? '',
-            'tanggal_verifikasi': DateTime.now().toIso8601String(),
-            'password': anggota['password'] ?? '',
-            'status': 'aktif',
-          })
-          .timeout(const Duration(seconds: 10));
+      final nik = ambilNik(anggota);
+      final nama = ambilNama(anggota);
 
-      await calonAnggotaRef
-          .child(id)
-          .remove()
-          .timeout(const Duration(seconds: 10));
+      await anggotaRef.child(id).set({
+        'nama': nama,
+        'nik': nik,
+        'telepon': _text(anggota['telepon']),
+        'alamat': _text(anggota['alamat']),
+        'jenis_kelamin': _text(anggota['jenis_kelamin']),
+        'luas_sawah': _text(anggota['luas_sawah']),
+        'foto_ktp_base64': _text(anggota['foto_ktp_base64']),
+        'tanggal_daftar': _text(anggota['tanggal_daftar']),
+        'tanggal_verifikasi': DateTime.now().toIso8601String(),
+        'password': _text(anggota['password']),
+        'status': 'aktif',
+      });
 
-      await _kirimNotifikasiUser(
-        nik: (anggota['nik'] ?? '').toString(),
-        judul: 'Pendaftaran Disetujui',
-        pesan:
-            'Selamat, pendaftaran Anda sebagai anggota Kelompok Tani Desa Penataan telah disetujui.',
-      );
+      await calonAnggotaRef.child(id).remove();
+
+      unawaited(NotificationHelper.anggotaDisetujui(nik: nik, nama: nama));
 
       if (!mounted) return;
       _showSnackBar('Anggota berhasil disetujui', primaryGreen);
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Gagal menyetujui anggota: $e', Colors.red);
+      _showSnackBar('Gagal menyetujui anggota: $e', redStatus);
+    } finally {
+      if (mounted) setState(() => isProcessing = false);
     }
   }
 
   Future<void> tolakAnggota(String id, Map<String, dynamic> anggota) async {
-    try {
-      await calonAnggotaRef
-          .child(id)
-          .update({
-            'status': 'ditolak',
-            'tanggal_verifikasi': DateTime.now().toIso8601String(),
-          })
-          .timeout(const Duration(seconds: 10));
+    if (isProcessing) return;
+    setState(() => isProcessing = true);
 
-      await _kirimNotifikasiUser(
-        nik: (anggota['nik'] ?? '').toString(),
-        judul: 'Pendaftaran Ditolak',
-        pesan:
-            'Mohon maaf, pendaftaran Anda sebagai anggota Kelompok Tani Desa Penataan ditolak oleh admin.',
-      );
+    try {
+      final nik = ambilNik(anggota);
+      final nama = ambilNama(anggota);
+
+      await calonAnggotaRef.child(id).update({
+        'status': 'ditolak',
+        'tanggal_verifikasi': DateTime.now().toIso8601String(),
+      });
+
+      unawaited(NotificationHelper.anggotaDitolak(nik: nik, nama: nama));
 
       if (!mounted) return;
-      _showSnackBar('Anggota berhasil ditolak', Colors.red);
+      _showSnackBar('Anggota berhasil ditolak', redStatus);
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Gagal menolak anggota: $e', Colors.red);
+      _showSnackBar('Gagal menolak anggota: $e', redStatus);
+    } finally {
+      if (mounted) setState(() => isProcessing = false);
     }
-  }
-
-  Future<void> _kirimNotifikasiUser({
-    required String nik,
-    required String judul,
-    required String pesan,
-  }) async {
-    if (nik.isEmpty) return;
-
-    await notifikasiRef.child(nik).push().set({
-      'judul': judul,
-      'pesan': pesan,
-      'status': 'belum_dibaca',
-      'dibaca': false,
-      'tanggal': DateTime.now().toIso8601String(),
-      'tipe': 'verifikasi_anggota',
-    });
   }
 
   Future<void> tampilkanKonfirmasi({
@@ -127,21 +129,21 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     required Map<String, dynamic> anggota,
     required String status,
   }) async {
-    final nama = (anggota['nama'] ?? '-').toString();
+    final nama = ambilNama(anggota);
     final isSetuju = status == 'disetujui';
 
     final hasil = await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(18),
           ),
           title: Text(
             isSetuju ? 'Setujui Anggota?' : 'Tolak Anggota?',
             style: const TextStyle(
               color: textDark,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w900,
             ),
           ),
           content: Text(
@@ -152,19 +154,19 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Batal'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: isSetuju ? primaryGreen : Colors.red,
+                backgroundColor: isSetuju ? primaryGreen : redStatus,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(dialogContext, true),
               child: Text(isSetuju ? 'Setujui' : 'Tolak'),
             ),
           ],
@@ -184,7 +186,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
   Uint8List? decodeFoto(String base64Text) {
     try {
-      if (base64Text.isEmpty) return null;
+      if (base64Text.isEmpty || base64Text == '-') return null;
       return base64Decode(base64Text);
     } catch (_) {
       return null;
@@ -195,13 +197,13 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     final fotoBytes = decodeFoto(base64Text);
 
     if (fotoBytes == null) {
-      _showSnackBar('Foto KTP tidak tersedia', Colors.red);
+      _showSnackBar('Foto KTP tidak tersedia', redStatus);
       return;
     }
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return Dialog(
           backgroundColor: Colors.white,
           insetPadding: const EdgeInsets.all(18),
@@ -223,12 +225,12 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                           'Foto KTP',
                           style: TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ),
                       InkWell(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () => Navigator.pop(dialogContext),
                         child: const Icon(Icons.close, color: Colors.white),
                       ),
                     ],
@@ -245,10 +247,6 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
         );
       },
     );
-  }
-
-  String normalStatus(Map<String, dynamic> item) {
-    return (item['status'] ?? 'menunggu').toString().toLowerCase().trim();
   }
 
   int countStatus(List<MapEntry<String, dynamic>> data, String status) {
@@ -273,13 +271,13 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
   Color warnaStatus(String status) {
     if (status == 'disetujui') return primaryGreen;
-    if (status == 'ditolak') return Colors.red;
+    if (status == 'ditolak') return redStatus;
     return orangeStatus;
   }
 
   Color backgroundStatus(String status) {
     if (status == 'disetujui') return lightGreen;
-    if (status == 'ditolak') return const Color(0xffFFEBEE);
+    if (status == 'ditolak') return const Color(0xffFEE2E2);
     return const Color(0xffFFF3E0);
   }
 
@@ -294,9 +292,13 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -305,95 +307,107 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: StreamBuilder<DatabaseEvent>(
-          stream: calonAnggotaRef.onValue,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Column(
-                children: [
-                  _header(0),
-                  Expanded(
-                    child: _messageState(
-                      icon: Icons.error_outline_rounded,
-                      title: 'Terjadi Kesalahan',
-                      message: snapshot.error.toString(),
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Column(
-                children: [
-                  _header(0),
-                  const Expanded(
-                    child: Center(
-                      child: CircularProgressIndicator(color: primaryGreen),
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            final rawData = snapshot.data?.snapshot.value;
-
-            List<MapEntry<String, dynamic>> semuaData = [];
-
-            if (rawData is Map) {
-              final data = Map<String, dynamic>.from(rawData);
-              semuaData = data.entries.toList().reversed.toList();
-            }
-
-            final totalSemua = countStatus(semuaData, 'semua');
-            final totalMenunggu = countStatus(semuaData, 'menunggu');
-            final totalDisetujui = countStatus(semuaData, 'disetujui');
-            final totalDitolak = countStatus(semuaData, 'ditolak');
-            final anggotaList = filterData(semuaData);
-
-            return Column(
-              children: [
-                _header(totalMenunggu),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: StreamBuilder<DatabaseEvent>(
+              stream: calonAnggotaRef.onValue,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Column(
                     children: [
-                      _statusControlPanel(
-                        totalSemua: totalSemua,
-                        totalMenunggu: totalMenunggu,
-                        totalDisetujui: totalDisetujui,
-                        totalDitolak: totalDitolak,
+                      _header(0),
+                      Expanded(
+                        child: _messageState(
+                          icon: Icons.error_outline_rounded,
+                          title: 'Terjadi Kesalahan',
+                          message: snapshot.error.toString(),
+                        ),
                       ),
-                      const SizedBox(height: 14),
-                      if (semuaData.isEmpty)
-                        _messageState(
-                          icon: Icons.inbox_outlined,
-                          title: 'Belum Ada Data',
-                          message: 'Belum ada data calon anggota yang masuk.',
-                        )
-                      else if (anggotaList.isEmpty)
-                        _messageState(
-                          icon: Icons.search_off_rounded,
-                          title: 'Data Tidak Ditemukan',
-                          message: 'Tidak ada calon anggota dengan status ini.',
-                        )
-                      else
-                        ...anggotaList.map((entry) {
-                          final id = entry.key.toString();
-                          final anggota = Map<String, dynamic>.from(
-                            entry.value as Map,
-                          );
-
-                          return _anggotaCard(id, anggota);
-                        }),
                     ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
+                  );
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Column(
+                    children: [
+                      _header(0),
+                      const Expanded(
+                        child: Center(
+                          child: CircularProgressIndicator(color: primaryGreen),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                final rawData = snapshot.data?.snapshot.value;
+                List<MapEntry<String, dynamic>> semuaData = [];
+
+                if (rawData is Map) {
+                  final data = Map<String, dynamic>.from(rawData);
+                  semuaData = data.entries.toList().reversed.toList();
+                }
+
+                final totalSemua = countStatus(semuaData, 'semua');
+                final totalMenunggu = countStatus(semuaData, 'menunggu');
+                final totalDisetujui = countStatus(semuaData, 'disetujui');
+                final totalDitolak = countStatus(semuaData, 'ditolak');
+                final anggotaList = filterData(semuaData);
+
+                return Column(
+                  children: [
+                    _header(totalMenunggu),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+                        children: [
+                          _statusControlPanel(
+                            totalSemua: totalSemua,
+                            totalMenunggu: totalMenunggu,
+                            totalDisetujui: totalDisetujui,
+                            totalDitolak: totalDitolak,
+                          ),
+                          const SizedBox(height: 14),
+                          if (semuaData.isEmpty)
+                            _messageState(
+                              icon: Icons.inbox_outlined,
+                              title: 'Belum Ada Data',
+                              message:
+                                  'Belum ada data calon anggota yang masuk.',
+                            )
+                          else if (anggotaList.isEmpty)
+                            _messageState(
+                              icon: Icons.search_off_rounded,
+                              title: 'Data Tidak Ditemukan',
+                              message:
+                                  'Tidak ada calon anggota dengan status ini.',
+                            )
+                          else
+                            ...anggotaList.map((entry) {
+                              final id = entry.key.toString();
+                              final anggota = Map<String, dynamic>.from(
+                                entry.value as Map,
+                              );
+
+                              return _anggotaCard(id, anggota);
+                            }),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          if (isProcessing)
+            Container(
+              color: Colors.black.withValues(alpha: 0.20),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -401,67 +415,51 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   Widget _header(int totalMenunggu) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 22),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: primaryGreen,
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+          bottomLeft: Radius.circular(26),
+          bottomRight: Radius.circular(26),
         ),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+            color: darkGreen.withValues(alpha: 0.16),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned(
-            right: -22,
-            bottom: -38,
-            child: Icon(
-              Icons.groups_rounded,
-              size: 145,
-              color: Colors.white.withValues(alpha: 0.08),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Row(
-                children: [
-                  _backButton(),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Verifikasi Anggota',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+              _backButton(),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Verifikasi Anggota',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
                   ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              Text(
-                totalMenunggu == 0
-                    ? 'Semua calon anggota sudah diproses oleh admin.'
-                    : '$totalMenunggu calon anggota masih menunggu verifikasi.',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.4,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            totalMenunggu == 0
+                ? 'Semua calon anggota sudah diproses.'
+                : '$totalMenunggu calon anggota menunggu verifikasi.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.84),
+              fontSize: 13,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -474,210 +472,119 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     required int totalDisetujui,
     required int totalDitolak,
   }) {
-    final aman = totalMenunggu == 0;
-
     final filters = [
       _FilterItem(
-        label: 'Semua',
-        value: 'semua',
-        total: totalSemua,
-        icon: Icons.list_alt_rounded,
-        color: primaryGreen,
+        'Semua',
+        'semua',
+        totalSemua,
+        Icons.list_alt_rounded,
+        primaryGreen,
       ),
       _FilterItem(
-        label: 'Menunggu',
-        value: 'menunggu',
-        total: totalMenunggu,
-        icon: Icons.schedule_rounded,
-        color: orangeStatus,
+        'Menunggu',
+        'menunggu',
+        totalMenunggu,
+        Icons.schedule_rounded,
+        orangeStatus,
       ),
       _FilterItem(
-        label: 'Disetujui',
-        value: 'disetujui',
-        total: totalDisetujui,
-        icon: Icons.check_circle_rounded,
-        color: primaryGreen,
+        'Setuju',
+        'disetujui',
+        totalDisetujui,
+        Icons.check_circle_rounded,
+        primaryGreen,
       ),
       _FilterItem(
-        label: 'Ditolak',
-        value: 'ditolak',
-        total: totalDitolak,
-        icon: Icons.cancel_rounded,
-        color: Colors.red,
+        'Ditolak',
+        'ditolak',
+        totalDitolak,
+        Icons.cancel_rounded,
+        redStatus,
       ),
     ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(15),
       decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                height: 46,
-                width: 46,
-                decoration: BoxDecoration(
-                  color:
-                      aman
-                          ? primaryGreen.withValues(alpha: 0.12)
-                          : orangeStatus.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  aman ? Icons.verified_rounded : Icons.priority_high_rounded,
-                  color: aman ? primaryGreen : orangeStatus,
-                ),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Status Verifikasi',
-                      style: TextStyle(
-                        color: textDark,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      aman
-                          ? 'Tidak ada calon anggota yang perlu diverifikasi.'
-                          : 'Ada $totalMenunggu calon anggota yang belum diverifikasi.',
-                      style: TextStyle(
-                        color: aman ? primaryGreen : const Color(0xff92400E),
-                        fontSize: 12.5,
-                        height: 1.35,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          GridView.builder(
-            itemCount: filters.length,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisExtent: 72,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            itemBuilder: (context, index) {
-              final item = filters[index];
-              final aktif = selectedFilter == item.value;
-
-              return InkWell(
-                onTap: () {
-                  setState(() {
-                    selectedFilter = item.value;
-                  });
-                },
-                borderRadius: BorderRadius.circular(18),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        aktif ? item.color : item.color.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color:
-                          aktif
-                              ? item.color
-                              : item.color.withValues(alpha: 0.20),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        height: 36,
-                        width: 36,
-                        decoration: BoxDecoration(
-                          color:
-                              aktif
-                                  ? Colors.white.withValues(alpha: 0.22)
-                                  : item.color.withValues(alpha: 0.13),
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        child: Icon(
-                          item.icon,
-                          color: aktif ? Colors.white : item.color,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              item.total.toString(),
-                              style: TextStyle(
-                                color: aktif ? Colors.white : item.color,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            Text(
-                              item.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: aktif ? Colors.white : textGrey,
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _backButton() {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
+      child: GridView.builder(
+        itemCount: filters.length,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisExtent: 68,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
         ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+        itemBuilder: (context, index) {
+          final item = filters[index];
+          final aktif = selectedFilter == item.value;
+
+          return InkWell(
+            onTap: () {
+              setState(() {
+                selectedFilter = item.value;
+              });
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: aktif ? item.color : item.color.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color:
+                      aktif ? item.color : item.color.withValues(alpha: 0.20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    item.icon,
+                    color: aktif ? Colors.white : item.color,
+                    size: 23,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.total.toString(),
+                          style: TextStyle(
+                            color: aktif ? Colors.white : item.color,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          item.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: aktif ? Colors.white : textGrey,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
   Widget _anggotaCard(String id, Map<String, dynamic> anggota) {
     final status = normalStatus(anggota);
-    final fotoKtpBase64 = (anggota['foto_ktp_base64'] ?? '').toString();
+    final fotoKtpBase64 = _text(anggota['foto_ktp_base64']);
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+    return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
@@ -685,7 +592,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _cardTop(anggota, status),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           _infoBox(
             children: [
               _infoRow(Icons.badge_outlined, 'NIK', anggota['nik'] ?? '-'),
@@ -721,14 +628,14 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                 side: const BorderSide(color: primaryGreen),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
               onPressed: () => lihatFotoKtp(fotoKtpBase64),
               icon: const Icon(Icons.credit_card_rounded),
               label: const Text(
                 'Lihat Foto KTP',
-                style: TextStyle(fontWeight: FontWeight.w800),
+                style: TextStyle(fontWeight: FontWeight.w900),
               ),
             ),
           ),
@@ -740,7 +647,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                   child: _actionButton(
                     title: 'Tolak',
                     icon: Icons.close_rounded,
-                    color: Colors.red,
+                    color: redStatus,
                     onPressed: () {
                       tampilkanKonfirmasi(
                         id: id,
@@ -777,39 +684,39 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     return Row(
       children: [
         Container(
-          width: 52,
-          height: 52,
+          width: 50,
+          height: 50,
           decoration: BoxDecoration(
             color: lightGreen,
-            borderRadius: BorderRadius.circular(17),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: const Icon(
             Icons.person_rounded,
             color: primaryGreen,
-            size: 28,
+            size: 27,
           ),
         ),
-        const SizedBox(width: 13),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                (anggota['nama'] ?? '-').toString(),
+                ambilNama(anggota),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: textDark,
                   fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                (anggota['nik'] ?? '-').toString(),
+                ambilNik(anggota),
                 style: const TextStyle(
                   color: textGrey,
-                  fontSize: 12,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -823,10 +730,10 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
   Widget _infoBox({required List<Widget> children}) {
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.fromLTRB(13, 13, 13, 4),
       decoration: BoxDecoration(
         color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xffE5E7EB)),
       ),
       child: Column(children: children),
@@ -854,11 +761,11 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
           ),
           Expanded(
             child: Text(
-              value.toString().isEmpty ? '-' : value.toString(),
+              _text(value),
               style: const TextStyle(
                 color: textDark,
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -897,11 +804,28 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
-      onPressed: onPressed,
+      onPressed: isProcessing ? null : onPressed,
       icon: Icon(icon, size: 18),
-      label: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+      label: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+    );
+  }
+
+  Widget _backButton() {
+    return InkWell(
+      onTap: () => Navigator.pop(context),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 42,
+        width: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+      ),
     );
   }
 
@@ -917,13 +841,13 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              height: 86,
-              width: 86,
+              height: 84,
+              width: 84,
               decoration: const BoxDecoration(
                 color: lightGreen,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: primaryGreen, size: 42),
+              child: Icon(icon, color: primaryGreen, size: 40),
             ),
             const SizedBox(height: 18),
             Text(
@@ -932,7 +856,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
               style: const TextStyle(
                 color: textDark,
                 fontSize: 18,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 8),
@@ -943,6 +867,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                 color: textGrey,
                 fontSize: 13,
                 height: 1.4,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -954,13 +879,13 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(20),
       border: Border.all(color: const Color(0xffE5E7EB)),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 10,
+          offset: const Offset(0, 5),
         ),
       ],
     );
@@ -974,11 +899,5 @@ class _FilterItem {
   final IconData icon;
   final Color color;
 
-  const _FilterItem({
-    required this.label,
-    required this.value,
-    required this.total,
-    required this.icon,
-    required this.color,
-  });
+  const _FilterItem(this.label, this.value, this.total, this.icon, this.color);
 }

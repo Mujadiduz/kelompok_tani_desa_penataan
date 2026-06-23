@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+
+import '../services/notification_helper.dart';
 
 class VerifikasiPeminjamanPage extends StatefulWidget {
   const VerifikasiPeminjamanPage({super.key});
@@ -20,6 +24,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   static const Color orangeStatus = Color(0xffFB8C00);
   static const Color blueStatus = Color(0xff1976D2);
   static const Color purpleStatus = Color(0xff7B1FA2);
+  static const Color redStatus = Color(0xffDC2626);
 
   String selectedFilter = 'semua';
   bool isProcessing = false;
@@ -32,460 +37,62 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
 
   late final DatabaseReference peminjamanRef;
   late final DatabaseReference alatRef;
-  late final DatabaseReference notifikasiRef;
 
   @override
   void initState() {
     super.initState();
     peminjamanRef = db.ref('peminjaman_alat');
     alatRef = db.ref('alat_pertanian');
-    notifikasiRef = db.ref('notifikasi');
+  }
+
+  String _text(dynamic value) {
+    if (value == null) return '-';
+    final result = value.toString().trim();
+    return result.isEmpty ? '-' : result;
+  }
+
+  int _intValue(dynamic value, {int fallback = 0}) {
+    if (value == null) return fallback;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString()) ?? fallback;
   }
 
   String normalStatus(Map<dynamic, dynamic> item) {
-    return (item['status'] ?? 'menunggu').toString().toLowerCase().trim();
+    final status = _text(item['status']).toLowerCase();
+    return status == '-' ? 'menunggu' : status;
   }
 
-  Future<void> simpanNotifikasi({
-    required String nik,
-    required String judul,
-    required String pesan,
-    required String tipe,
-  }) async {
-    if (nik.trim().isEmpty || nik == '-') return;
-
-    await notifikasiRef.child(nik).push().set({
-      'judul': judul,
-      'pesan': pesan,
-      'tipe': tipe,
-      'status': 'belum_dibaca',
-      'dibaca': false,
-      'tanggal': DateTime.now().toIso8601String(),
-    });
-  }
-
-  Future<void> updateStatus(
-    String id,
-    String status,
-    Map<dynamic, dynamic> item,
-  ) async {
-    try {
-      await peminjamanRef
-          .child(id)
-          .update({
-            'status': status,
-            'tanggal_verifikasi': DateTime.now().toIso8601String(),
-          })
-          .timeout(const Duration(seconds: 10));
-
-      final nik = (item['nik'] ?? '').toString();
-      final alat = (item['alat'] ?? item['nama_alat'] ?? 'alat').toString();
-
-      if (status == 'disetujui') {
-        await simpanNotifikasi(
-          nik: nik,
-          judul: 'Peminjaman Alat Disetujui',
-          pesan:
-              'Pengajuan peminjaman $alat telah disetujui admin. Silakan menunggu arahan pengambilan alat.',
-          tipe: 'peminjaman_alat',
-        );
-      } else if (status == 'ditolak') {
-        await simpanNotifikasi(
-          nik: nik,
-          judul: 'Peminjaman Alat Ditolak',
-          pesan:
-              'Pengajuan peminjaman $alat ditolak oleh admin. Silakan cek kembali data pengajuan.',
-          tipe: 'peminjaman_alat',
-        );
-      }
-
-      if (!mounted) return;
-
-      _showSnackBar(
-        status == 'disetujui'
-            ? 'Peminjaman berhasil disetujui'
-            : 'Peminjaman berhasil ditolak',
-        status == 'disetujui' ? primaryGreen : Colors.red,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('Gagal mengubah status: $e', Colors.red);
-    }
-  }
-
-  Future<void> tandaiDipinjam(String id, Map<dynamic, dynamic> item) async {
-    if (isProcessing) return;
-
-    setState(() => isProcessing = true);
-
-    try {
-      final idAlat = (item['id_alat'] ?? '').toString();
-      final namaAlat = (item['alat'] ?? item['nama_alat'] ?? '').toString();
-      final jumlahPinjam =
-          int.tryParse(
-            (item['jumlah'] ?? item['jumlah_alat'] ?? 1).toString(),
-          ) ??
-          1;
-
-      if (idAlat.isEmpty) {
-        throw Exception('ID alat tidak ditemukan pada data peminjaman');
-      }
-
-      final alatSnapshot = await alatRef
-          .child(idAlat)
-          .get()
-          .timeout(const Duration(seconds: 10));
-
-      final pinjamSnapshot = await peminjamanRef.get().timeout(
-        const Duration(seconds: 10),
-      );
-
-      if (!alatSnapshot.exists || alatSnapshot.value == null) {
-        throw Exception('Data alat tidak ditemukan');
-      }
-
-      final dataAlat = Map<dynamic, dynamic>.from(alatSnapshot.value as Map);
-      final totalUnit =
-          int.tryParse((dataAlat['jumlah_unit'] ?? 0).toString()) ?? 0;
-
-      final peminjamanData =
-          pinjamSnapshot.exists && pinjamSnapshot.value is Map
-              ? Map<dynamic, dynamic>.from(pinjamSnapshot.value as Map)
-              : <dynamic, dynamic>{};
-
-      final sedangDipinjam = _hitungSedangDipinjamById(
-        idAlat,
-        peminjamanData,
-        currentId: id,
-      );
-
-      final sisaTersedia = totalUnit - sedangDipinjam;
-
-      if (sisaTersedia < jumlahPinjam) {
-        throw Exception('Stok alat tidak mencukupi');
-      }
-
-      final now = DateTime.now();
-
-      await peminjamanRef
-          .child(id)
-          .update({
-            'status': 'dipinjam',
-            'tanggal_diambil': _formatTanggal(now),
-            'waktu_diambil': _formatWaktu(now),
-            'alat': namaAlat,
-          })
-          .timeout(const Duration(seconds: 10));
-
-      final nik = (item['nik'] ?? '').toString();
-
-      await simpanNotifikasi(
-        nik: nik,
-        judul: 'Alat Sudah Dipinjam',
-        pesan:
-            'Peminjaman $namaAlat sebanyak $jumlahPinjam unit telah ditandai sedang dipinjam.',
-        tipe: 'peminjaman_alat',
-      );
-
-      if (!mounted) return;
-      _showSnackBar('Alat berhasil ditandai dipinjam', primaryGreen);
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('Gagal menandai dipinjam: $e', Colors.red);
-    } finally {
-      if (mounted) setState(() => isProcessing = false);
-    }
-  }
-
-  Future<void> tandaiDikembalikan(String id, Map<dynamic, dynamic> item) async {
-    if (isProcessing) return;
-
-    setState(() => isProcessing = true);
-
-    try {
-      final now = DateTime.now();
-      final tanggalKembali = (item['tanggal_kembali'] ?? '').toString();
-      final hasil = _hitungKeterlambatan(tanggalKembali, now);
-      final nik = (item['nik'] ?? '').toString();
-      final alat = (item['alat'] ?? item['nama_alat'] ?? 'alat').toString();
-
-      await peminjamanRef
-          .child(id)
-          .update({
-            'status': 'dikembalikan',
-            'tanggal_dikembalikan': _formatTanggal(now),
-            'waktu_dikembalikan': _formatWaktu(now),
-            'status_pengembalian': hasil.status,
-            'jumlah_hari_terlambat': hasil.hariTerlambat,
-          })
-          .timeout(const Duration(seconds: 10));
-
-      final pesanTerlambat =
-          hasil.status == 'terlambat'
-              ? ' Pengembalian terlambat ${hasil.hariTerlambat} hari.'
-              : ' Pengembalian tepat waktu.';
-
-      await simpanNotifikasi(
-        nik: nik,
-        judul: 'Peminjaman Selesai',
-        pesan: 'Alat $alat telah ditandai sudah dikembalikan.$pesanTerlambat',
-        tipe: 'peminjaman_alat',
-      );
-
-      if (!mounted) return;
-      _showSnackBar('Alat berhasil ditandai dikembalikan', primaryGreen);
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('Gagal menandai pengembalian: $e', Colors.red);
-    } finally {
-      if (mounted) setState(() => isProcessing = false);
-    }
-  }
-
-  int _hitungSedangDipinjamById(
-    String idAlat,
-    Map<dynamic, dynamic> data, {
-    required String currentId,
-  }) {
-    int total = 0;
-
-    for (final entry in data.entries) {
-      if (entry.key.toString() == currentId) continue;
-
-      if (entry.value is Map) {
-        final item = Map<dynamic, dynamic>.from(entry.value as Map);
-        final itemIdAlat = (item['id_alat'] ?? '').toString();
-        final status = normalStatus(item);
-
-        if (itemIdAlat == idAlat && status == 'dipinjam') {
-          final jumlah =
-              int.tryParse(
-                (item['jumlah'] ?? item['jumlah_alat'] ?? 1).toString(),
-              ) ??
-              1;
-          total += jumlah;
-        }
-      }
-    }
-
-    return total;
-  }
-
-  Future<void> tampilkanKonfirmasi({
-    required String id,
-    required String status,
-    required Map<dynamic, dynamic> item,
-  }) async {
-    final nama = (item['nama'] ?? '-').toString();
-
-    final hasil = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        final isSetuju = status == 'disetujui';
-
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-          title: Text(
-            isSetuju ? 'Setujui Peminjaman?' : 'Tolak Peminjaman?',
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              color: textDark,
-            ),
-          ),
-          content: Text(
-            isSetuju
-                ? 'Pengajuan peminjaman dari $nama akan disetujui. Alat belum dianggap dipinjam sampai admin menekan tombol Tandai Dipinjam.'
-                : 'Pengajuan peminjaman dari $nama akan ditolak.',
-            style: const TextStyle(color: textGrey),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isSetuju ? primaryGreen : Colors.red,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(isSetuju ? 'Setujui' : 'Tolak'),
-            ),
-          ],
-        );
-      },
+  String ambilNik(Map<dynamic, dynamic> item) {
+    return _text(
+      item['nik'] ?? item['nik_anggota'] ?? item['nik_user'] ?? item['nikUser'],
     );
-
-    if (!mounted) return;
-
-    if (hasil == true) {
-      await updateStatus(id, status, item);
-    }
   }
 
-  Future<void> konfirmasiDipinjam({
-    required String id,
-    required Map<dynamic, dynamic> item,
-  }) async {
-    final nama = (item['nama'] ?? '-').toString();
-    final alat = (item['alat'] ?? item['nama_alat'] ?? '-').toString();
-
-    final hasil = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-          title: const Text(
-            'Tandai Dipinjam?',
-            style: TextStyle(fontWeight: FontWeight.w800, color: textDark),
-          ),
-          content: Text(
-            'Pastikan $nama sudah mengambil alat $alat. Setelah dikonfirmasi, status berubah menjadi Dipinjam.',
-            style: const TextStyle(color: textGrey),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryGreen,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Tandai Dipinjam'),
-            ),
-          ],
-        );
-      },
+  String ambilNama(Map<dynamic, dynamic> item) {
+    return _text(
+      item['nama'] ??
+          item['nama_anggota'] ??
+          item['nama_user'] ??
+          item['namaUser'],
     );
-
-    if (!mounted) return;
-
-    if (hasil == true) {
-      await tandaiDipinjam(id, item);
-    }
   }
 
-  Future<void> konfirmasiDikembalikan({
-    required String id,
-    required Map<dynamic, dynamic> item,
-  }) async {
-    final nama = (item['nama'] ?? '-').toString();
-    final alat = (item['alat'] ?? item['nama_alat'] ?? '-').toString();
-
-    final hasil = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-          title: const Text(
-            'Tandai Dikembalikan?',
-            style: TextStyle(fontWeight: FontWeight.w800, color: textDark),
-          ),
-          content: Text(
-            'Pastikan $nama sudah mengembalikan alat $alat. Sistem akan menyimpan tanggal pengembalian aktual dan menghitung keterlambatan.',
-            style: const TextStyle(color: textGrey),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryGreen,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Tandai Dikembalikan'),
-            ),
-          ],
-        );
-      },
+  String ambilNamaAlat(Map<dynamic, dynamic> item) {
+    return _text(
+      item['alat'] ??
+          item['nama_alat'] ??
+          item['namaAlat'] ??
+          item['jenis_alat'],
     );
-
-    if (!mounted) return;
-
-    if (hasil == true) {
-      await tandaiDikembalikan(id, item);
-    }
   }
 
-  Map<String, int> hitungStatus(List<MapEntry<String, dynamic>> data) {
-    int menunggu = 0;
-    int disetujui = 0;
-    int dipinjam = 0;
-    int dikembalikan = 0;
-    int ditolak = 0;
-
-    for (final entry in data) {
-      if (entry.value is Map) {
-        final item = Map<dynamic, dynamic>.from(entry.value as Map);
-        final status = normalStatus(item);
-
-        if (status == 'menunggu') menunggu++;
-        if (status == 'disetujui') disetujui++;
-        if (status == 'dipinjam') dipinjam++;
-        if (status == 'dikembalikan') dikembalikan++;
-        if (status == 'ditolak') ditolak++;
-      }
-    }
-
-    return {
-      'semua': data.length,
-      'menunggu': menunggu,
-      'disetujui': disetujui,
-      'dipinjam': dipinjam,
-      'dikembalikan': dikembalikan,
-      'ditolak': ditolak,
-    };
+  String ambilIdAlat(Map<dynamic, dynamic> item) {
+    return _text(item['id_alat'] ?? item['alat_id'] ?? item['idAlat']);
   }
 
-  List<MapEntry<String, dynamic>> filterData(
-    List<MapEntry<String, dynamic>> data,
-  ) {
-    if (selectedFilter == 'semua') return data;
-
-    return data.where((entry) {
-      final item = Map<dynamic, dynamic>.from(entry.value as Map);
-      return normalStatus(item) == selectedFilter;
-    }).toList();
-  }
-
-  Color warnaStatus(String status) {
-    if (status == 'disetujui') return blueStatus;
-    if (status == 'dipinjam') return purpleStatus;
-    if (status == 'dikembalikan') return primaryGreen;
-    if (status == 'ditolak') return Colors.red;
-    return orangeStatus;
-  }
-
-  Color backgroundStatus(String status) {
-    if (status == 'disetujui') return const Color(0xffE3F2FD);
-    if (status == 'dipinjam') return const Color(0xffF3E5F5);
-    if (status == 'dikembalikan') return lightGreen;
-    if (status == 'ditolak') return const Color(0xffFFEBEE);
-    return const Color(0xffFFF3E0);
+  int ambilJumlah(Map<dynamic, dynamic> item) {
+    return _intValue(item['jumlah'] ?? item['jumlah_alat'], fallback: 1);
   }
 
   String teksStatus(String status) {
@@ -494,6 +101,22 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     if (status == 'dikembalikan') return 'Dikembalikan';
     if (status == 'ditolak') return 'Ditolak';
     return 'Menunggu';
+  }
+
+  Color warnaStatus(String status) {
+    if (status == 'disetujui') return blueStatus;
+    if (status == 'dipinjam') return purpleStatus;
+    if (status == 'dikembalikan') return primaryGreen;
+    if (status == 'ditolak') return redStatus;
+    return orangeStatus;
+  }
+
+  Color backgroundStatus(String status) {
+    if (status == 'disetujui') return const Color(0xffE3F2FD);
+    if (status == 'dipinjam') return const Color(0xffF3E5F5);
+    if (status == 'dikembalikan') return lightGreen;
+    if (status == 'ditolak') return const Color(0xffFEE2E2);
+    return const Color(0xffFFF3E0);
   }
 
   IconData iconAlat(String alat) {
@@ -506,6 +129,10 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     return Icons.handyman_rounded;
   }
 
+  String _duaDigit(int value) {
+    return value.toString().padLeft(2, '0');
+  }
+
   String _formatTanggal(DateTime date) {
     return '${date.year}-${_duaDigit(date.month)}-${_duaDigit(date.day)}';
   }
@@ -514,16 +141,16 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     return '${_duaDigit(date.hour)}:${_duaDigit(date.minute)}';
   }
 
-  String _duaDigit(int value) {
-    return value.toString().padLeft(2, '0');
-  }
-
   DateTime? _parseTanggal(String value) {
     try {
       final clean = value.trim();
 
+      if (clean.isEmpty || clean == '-') return null;
+
       if (clean.contains('-')) {
         final parts = clean.split('-');
+
+        if (parts.length != 3) return null;
 
         if (parts[0].length == 4) {
           return DateTime(
@@ -542,6 +169,9 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
 
       if (clean.contains('/')) {
         final parts = clean.split('/');
+
+        if (parts.length != 3) return null;
+
         return DateTime(
           int.parse(parts[2]),
           int.parse(parts[1]),
@@ -585,7 +215,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   }
 
   String teksPengembalian(Map<dynamic, dynamic> item) {
-    final status = (item['status_pengembalian'] ?? '').toString();
+    final status = _text(item['status_pengembalian']).toLowerCase();
 
     if (status == 'terlambat') {
       return 'Terlambat ${item['jumlah_hari_terlambat'] ?? 0} hari';
@@ -599,12 +229,399 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   }
 
   Color warnaPengembalian(Map<dynamic, dynamic> item) {
-    final status = (item['status_pengembalian'] ?? '').toString();
+    final status = _text(item['status_pengembalian']).toLowerCase();
 
-    if (status == 'terlambat') return Colors.red;
+    if (status == 'terlambat') return redStatus;
     if (status == 'tepat_waktu') return primaryGreen;
 
     return textGrey;
+  }
+
+  Map<String, int> hitungStatus(List<MapEntry<String, dynamic>> data) {
+    int menunggu = 0;
+    int disetujui = 0;
+    int dipinjam = 0;
+    int dikembalikan = 0;
+    int ditolak = 0;
+
+    for (final entry in data) {
+      if (entry.value is Map) {
+        final item = Map<dynamic, dynamic>.from(entry.value as Map);
+        final status = normalStatus(item);
+
+        if (status == 'menunggu') menunggu++;
+        if (status == 'disetujui') disetujui++;
+        if (status == 'dipinjam') dipinjam++;
+        if (status == 'dikembalikan') dikembalikan++;
+        if (status == 'ditolak') ditolak++;
+      }
+    }
+
+    return {
+      'semua': data.length,
+      'menunggu': menunggu,
+      'disetujui': disetujui,
+      'dipinjam': dipinjam,
+      'dikembalikan': dikembalikan,
+      'ditolak': ditolak,
+    };
+  }
+
+  List<MapEntry<String, dynamic>> filterData(
+    List<MapEntry<String, dynamic>> data,
+  ) {
+    if (selectedFilter == 'semua') return data;
+
+    return data.where((entry) {
+      final item = Map<dynamic, dynamic>.from(entry.value as Map);
+      return normalStatus(item) == selectedFilter;
+    }).toList();
+  }
+
+  Future<void> updateStatus(
+    String id,
+    String status,
+    Map<dynamic, dynamic> item,
+  ) async {
+    if (isProcessing) return;
+
+    setState(() => isProcessing = true);
+
+    try {
+      await peminjamanRef.child(id).update({
+        'status': status,
+        'tanggal_verifikasi': DateTime.now().toIso8601String(),
+      });
+
+      final nik = ambilNik(item);
+      final namaAlat = ambilNamaAlat(item);
+
+      if (status == 'disetujui') {
+        unawaited(
+          NotificationHelper.alatDisetujui(nik: nik, namaAlat: namaAlat),
+        );
+      } else if (status == 'ditolak') {
+        unawaited(NotificationHelper.alatDitolak(nik: nik, namaAlat: namaAlat));
+      }
+
+      if (!mounted) return;
+
+      _showSnackBar(
+        status == 'disetujui'
+            ? 'Peminjaman berhasil disetujui'
+            : 'Peminjaman berhasil ditolak',
+        status == 'disetujui' ? primaryGreen : redStatus,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Gagal mengubah status: $e', redStatus);
+    } finally {
+      if (mounted) setState(() => isProcessing = false);
+    }
+  }
+
+  Future<void> tandaiDipinjam(String id, Map<dynamic, dynamic> item) async {
+    if (isProcessing) return;
+
+    setState(() => isProcessing = true);
+
+    try {
+      final idAlat = ambilIdAlat(item);
+      final namaAlat = ambilNamaAlat(item);
+      final jumlahPinjam = ambilJumlah(item);
+      final nik = ambilNik(item);
+
+      if (idAlat == '-') {
+        throw Exception('ID alat tidak ditemukan pada data peminjaman');
+      }
+
+      final alatSnapshot = await alatRef.child(idAlat).get();
+
+      if (!alatSnapshot.exists || alatSnapshot.value == null) {
+        throw Exception('Data alat tidak ditemukan');
+      }
+
+      final pinjamSnapshot = await peminjamanRef.get();
+
+      final dataAlat = Map<dynamic, dynamic>.from(alatSnapshot.value as Map);
+
+      final totalUnit = _intValue(
+        dataAlat['jumlah_unit'] ??
+            dataAlat['stok'] ??
+            dataAlat['stok_unit'] ??
+            dataAlat['jumlah'],
+      );
+
+      final peminjamanData =
+          pinjamSnapshot.exists && pinjamSnapshot.value is Map
+              ? Map<dynamic, dynamic>.from(pinjamSnapshot.value as Map)
+              : <dynamic, dynamic>{};
+
+      final sedangDipinjam = _hitungSedangDipinjamById(
+        idAlat,
+        peminjamanData,
+        currentId: id,
+      );
+
+      final sisaTersedia = totalUnit - sedangDipinjam;
+
+      if (sisaTersedia < jumlahPinjam) {
+        throw Exception(
+          'Stok alat tidak mencukupi. Tersedia $sisaTersedia unit.',
+        );
+      }
+
+      final now = DateTime.now();
+
+      await peminjamanRef.child(id).update({
+        'status': 'dipinjam',
+        'tanggal_diambil': _formatTanggal(now),
+        'waktu_diambil': _formatWaktu(now),
+        'alat': namaAlat,
+      });
+
+      unawaited(
+        NotificationHelper.alatDipinjam(
+          nik: nik,
+          namaAlat: namaAlat,
+          jumlah: jumlahPinjam,
+        ),
+      );
+
+      if (!mounted) return;
+      _showSnackBar('Alat berhasil ditandai dipinjam', primaryGreen);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Gagal menandai dipinjam: $e', redStatus);
+    } finally {
+      if (mounted) setState(() => isProcessing = false);
+    }
+  }
+
+  Future<void> tandaiDikembalikan(String id, Map<dynamic, dynamic> item) async {
+    if (isProcessing) return;
+
+    setState(() => isProcessing = true);
+
+    try {
+      final now = DateTime.now();
+      final tanggalKembali = _text(item['tanggal_kembali']);
+      final hasil = _hitungKeterlambatan(tanggalKembali, now);
+      final nik = ambilNik(item);
+      final namaAlat = ambilNamaAlat(item);
+
+      await peminjamanRef.child(id).update({
+        'status': 'dikembalikan',
+        'tanggal_dikembalikan': _formatTanggal(now),
+        'waktu_dikembalikan': _formatWaktu(now),
+        'status_pengembalian': hasil.status,
+        'jumlah_hari_terlambat': hasil.hariTerlambat,
+      });
+
+      final pesanTambahan =
+          hasil.status == 'terlambat'
+              ? ' Pengembalian terlambat ${hasil.hariTerlambat} hari.'
+              : ' Pengembalian tepat waktu.';
+
+      unawaited(
+        NotificationHelper.alatDikembalikan(
+          nik: nik,
+          namaAlat: namaAlat,
+          pesanTambahan: pesanTambahan,
+        ),
+      );
+
+      if (!mounted) return;
+      _showSnackBar('Alat berhasil ditandai dikembalikan', primaryGreen);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Gagal menandai pengembalian: $e', redStatus);
+    } finally {
+      if (mounted) setState(() => isProcessing = false);
+    }
+  }
+
+  int _hitungSedangDipinjamById(
+    String idAlat,
+    Map<dynamic, dynamic> data, {
+    required String currentId,
+  }) {
+    int total = 0;
+
+    for (final entry in data.entries) {
+      if (entry.key.toString() == currentId) continue;
+
+      if (entry.value is Map) {
+        final item = Map<dynamic, dynamic>.from(entry.value as Map);
+        final itemIdAlat = ambilIdAlat(item);
+        final status = normalStatus(item);
+
+        if (itemIdAlat == idAlat && status == 'dipinjam') {
+          total += ambilJumlah(item);
+        }
+      }
+    }
+
+    return total;
+  }
+
+  Future<void> tampilkanKonfirmasi({
+    required String id,
+    required String status,
+    required Map<dynamic, dynamic> item,
+  }) async {
+    final nama = ambilNama(item);
+    final isSetuju = status == 'disetujui';
+
+    final hasil = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: Text(
+            isSetuju ? 'Setujui Peminjaman?' : 'Tolak Peminjaman?',
+            style: const TextStyle(
+              color: textDark,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          content: Text(
+            isSetuju
+                ? 'Pengajuan peminjaman dari $nama akan disetujui.'
+                : 'Pengajuan peminjaman dari $nama akan ditolak.',
+            style: const TextStyle(color: textGrey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isSetuju ? primaryGreen : redStatus,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(isSetuju ? 'Setujui' : 'Tolak'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (hasil == true) {
+      await updateStatus(id, status, item);
+    }
+  }
+
+  Future<void> konfirmasiDipinjam({
+    required String id,
+    required Map<dynamic, dynamic> item,
+  }) async {
+    final nama = ambilNama(item);
+    final alat = ambilNamaAlat(item);
+
+    final hasil = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Text(
+            'Tandai Dipinjam?',
+            style: TextStyle(color: textDark, fontWeight: FontWeight.w900),
+          ),
+          content: Text(
+            'Pastikan $nama sudah mengambil alat $alat. Status akan berubah menjadi dipinjam.',
+            style: const TextStyle(color: textGrey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryGreen,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Ya, Dipinjam'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (hasil == true) {
+      await tandaiDipinjam(id, item);
+    }
+  }
+
+  Future<void> konfirmasiDikembalikan({
+    required String id,
+    required Map<dynamic, dynamic> item,
+  }) async {
+    final nama = ambilNama(item);
+    final alat = ambilNamaAlat(item);
+
+    final hasil = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Text(
+            'Tandai Dikembalikan?',
+            style: TextStyle(color: textDark, fontWeight: FontWeight.w900),
+          ),
+          content: Text(
+            'Pastikan $nama sudah mengembalikan alat $alat.',
+            style: const TextStyle(color: textGrey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryGreen,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Ya, Kembali'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (hasil == true) {
+      await tandaiDikembalikan(id, item);
+    }
   }
 
   void _showSnackBar(String pesan, Color color) {
@@ -612,9 +629,13 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(pesan),
+        content: Text(
+          pesan,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -667,12 +688,14 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
                 }
 
                 final jumlahStatus = hitungStatus(semuaData);
-                final totalMenunggu = jumlahStatus['menunggu'] ?? 0;
+
                 final totalSemua = jumlahStatus['semua'] ?? 0;
+                final totalMenunggu = jumlahStatus['menunggu'] ?? 0;
                 final totalDisetujui = jumlahStatus['disetujui'] ?? 0;
                 final totalDipinjam = jumlahStatus['dipinjam'] ?? 0;
                 final totalDikembalikan = jumlahStatus['dikembalikan'] ?? 0;
                 final totalDitolak = jumlahStatus['ditolak'] ?? 0;
+
                 final peminjamanList = filterData(semuaData);
 
                 return Column(
@@ -682,7 +705,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
                         children: [
-                          _statusControlPanel(
+                          _statusPanel(
                             totalSemua: totalSemua,
                             totalMenunggu: totalMenunggu,
                             totalDisetujui: totalDisetujui,
@@ -738,72 +761,56 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: primaryGreen,
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
+          bottomLeft: Radius.circular(26),
+          bottomRight: Radius.circular(26),
         ),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.20),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: darkGreen.withValues(alpha: 0.16),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned(
-            right: -20,
-            bottom: -36,
-            child: Icon(
-              Icons.agriculture_rounded,
-              size: 135,
-              color: Colors.white.withValues(alpha: 0.08),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Row(
-                children: [
-                  _backButton(),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Verifikasi Peminjaman',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+              _backButton(),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Verifikasi Peminjaman',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
                   ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              Text(
-                totalMenunggu == 0
-                    ? 'Semua pengajuan peminjaman alat sudah diproses.'
-                    : '$totalMenunggu pengajuan peminjaman alat masih menunggu verifikasi admin.',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.4,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            totalMenunggu == 0
+                ? 'Semua pengajuan peminjaman alat sudah diproses.'
+                : '$totalMenunggu pengajuan peminjaman alat menunggu verifikasi.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.84),
+              fontSize: 13,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _statusControlPanel({
+  Widget _statusPanel({
     required int totalSemua,
     required int totalMenunggu,
     required int totalDisetujui,
@@ -811,106 +818,75 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     required int totalDikembalikan,
     required int totalDitolak,
   }) {
-    final aman = totalMenunggu == 0;
-
     final filters = [
       _FilterItem(
-        label: 'Semua',
-        value: 'semua',
-        total: totalSemua,
-        icon: Icons.list_alt_rounded,
-        color: primaryGreen,
+        'Semua',
+        'semua',
+        totalSemua,
+        Icons.list_alt_rounded,
+        primaryGreen,
       ),
       _FilterItem(
-        label: 'Menunggu',
-        value: 'menunggu',
-        total: totalMenunggu,
-        icon: Icons.schedule_rounded,
-        color: orangeStatus,
+        'Menunggu',
+        'menunggu',
+        totalMenunggu,
+        Icons.schedule_rounded,
+        orangeStatus,
       ),
       _FilterItem(
-        label: 'Disetujui',
-        value: 'disetujui',
-        total: totalDisetujui,
-        icon: Icons.check_circle_rounded,
-        color: blueStatus,
+        'Setuju',
+        'disetujui',
+        totalDisetujui,
+        Icons.check_circle_rounded,
+        blueStatus,
       ),
       _FilterItem(
-        label: 'Dipinjam',
-        value: 'dipinjam',
-        total: totalDipinjam,
-        icon: Icons.output_rounded,
-        color: purpleStatus,
+        'Dipinjam',
+        'dipinjam',
+        totalDipinjam,
+        Icons.output_rounded,
+        purpleStatus,
       ),
       _FilterItem(
-        label: 'Kembali',
-        value: 'dikembalikan',
-        total: totalDikembalikan,
-        icon: Icons.assignment_turned_in_rounded,
-        color: primaryGreen,
+        'Kembali',
+        'dikembalikan',
+        totalDikembalikan,
+        Icons.assignment_turned_in_rounded,
+        primaryGreen,
       ),
       _FilterItem(
-        label: 'Ditolak',
-        value: 'ditolak',
-        total: totalDitolak,
-        icon: Icons.cancel_rounded,
-        color: Colors.red,
+        'Ditolak',
+        'ditolak',
+        totalDitolak,
+        Icons.cancel_rounded,
+        redStatus,
       ),
     ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(15),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                height: 46,
-                width: 46,
-                decoration: BoxDecoration(
-                  color:
-                      aman
-                          ? primaryGreen.withValues(alpha: 0.12)
-                          : orangeStatus.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  aman ? Icons.verified_rounded : Icons.priority_high_rounded,
-                  color: aman ? primaryGreen : orangeStatus,
-                ),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Status Peminjaman',
-                      style: TextStyle(
-                        color: textDark,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      aman
-                          ? 'Tidak ada pengajuan alat yang perlu diverifikasi.'
-                          : 'Ada $totalMenunggu pengajuan peminjaman alat yang belum diverifikasi.',
-                      style: TextStyle(
-                        color: aman ? primaryGreen : const Color(0xff92400E),
-                        fontSize: 12.5,
-                        height: 1.35,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const Text(
+            'Status Peminjaman',
+            style: TextStyle(
+              color: textDark,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            totalMenunggu == 0
+                ? 'Tidak ada pengajuan yang perlu diverifikasi.'
+                : 'Ada $totalMenunggu pengajuan yang belum diproses.',
+            style: TextStyle(
+              color: totalMenunggu == 0 ? primaryGreen : orangeStatus,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 14),
           GridView.builder(
@@ -919,7 +895,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              mainAxisExtent: 72,
+              mainAxisExtent: 68,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
             ),
@@ -933,17 +909,13 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
                     selectedFilter = item.value;
                   });
                 },
-                borderRadius: BorderRadius.circular(18),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
                     color:
                         aktif ? item.color : item.color.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color:
                           aktif
@@ -953,27 +925,16 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        height: 36,
-                        width: 36,
-                        decoration: BoxDecoration(
-                          color:
-                              aktif
-                                  ? Colors.white.withValues(alpha: 0.22)
-                                  : item.color.withValues(alpha: 0.13),
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        child: Icon(
-                          item.icon,
-                          color: aktif ? Colors.white : item.color,
-                          size: 20,
-                        ),
+                      Icon(
+                        item.icon,
+                        color: aktif ? Colors.white : item.color,
+                        size: 23,
                       ),
-                      const SizedBox(width: 9),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               item.total.toString(),
@@ -1007,20 +968,18 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     );
   }
 
-
   Widget _peminjamanCard(String id, Map<dynamic, dynamic> item) {
-    final nama = (item['nama'] ?? '-').toString();
-    final nik = (item['nik'] ?? '-').toString();
-    final alat = (item['alat'] ?? item['nama_alat'] ?? '-').toString();
-    final idAlat = (item['id_alat'] ?? '-').toString();
-    final jumlah = (item['jumlah'] ?? item['jumlah_alat'] ?? '1').toString();
-    final tanggalPinjam = (item['tanggal_pinjam'] ?? '-').toString();
-    final tanggalKembali = (item['tanggal_kembali'] ?? '-').toString();
-    final catatan = (item['catatan'] ?? '-').toString();
+    final nama = ambilNama(item);
+    final nik = ambilNik(item);
+    final alat = ambilNamaAlat(item);
+    final idAlat = ambilIdAlat(item);
+    final jumlah = ambilJumlah(item).toString();
+    final tanggalPinjam = _text(item['tanggal_pinjam']);
+    final tanggalKembali = _text(item['tanggal_kembali']);
+    final catatan = _text(item['catatan']);
     final status = normalStatus(item);
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+    return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
@@ -1028,11 +987,12 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _cardTop(alat: alat, nama: nama, status: status),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           _infoBox(
             children: [
               _infoRow(Icons.person_rounded, 'Nama', nama),
               _infoRow(Icons.badge_outlined, 'NIK', nik),
+              _infoRow(Icons.handyman_rounded, 'Alat', alat),
               _infoRow(Icons.qr_code_rounded, 'ID Alat', idAlat),
               _infoRow(Icons.inventory_2_rounded, 'Jumlah', '$jumlah Unit'),
               _infoRow(
@@ -1049,24 +1009,24 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
                 _infoRow(
                   Icons.output_rounded,
                   'Tanggal Diambil',
-                  (item['tanggal_diambil'] ?? '-').toString(),
+                  _text(item['tanggal_diambil']),
                 ),
                 _infoRow(
                   Icons.access_time_rounded,
                   'Waktu Diambil',
-                  (item['waktu_diambil'] ?? '-').toString(),
+                  _text(item['waktu_diambil']),
                 ),
               ],
               if (status == 'dikembalikan') ...[
                 _infoRow(
                   Icons.event_repeat_rounded,
                   'Tanggal Kembali',
-                  (item['tanggal_dikembalikan'] ?? '-').toString(),
+                  _text(item['tanggal_dikembalikan']),
                 ),
                 _infoRow(
                   Icons.access_time_rounded,
                   'Waktu Kembali',
-                  (item['waktu_dikembalikan'] ?? '-').toString(),
+                  _text(item['waktu_dikembalikan']),
                 ),
                 _infoRow(
                   Icons.timer_outlined,
@@ -1075,18 +1035,19 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
                   valueColor: warnaPengembalian(item),
                 ),
               ],
-              _infoRow(Icons.notes_rounded, 'Catatan', catatan),
+              if (catatan != '-')
+                _infoRow(Icons.notes_rounded, 'Catatan', catatan),
             ],
           ),
           if (status == 'menunggu') ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 15),
             Row(
               children: [
                 Expanded(
                   child: _actionButton(
                     title: 'Tolak',
                     icon: Icons.close_rounded,
-                    color: Colors.red,
+                    color: redStatus,
                     onPressed: () {
                       tampilkanKonfirmasi(
                         id: id,
@@ -1115,7 +1076,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
             ),
           ],
           if (status == 'disetujui') ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 15),
             _actionButton(
               title: 'Tandai Dipinjam',
               icon: Icons.inventory_rounded,
@@ -1126,7 +1087,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
             ),
           ],
           if (status == 'dipinjam') ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 15),
             _actionButton(
               title: 'Tandai Dikembalikan',
               icon: Icons.assignment_turned_in_rounded,
@@ -1149,35 +1110,37 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     return Row(
       children: [
         Container(
-          height: 52,
-          width: 52,
+          height: 50,
+          width: 50,
           decoration: BoxDecoration(
             color: lightGreen,
-            borderRadius: BorderRadius.circular(17),
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: Icon(iconAlat(alat), color: primaryGreen, size: 28),
+          child: Icon(iconAlat(alat), color: primaryGreen, size: 27),
         ),
-        const SizedBox(width: 13),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                alat,
+                alat == '-' ? 'Peminjaman Alat' : alat,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: textDark,
                   fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 nama,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: textGrey,
-                  fontSize: 12,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1201,7 +1164,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
         style: TextStyle(
           color: warnaStatus(status),
           fontSize: 10,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );
@@ -1209,10 +1172,10 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
 
   Widget _infoBox({required List<Widget> children}) {
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.fromLTRB(13, 13, 13, 4),
       decoration: BoxDecoration(
         color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xffE5E7EB)),
       ),
       child: Column(children: children),
@@ -1273,14 +1236,14 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
           elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
         onPressed: isProcessing ? null : onPressed,
         icon: Icon(icon, size: 18),
         label: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
         ),
       ),
     );
@@ -1294,8 +1257,9 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
         height: 42,
         width: 42,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
+          color: Colors.white.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         ),
         child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
@@ -1314,13 +1278,13 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              height: 86,
-              width: 86,
+              height: 84,
+              width: 84,
               decoration: const BoxDecoration(
                 color: lightGreen,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: primaryGreen, size: 42),
+              child: Icon(icon, color: primaryGreen, size: 40),
             ),
             const SizedBox(height: 18),
             Text(
@@ -1329,7 +1293,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
               style: const TextStyle(
                 color: textDark,
                 fontSize: 18,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 8),
@@ -1340,6 +1304,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
                 color: textGrey,
                 fontSize: 13,
                 height: 1.4,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -1351,13 +1316,13 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(20),
       border: Border.all(color: const Color(0xffE5E7EB)),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 10,
+          offset: const Offset(0, 5),
         ),
       ],
     );
@@ -1371,13 +1336,7 @@ class _FilterItem {
   final IconData icon;
   final Color color;
 
-  const _FilterItem({
-    required this.label,
-    required this.value,
-    required this.total,
-    required this.icon,
-    required this.color,
-  });
+  const _FilterItem(this.label, this.value, this.total, this.icon, this.color);
 }
 
 class _HasilKeterlambatan {

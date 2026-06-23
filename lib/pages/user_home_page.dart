@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -24,67 +26,160 @@ class _UserHomePageState extends State<UserHomePage> {
   static const Color darkGreen = Color(0xff14532D);
   static const Color softGreen = Color(0xffE8F5E9);
   static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffFB8C00);
   static const Color blueStatus = Color(0xff1976D2);
   static const Color redStatus = Color(0xffDC2626);
 
-  final FirebaseDatabase db = FirebaseDatabase.instanceFor(
+  final FirebaseDatabase _db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 
-  List<Map<String, dynamic>> ambilDataByNik(dynamic value) {
+  late final DatabaseReference _bantuanRef;
+  late final DatabaseReference _peminjamanRef;
+  late final DatabaseReference _notifikasiRef;
+  late final DatabaseReference _pengumumanRef;
+
+  final StreamController<_UserDashboardData> _dashboardController =
+      StreamController<_UserDashboardData>.broadcast();
+
+  final List<StreamSubscription<DatabaseEvent>> _subscriptions = [];
+
+  dynamic _bantuanValue;
+  dynamic _peminjamanValue;
+  dynamic _notifikasiValue;
+  dynamic _pengumumanValue;
+
+  bool _isDisposed = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _bantuanRef = _db.ref('bantuan_pupuk');
+    _peminjamanRef = _db.ref('peminjaman_alat');
+    _notifikasiRef = _db.ref('notifikasi').child(widget.nik.trim());
+    _pengumumanRef = _db.ref('pengumuman');
+
+    _listenDashboardData();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+
+    _dashboardController.close();
+    super.dispose();
+  }
+
+  void _listenDashboardData() {
+    _subscriptions.addAll([
+      _bantuanRef.onValue.listen((event) {
+        _bantuanValue = event.snapshot.value;
+        _emitDashboardData();
+      }),
+      _peminjamanRef.onValue.listen((event) {
+        _peminjamanValue = event.snapshot.value;
+        _emitDashboardData();
+      }),
+      _notifikasiRef.onValue.listen((event) {
+        _notifikasiValue = event.snapshot.value;
+        _emitDashboardData();
+      }),
+      _pengumumanRef.onValue.listen((event) {
+        _pengumumanValue = event.snapshot.value;
+        _emitDashboardData();
+      }),
+    ]);
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!_isDisposed) _emitDashboardData();
+    });
+  }
+
+  void _emitDashboardData() {
+    if (_isDisposed || _dashboardController.isClosed) return;
+
+    final bantuanUser = _getDataByNik(_bantuanValue);
+    final peminjamanUser = _getDataByNik(_peminjamanValue);
+
+    final bantuanMenunggu = _filterStatus(bantuanUser, ['menunggu']);
+    final peminjamanMenunggu = _filterStatus(peminjamanUser, ['menunggu']);
+
+    final data = _UserDashboardData(
+      bantuanMenunggu: bantuanMenunggu,
+      peminjamanMenunggu: peminjamanMenunggu,
+      totalNotif: _countUnreadNotif(_notifikasiValue),
+      pengumumanAktif: _getActiveAnnouncements(_pengumumanValue),
+    );
+
+    _dashboardController.add(data);
+  }
+
+  List<Map<String, dynamic>> _getDataByNik(dynamic value) {
     if (value == null || value is! Map) return [];
 
     final data = Map<dynamic, dynamic>.from(value);
+    final nikUser = widget.nik.trim();
 
-    return data.values
-        .whereType<Map>()
-        .map((item) => Map<String, dynamic>.from(item))
-        .where((item) {
-          final nikData = (item['nik'] ?? '').toString().trim();
-          return nikData == widget.nik.trim();
-        })
-        .toList()
-        .reversed
-        .toList();
+    final list =
+        data.entries
+            .where((entry) => entry.value is Map)
+            .map((entry) {
+              final item = Map<String, dynamic>.from(entry.value);
+              item['id'] = entry.key.toString();
+              return item;
+            })
+            .where((item) {
+              final nikData = (item['nik'] ?? '').toString().trim();
+              return nikData == nikUser;
+            })
+            .toList();
+
+    list.sort((a, b) => _nilaiWaktu(b).compareTo(_nilaiWaktu(a)));
+    return list;
   }
 
-  List<Map<String, dynamic>> filterStatus(
+  List<Map<String, dynamic>> _filterStatus(
     List<Map<String, dynamic>> data,
     List<String> statusList,
   ) {
     return data.where((item) {
-      final status = (item['status'] ?? 'menunggu').toString().toLowerCase();
+      final status =
+          (item['status'] ?? 'menunggu').toString().toLowerCase().trim();
+
       return statusList.contains(status);
     }).toList();
   }
 
-  int hitungNotifBelumDibaca(dynamic value) {
+  int _countUnreadNotif(dynamic value) {
     if (value == null || value is! Map) return 0;
 
     int total = 0;
     final data = Map<dynamic, dynamic>.from(value);
 
     for (final item in data.values) {
-      if (item is Map) {
-        final notif = Map<dynamic, dynamic>.from(item);
-        final status = (notif['status'] ?? '').toString();
-        final dibaca = notif['dibaca'];
+      if (item is! Map) continue;
 
-        if (status == 'belum_dibaca' || dibaca == false) {
-          total++;
-        }
-      }
+      final notif = Map<dynamic, dynamic>.from(item);
+      final status = (notif['status'] ?? '').toString().toLowerCase().trim();
+      final dibaca = notif['dibaca'];
+
+      if (status == 'belum_dibaca' || dibaca == false) total++;
     }
 
     return total;
   }
 
-  List<Map<String, dynamic>> ambilPengumumanAktif(dynamic value) {
+  List<Map<String, dynamic>> _getActiveAnnouncements(dynamic value) {
     if (value == null || value is! Map) return [];
 
     final data = Map<dynamic, dynamic>.from(value);
@@ -98,47 +193,48 @@ class _UserHomePageState extends State<UserHomePage> {
               return item;
             })
             .where((item) {
-              final status = (item['status'] ?? '').toString().toLowerCase();
+              final status =
+                  (item['status'] ?? '').toString().toLowerCase().trim();
               return status == 'aktif';
             })
             .toList();
 
-    list.sort((a, b) {
-      final waktuA = _nilaiWaktuPengumuman(a);
-      final waktuB = _nilaiWaktuPengumuman(b);
-      return waktuB.compareTo(waktuA);
-    });
-
+    list.sort((a, b) => _nilaiWaktu(b).compareTo(_nilaiWaktu(a)));
     return list;
   }
 
-  int _nilaiWaktuPengumuman(Map<String, dynamic> item) {
-    final createdAt = item['created_at'] ?? item['createdAt'] ?? item['waktu'];
+  int _nilaiWaktu(Map<String, dynamic> item) {
+    final raw =
+        item['created_at'] ??
+        item['createdAt'] ??
+        item['waktu'] ??
+        item['tanggal'] ??
+        item['tgl'] ??
+        item['tanggal_pengajuan'] ??
+        item['tanggalPengajuan'] ??
+        item['tanggal_pinjam'] ??
+        item['tanggalPinjam'];
 
-    if (createdAt is int) return createdAt;
-    if (createdAt is double) return createdAt.toInt();
+    if (raw is int) return raw;
+    if (raw is double) return raw.toInt();
 
-    final tanggal = (item['tanggal'] ?? item['tgl'] ?? '').toString();
-    final parsed = DateTime.tryParse(tanggal);
+    final parsed = DateTime.tryParse((raw ?? '').toString().trim());
     return parsed?.millisecondsSinceEpoch ?? 0;
   }
 
-  void bukaHalaman(Widget page) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-  }
+  String _greeting() {
+    final hour = DateTime.now().hour;
 
-  String salamWaktu() {
-    final jam = DateTime.now().hour;
-
-    if (jam < 11) return 'Selamat pagi';
-    if (jam < 15) return 'Selamat siang';
-    if (jam < 18) return 'Selamat sore';
+    if (hour < 11) return 'Selamat pagi';
+    if (hour < 15) return 'Selamat siang';
+    if (hour < 18) return 'Selamat sore';
     return 'Selamat malam';
   }
 
-  String tanggalHariIni() {
+  String _todayText() {
     final now = DateTime.now();
-    final bulan = [
+
+    const months = [
       'Jan',
       'Feb',
       'Mar',
@@ -153,30 +249,30 @@ class _UserHomePageState extends State<UserHomePage> {
       'Des',
     ];
 
-    return '${now.day} ${bulan[now.month - 1]} ${now.year}';
+    return '${now.day} ${months[now.month - 1]} ${now.year}';
   }
 
-  String tanggalPengumuman(Map<String, dynamic> item) {
-    final tanggal = (item['tanggal'] ?? item['tgl'] ?? '').toString();
-    if (tanggal.trim().isNotEmpty) return tanggal;
+  String _announcementDate(Map<String, dynamic> item) {
+    final tanggal = (item['tanggal'] ?? item['tgl'] ?? '').toString().trim();
+    if (tanggal.isNotEmpty) return tanggal;
 
-    final createdAt = item['created_at'] ?? item['createdAt'] ?? item['waktu'];
+    final raw = item['created_at'] ?? item['createdAt'] ?? item['waktu'];
 
-    if (createdAt is int) {
-      final date = DateTime.fromMillisecondsSinceEpoch(createdAt);
-      return '${date.day} ${_namaBulan(date.month)} ${date.year}';
+    if (raw is int) {
+      final date = DateTime.fromMillisecondsSinceEpoch(raw);
+      return '${date.day} ${_monthName(date.month)} ${date.year}';
     }
 
-    if (createdAt is double) {
-      final date = DateTime.fromMillisecondsSinceEpoch(createdAt.toInt());
-      return '${date.day} ${_namaBulan(date.month)} ${date.year}';
+    if (raw is double) {
+      final date = DateTime.fromMillisecondsSinceEpoch(raw.toInt());
+      return '${date.day} ${_monthName(date.month)} ${date.year}';
     }
 
     return 'Pengumuman desa';
   }
 
-  String _namaBulan(int bulan) {
-    const namaBulan = [
+  String _monthName(int month) {
+    const months = [
       'Jan',
       'Feb',
       'Mar',
@@ -190,110 +286,101 @@ class _UserHomePageState extends State<UserHomePage> {
       'Nov',
       'Des',
     ];
-    return namaBulan[bulan - 1];
+
+    return months[month - 1];
+  }
+
+  void _openPage(Widget page) {
+    if (!mounted) return;
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
   @override
   Widget build(BuildContext context) {
-    final bantuanRef = db.ref('bantuan_pupuk');
-    final peminjamanRef = db.ref('peminjaman_alat');
-    final notifikasiRef = db.ref('notifikasi').child(widget.nik);
-    final pengumumanRef = db.ref('pengumuman');
-
     return Scaffold(
       backgroundColor: backgroundColor,
+      bottomNavigationBar: _bottomNav(),
       body: SafeArea(
-        child: StreamBuilder<DatabaseEvent>(
-          stream: bantuanRef.onValue,
-          builder: (context, bantuanSnapshot) {
-            return StreamBuilder<DatabaseEvent>(
-              stream: peminjamanRef.onValue,
-              builder: (context, peminjamanSnapshot) {
-                return StreamBuilder<DatabaseEvent>(
-                  stream: notifikasiRef.onValue,
-                  builder: (context, notifSnapshot) {
-                    return StreamBuilder<DatabaseEvent>(
-                      stream: pengumumanRef.onValue,
-                      builder: (context, pengumumanSnapshot) {
-                        final semuaBantuan = ambilDataByNik(
-                          bantuanSnapshot.data?.snapshot.value,
-                        );
+        child: StreamBuilder<_UserDashboardData>(
+          stream: _dashboardController.stream,
+          initialData: _UserDashboardData.empty(),
+          builder: (context, snapshot) {
+            final data = snapshot.data ?? _UserDashboardData.empty();
 
-                        final semuaPeminjaman = ambilDataByNik(
-                          peminjamanSnapshot.data?.snapshot.value,
-                        );
-
-                        final bantuanMenunggu = filterStatus(semuaBantuan, [
-                          'menunggu',
-                        ]);
-
-                        final peminjamanMenunggu = filterStatus(
-                          semuaPeminjaman,
-                          ['menunggu'],
-                        );
-
-                        final totalMenunggu =
-                            bantuanMenunggu.length + peminjamanMenunggu.length;
-
-                        final totalNotif = hitungNotifBelumDibaca(
-                          notifSnapshot.data?.snapshot.value,
-                        );
-
-                        final pengumumanAktif = ambilPengumumanAktif(
-                          pengumumanSnapshot.data?.snapshot.value,
-                        );
-
-                        return SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _headerPremium(totalMenunggu, totalNotif),
-                              const SizedBox(height: 18),
-                              _keanggotaanCard(),
-                              const SizedBox(height: 18),
-                              _ringkasanHariIni(
-                                bantuanMenunggu: bantuanMenunggu.length,
-                                alatMenunggu: peminjamanMenunggu.length,
-                                totalNotif: totalNotif,
-                              ),
-                              const SizedBox(height: 24),
-                              _sectionTitle('Layanan Utama'),
-                              const SizedBox(height: 12),
-                              _layananGrid(),
-                              const SizedBox(height: 24),
-                              _sectionTitle('Pengajuan Saya'),
-                              const SizedBox(height: 12),
-                              _pengajuanSaya(
-                                bantuanList: bantuanMenunggu,
-                                peminjamanList: peminjamanMenunggu,
-                              ),
-                              const SizedBox(height: 24),
-                              _sectionTitleWithAction(
-                                title: 'Pengumuman Terbaru',
-                                actionText: 'Lihat Semua',
-                                onTap:
-                                    () => bukaHalaman(const PengumumanPage()),
-                              ),
-                              const SizedBox(height: 12),
-                              _pengumumanTerbaru(pengumumanAktif),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  },
-                );
-              },
+            return RefreshIndicator(
+              color: primaryGreen,
+              onRefresh: () async => _emitDashboardData(),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                      child: _headerPremium(data),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                      child: _membershipCard(),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                      child: _todaySummary(data),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 24, 18, 0),
+                      child: _sectionTitle('Layanan Utama'),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                      child: _serviceGrid(),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 24, 18, 0),
+                      child: _sectionTitle('Pengajuan Saya'),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                      child: _mySubmissionCard(data),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 24, 18, 0),
+                      child: _sectionTitleWithAction(
+                        title: 'Pengumuman Terbaru',
+                        actionText: 'Lihat Semua',
+                        onTap: () => _openPage(const PengumumanPage()),
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+                      child: _latestAnnouncement(data.pengumumanAktif),
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         ),
       ),
-      bottomNavigationBar: _bottomNav(),
     );
   }
 
-  Widget _headerPremium(int totalMenunggu, int totalNotif) {
+  Widget _headerPremium(_UserDashboardData data) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
@@ -336,7 +423,7 @@ class _UserHomePageState extends State<UserHomePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          salamWaktu(),
+                          _greeting(),
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.76),
                             fontSize: 13,
@@ -356,7 +443,7 @@ class _UserHomePageState extends State<UserHomePage> {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          tanggalHariIni(),
+                          _todayText(),
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.80),
                             fontSize: 12,
@@ -366,7 +453,7 @@ class _UserHomePageState extends State<UserHomePage> {
                       ],
                     ),
                   ),
-                  _notifButton(totalNotif),
+                  _notifButton(data.totalNotif),
                 ],
               ),
               const SizedBox(height: 24),
@@ -390,7 +477,7 @@ class _UserHomePageState extends State<UserHomePage> {
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Icon(
-                        totalMenunggu == 0
+                        data.totalMenunggu == 0
                             ? Icons.check_circle_rounded
                             : Icons.pending_actions_rounded,
                         color: Colors.white,
@@ -399,9 +486,9 @@ class _UserHomePageState extends State<UserHomePage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        totalMenunggu == 0
+                        data.totalMenunggu == 0
                             ? 'Semua pengajuan kamu sedang aman. Silakan gunakan layanan sesuai kebutuhan.'
-                            : '$totalMenunggu pengajuan masih menunggu verifikasi admin.',
+                            : '${data.totalMenunggu} pengajuan masih menunggu verifikasi admin.',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
@@ -447,7 +534,7 @@ class _UserHomePageState extends State<UserHomePage> {
 
   Widget _notifButton(int totalNotif) {
     return InkWell(
-      onTap: () => bukaHalaman(NotifikasiPage(nik: widget.nik)),
+      onTap: () => _openPage(NotifikasiPage(nik: widget.nik)),
       borderRadius: BorderRadius.circular(17),
       child: Stack(
         clipBehavior: Clip.none,
@@ -466,15 +553,18 @@ class _UserHomePageState extends State<UserHomePage> {
               size: 25,
             ),
           ),
-          Positioned(right: -8, top: -8, child: _notificationBadge(totalNotif)),
+          if (totalNotif > 0)
+            Positioned(
+              right: -8,
+              top: -8,
+              child: _notificationBadge(totalNotif),
+            ),
         ],
       ),
     );
   }
 
   Widget _notificationBadge(int total) {
-    if (total <= 0) return const SizedBox.shrink();
-
     final text = total > 99 ? '99+' : total.toString();
 
     return Container(
@@ -498,7 +588,7 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _keanggotaanCard() {
+  Widget _membershipCard() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
@@ -563,26 +653,20 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _ringkasanHariIni({
-    required int bantuanMenunggu,
-    required int alatMenunggu,
-    required int totalNotif,
-  }) {
-    final totalMenunggu = bantuanMenunggu + alatMenunggu;
-
+  Widget _todaySummary(_UserDashboardData data) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors:
-              totalMenunggu == 0
+              data.totalMenunggu == 0
                   ? [Colors.white, softGreen]
                   : [Colors.white, const Color(0xffFFF7ED)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xffE5E7EB)),
+        border: Border.all(color: cardBorder),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.045),
@@ -592,7 +676,6 @@ class _UserHomePageState extends State<UserHomePage> {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -601,16 +684,16 @@ class _UserHomePageState extends State<UserHomePage> {
                 width: 52,
                 decoration: BoxDecoration(
                   color:
-                      totalMenunggu == 0
+                      data.totalMenunggu == 0
                           ? primaryGreen.withValues(alpha: 0.12)
                           : orangeStatus.withValues(alpha: 0.13),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Icon(
-                  totalMenunggu == 0
+                  data.totalMenunggu == 0
                       ? Icons.check_circle_rounded
                       : Icons.hourglass_top_rounded,
-                  color: totalMenunggu == 0 ? primaryGreen : orangeStatus,
+                  color: data.totalMenunggu == 0 ? primaryGreen : orangeStatus,
                   size: 29,
                 ),
               ),
@@ -629,9 +712,9 @@ class _UserHomePageState extends State<UserHomePage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      totalMenunggu == 0
+                      data.totalMenunggu == 0
                           ? 'Tidak ada pengajuan yang menunggu.'
-                          : '$totalMenunggu pengajuan sedang menunggu admin.',
+                          : '${data.totalMenunggu} pengajuan sedang menunggu admin.',
                       style: const TextStyle(
                         color: textGrey,
                         fontSize: 12.5,
@@ -650,7 +733,7 @@ class _UserHomePageState extends State<UserHomePage> {
               Expanded(
                 child: _miniDashboardCard(
                   title: 'Pupuk',
-                  value: bantuanMenunggu.toString(),
+                  value: data.bantuanMenunggu.length.toString(),
                   subtitle: 'Menunggu',
                   icon: Icons.eco_rounded,
                   color: primaryGreen,
@@ -660,7 +743,7 @@ class _UserHomePageState extends State<UserHomePage> {
               Expanded(
                 child: _miniDashboardCard(
                   title: 'Alat',
-                  value: alatMenunggu.toString(),
+                  value: data.peminjamanMenunggu.length.toString(),
                   subtitle: 'Menunggu',
                   icon: Icons.agriculture_rounded,
                   color: orangeStatus,
@@ -670,7 +753,7 @@ class _UserHomePageState extends State<UserHomePage> {
               Expanded(
                 child: _miniDashboardCard(
                   title: 'Notif',
-                  value: totalNotif.toString(),
+                  value: data.totalNotif.toString(),
                   subtitle: 'Baru',
                   icon: Icons.notifications_rounded,
                   color: blueStatus,
@@ -732,7 +815,7 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _layananGrid() {
+  Widget _serviceGrid() {
     final menus = [
       _HomeMenu(
         title: 'Bantuan Pupuk',
@@ -750,25 +833,28 @@ class _UserHomePageState extends State<UserHomePage> {
       ),
     ];
 
-    return GridView.builder(
-      itemCount: menus.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisExtent: 150,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemBuilder: (context, index) => _menuGridCard(menus[index]),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - 12) / 2;
+
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children:
+              menus.map((menu) {
+                return SizedBox(width: itemWidth, child: _serviceCard(menu));
+              }).toList(),
+        );
+      },
     );
   }
 
-  Widget _menuGridCard(_HomeMenu menu) {
+  Widget _serviceCard(_HomeMenu menu) {
     return InkWell(
-      onTap: () => bukaHalaman(menu.page),
+      onTap: () => _openPage(menu.page),
       borderRadius: BorderRadius.circular(26),
       child: Container(
+        height: 150,
         padding: const EdgeInsets.all(16),
         decoration: _cardDecoration(),
         child: Column(
@@ -786,6 +872,8 @@ class _UserHomePageState extends State<UserHomePage> {
             const Spacer(),
             Text(
               menu.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: textDark,
                 fontSize: 14.5,
@@ -795,6 +883,8 @@ class _UserHomePageState extends State<UserHomePage> {
             const SizedBox(height: 4),
             Text(
               menu.subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: textGrey,
                 fontSize: 11.5,
@@ -807,11 +897,8 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _pengajuanSaya({
-    required List<Map<String, dynamic>> bantuanList,
-    required List<Map<String, dynamic>> peminjamanList,
-  }) {
-    final total = bantuanList.length + peminjamanList.length;
+  Widget _mySubmissionCard(_UserDashboardData data) {
+    final total = data.totalMenunggu;
 
     return Container(
       width: double.infinity,
@@ -836,7 +923,7 @@ class _UserHomePageState extends State<UserHomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _pengajuanHeader(total),
+          _submissionHeader(total),
           const SizedBox(height: 12),
           if (total == 0)
             const Text(
@@ -848,17 +935,17 @@ class _UserHomePageState extends State<UserHomePage> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-          ...bantuanList.map(
-            (item) => _pengajuanItem(
+          ...data.bantuanMenunggu.map(
+            (item) => _submissionItem(
               icon: Icons.grass_rounded,
               color: primaryGreen,
               title: 'Bantuan Pupuk',
               subtitle:
-                  '${item['jenis_pupuk'] ?? '-'} • ${item['jumlah_pupuk'] ?? '-'} Kg',
+                  '${item['jenis_pupuk'] ?? item['nama_pupuk'] ?? '-'} • ${item['jumlah_pupuk'] ?? item['jumlah_kg'] ?? item['jumlah'] ?? '-'} Kg',
             ),
           ),
-          ...peminjamanList.map(
-            (item) => _pengajuanItem(
+          ...data.peminjamanMenunggu.map(
+            (item) => _submissionItem(
               icon: Icons.agriculture_rounded,
               color: orangeStatus,
               title: 'Peminjaman Alat',
@@ -871,7 +958,7 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _pengajuanHeader(int total) {
+  Widget _submissionHeader(int total) {
     return Row(
       children: [
         Container(
@@ -908,7 +995,7 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _pengajuanItem({
+  Widget _submissionItem({
     required IconData icon,
     required Color color,
     required String title,
@@ -943,6 +1030,8 @@ class _UserHomePageState extends State<UserHomePage> {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: textGrey, fontSize: 12),
                 ),
               ],
@@ -968,7 +1057,7 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget _pengumumanTerbaru(List<Map<String, dynamic>> list) {
+  Widget _latestAnnouncement(List<Map<String, dynamic>> list) {
     if (list.isEmpty) {
       return Container(
         width: double.infinity,
@@ -1015,13 +1104,13 @@ class _UserHomePageState extends State<UserHomePage> {
     }
 
     final item = list.first;
-    final judul = (item['judul'] ?? 'Pengumuman Desa').toString();
-    final isi =
+    final title = (item['judul'] ?? 'Pengumuman Desa').toString();
+    final body =
         (item['isi'] ?? item['deskripsi'] ?? item['keterangan'] ?? '-')
             .toString();
 
     return InkWell(
-      onTap: () => bukaHalaman(const PengumumanPage()),
+      onTap: () => _openPage(const PengumumanPage()),
       borderRadius: BorderRadius.circular(28),
       child: Container(
         width: double.infinity,
@@ -1075,7 +1164,7 @@ class _UserHomePageState extends State<UserHomePage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        tanggalPengumuman(item),
+                        _announcementDate(item),
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.78),
                           fontSize: 12,
@@ -1105,7 +1194,7 @@ class _UserHomePageState extends State<UserHomePage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  judul,
+                  title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -1117,7 +1206,7 @@ class _UserHomePageState extends State<UserHomePage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  isi,
+                  body,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -1128,18 +1217,18 @@ class _UserHomePageState extends State<UserHomePage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Row(
+                const Row(
                   children: [
                     Text(
                       'Baca pengumuman',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.95),
+                        color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    const Icon(
+                    SizedBox(width: 6),
+                    Icon(
                       Icons.arrow_forward_rounded,
                       color: Colors.white,
                       size: 17,
@@ -1219,13 +1308,16 @@ class _UserHomePageState extends State<UserHomePage> {
           fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
-        unselectedLabelStyle: const TextStyle(fontSize: 12),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
         type: BottomNavigationBarType.fixed,
         onTap: (index) {
           if (index == 1) {
-            bukaHalaman(RiwayatPage(nik: widget.nik));
+            _openPage(RiwayatPage(nik: widget.nik));
           } else if (index == 2) {
-            bukaHalaman(ProfilPage(nama: widget.nama, nik: widget.nik));
+            _openPage(ProfilPage(nama: widget.nama, nik: widget.nik));
           }
         },
         items: const [
@@ -1250,7 +1342,7 @@ class _UserHomePageState extends State<UserHomePage> {
     return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.045),
@@ -1260,6 +1352,31 @@ class _UserHomePageState extends State<UserHomePage> {
       ],
     );
   }
+}
+
+class _UserDashboardData {
+  final List<Map<String, dynamic>> bantuanMenunggu;
+  final List<Map<String, dynamic>> peminjamanMenunggu;
+  final int totalNotif;
+  final List<Map<String, dynamic>> pengumumanAktif;
+
+  const _UserDashboardData({
+    required this.bantuanMenunggu,
+    required this.peminjamanMenunggu,
+    required this.totalNotif,
+    required this.pengumumanAktif,
+  });
+
+  factory _UserDashboardData.empty() {
+    return const _UserDashboardData(
+      bantuanMenunggu: [],
+      peminjamanMenunggu: [],
+      totalNotif: 0,
+      pengumumanAktif: [],
+    );
+  }
+
+  int get totalMenunggu => bantuanMenunggu.length + peminjamanMenunggu.length;
 }
 
 class _HomeMenu {

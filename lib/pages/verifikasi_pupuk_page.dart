@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+
+import '../services/notification_helper.dart';
 
 class VerifikasiPupukPage extends StatefulWidget {
   const VerifikasiPupukPage({super.key});
@@ -18,6 +22,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffFB8C00);
   static const Color blueStatus = Color(0xff1976D2);
+  static const Color redStatus = Color(0xffDC2626);
 
   String selectedFilter = 'semua';
   bool isProcessing = false;
@@ -29,19 +34,79 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
   );
 
   late final DatabaseReference bantuanPupukRef;
-  late final DatabaseReference stokPupukRef;
-  late final DatabaseReference notifikasiRef;
+  late final DatabaseReference pupukRef;
 
   @override
   void initState() {
     super.initState();
     bantuanPupukRef = db.ref('bantuan_pupuk');
-    stokPupukRef = db.ref('pupuk');
-    notifikasiRef = db.ref('notifikasi');
+    pupukRef = db.ref('pupuk');
   }
 
-  double parseDouble(dynamic value) {
+  String _text(dynamic value) {
+    if (value == null) return '-';
+    final result = value.toString().trim();
+    return result.isEmpty ? '-' : result;
+  }
+
+  double _number(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value.toDouble();
     return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0;
+  }
+
+  String normalStatus(Map<dynamic, dynamic> item) {
+    return _text(item['status']).toLowerCase() == '-'
+        ? 'menunggu'
+        : _text(item['status']).toLowerCase();
+  }
+
+  String ambilNik(Map<dynamic, dynamic> item) {
+    return _text(
+      item['nik'] ??
+          item['nik_anggota'] ??
+          item['nik_user'] ??
+          item['nikUser'] ??
+          item['no_nik'],
+    );
+  }
+
+  String ambilNama(Map<dynamic, dynamic> item) {
+    return _text(
+      item['nama'] ??
+          item['nama_anggota'] ??
+          item['nama_user'] ??
+          item['namaUser'],
+    );
+  }
+
+  String ambilJenisPupuk(Map<dynamic, dynamic> item) {
+    return _text(
+      item['jenis_pupuk'] ??
+          item['nama_pupuk'] ??
+          item['pupuk'] ??
+          item['jenis'],
+    );
+  }
+
+  double ambilJumlahKg(Map<dynamic, dynamic> item) {
+    return _number(
+      item['jumlah_kg'] ??
+          item['jumlah'] ??
+          item['jumlah_pupuk'] ??
+          item['jatah_pupuk'] ??
+          item['jatah_pupuk_kg'] ??
+          item['total_pupuk'],
+    );
+  }
+
+  String ambilIdPupuk(Map<dynamic, dynamic> item) {
+    return _text(
+      item['pupuk_id'] ??
+          item['id_pupuk'] ??
+          item['idPupuk'] ??
+          item['key_pupuk'],
+    );
   }
 
   String formatKg(double value) {
@@ -49,262 +114,38 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     return value.toStringAsFixed(1);
   }
 
-  String normalStatus(Map<String, dynamic> item) {
-    return (item['status'] ?? 'menunggu').toString().toLowerCase().trim();
-  }
-
-  Future<void> simpanNotifikasi({
-    required String nik,
-    required String judul,
-    required String pesan,
-    required String tipe,
-  }) async {
-    if (nik.trim().isEmpty || nik == '-') return;
-
-    await notifikasiRef.child(nik).push().set({
-      'judul': judul,
-      'pesan': pesan,
-      'tipe': tipe,
-      'status': 'belum_dibaca',
-      'dibaca': false,
-      'tanggal': DateTime.now().toIso8601String(),
-    });
-  }
-
-  Future<void> updateStatus(
-    String id,
-    String status,
-    Map<String, dynamic> dataPupuk,
-  ) async {
-    try {
-      await bantuanPupukRef
-          .child(id)
-          .update({
-            'status': status,
-            'tanggal_verifikasi': DateTime.now().toIso8601String(),
-          })
-          .timeout(const Duration(seconds: 10));
-
-      final nik = (dataPupuk['nik'] ?? '').toString();
-      final jenisPupuk = (dataPupuk['jenis_pupuk'] ?? 'pupuk').toString();
-
-      if (status == 'disetujui') {
-        await simpanNotifikasi(
-          nik: nik,
-          judul: 'Bantuan Pupuk Disetujui',
-          pesan:
-              'Pengajuan bantuan pupuk $jenisPupuk Anda telah disetujui admin. Silakan menunggu arahan pengambilan.',
-          tipe: 'bantuan_pupuk',
-        );
-      } else if (status == 'ditolak') {
-        await simpanNotifikasi(
-          nik: nik,
-          judul: 'Bantuan Pupuk Ditolak',
-          pesan:
-              'Pengajuan bantuan pupuk $jenisPupuk Anda ditolak oleh admin. Silakan cek kembali data pengajuan.',
-          tipe: 'bantuan_pupuk',
-        );
-      }
-
-      if (!mounted) return;
-
-      _showSnackBar(
-        status == 'disetujui'
-            ? 'Pengajuan pupuk berhasil disetujui'
-            : 'Pengajuan pupuk berhasil ditolak',
-        status == 'disetujui' ? primaryGreen : Colors.red,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('Gagal mengubah status: $e', Colors.red);
-    }
-  }
-
-  Future<void> tandaiSudahDiambil(
-    String idBantuan,
-    Map<String, dynamic> dataPupuk,
-  ) async {
-    if (isProcessing) return;
-
-    setState(() => isProcessing = true);
+  String formatTanggal(String value) {
+    if (value.isEmpty || value == '-') return '-';
 
     try {
-      final idPupuk = (dataPupuk['id_pupuk'] ?? '').toString();
-      final jumlahDiajukan = parseDouble(dataPupuk['jumlah_pupuk']);
-
-      if (idPupuk.isEmpty) {
-        throw Exception('ID pupuk tidak ditemukan pada data pengajuan');
-      }
-
-      if (jumlahDiajukan <= 0) {
-        throw Exception('Jumlah pupuk tidak valid');
-      }
-
-      final snapshot = await stokPupukRef
-          .child(idPupuk)
-          .get()
-          .timeout(const Duration(seconds: 10));
-
-      if (!snapshot.exists || snapshot.value == null) {
-        throw Exception('Data pupuk tidak ditemukan');
-      }
-
-      final pupuk = Map<dynamic, dynamic>.from(snapshot.value as Map);
-      final stokSekarang = parseDouble(pupuk['stok']);
-
-      if (stokSekarang < jumlahDiajukan) {
-        throw Exception('Stok pupuk tidak mencukupi');
-      }
-
-      final stokBaru = stokSekarang - jumlahDiajukan;
-      final now = DateTime.now();
-
-      await stokPupukRef
-          .child(idPupuk)
-          .update({'stok': stokBaru})
-          .timeout(const Duration(seconds: 10));
-
-      await bantuanPupukRef
-          .child(idBantuan)
-          .update({
-            'status': 'sudah_diambil',
-            'jumlah_pupuk_diambil': jumlahDiajukan,
-            'tanggal_pengambilan':
-                '${now.year}-${_duaDigit(now.month)}-${_duaDigit(now.day)}',
-            'waktu_pengambilan':
-                '${_duaDigit(now.hour)}:${_duaDigit(now.minute)}',
-            'tanggal_diambil': now.toIso8601String(),
-          })
-          .timeout(const Duration(seconds: 10));
-
-      final nik = (dataPupuk['nik'] ?? '').toString();
-      final jenisPupuk = (dataPupuk['jenis_pupuk'] ?? 'pupuk').toString();
-
-      await simpanNotifikasi(
-        nik: nik,
-        judul: 'Pupuk Sudah Diambil',
-        pesan:
-            'Bantuan pupuk $jenisPupuk sebanyak ${formatKg(jumlahDiajukan)} Kg telah ditandai sudah diambil.',
-        tipe: 'bantuan_pupuk',
-      );
-
-      if (!mounted) return;
-      _showSnackBar('Pupuk berhasil ditandai sudah diambil', primaryGreen);
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('Gagal menandai pengambilan: $e', Colors.red);
-    } finally {
-      if (mounted) setState(() => isProcessing = false);
+      final date = DateTime.parse(value);
+      return '${date.day.toString().padLeft(2, '0')}-'
+          '${date.month.toString().padLeft(2, '0')}-'
+          '${date.year}';
+    } catch (_) {
+      return value;
     }
   }
 
-  Future<void> tampilkanKonfirmasi({
-    required String id,
-    required String status,
-    required Map<String, dynamic> pupuk,
-  }) async {
-    final nama = (pupuk['nama'] ?? '-').toString();
-    final isSetuju = status == 'disetujui';
-
-    final hasil = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-          title: Text(
-            isSetuju ? 'Setujui Bantuan Pupuk?' : 'Tolak Bantuan Pupuk?',
-            style: const TextStyle(
-              color: textDark,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          content: Text(
-            isSetuju
-                ? 'Pengajuan pupuk dari $nama akan disetujui. Stok pupuk belum dikurangi sampai anggota mengambil pupuk.'
-                : 'Pengajuan pupuk dari $nama akan ditolak.',
-            style: const TextStyle(color: textGrey),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isSetuju ? primaryGreen : Colors.red,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(isSetuju ? 'Setujui' : 'Tolak'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (!mounted) return;
-
-    if (hasil == true) {
-      await updateStatus(id, status, pupuk);
-    }
+  String teksStatus(String status) {
+    if (status == 'disetujui') return 'Disetujui';
+    if (status == 'ditolak') return 'Ditolak';
+    if (status == 'sudah_diambil') return 'Sudah Diambil';
+    return 'Menunggu';
   }
 
-  Future<void> tampilkanKonfirmasiPengambilan({
-    required String id,
-    required Map<String, dynamic> pupuk,
-  }) async {
-    final nama = (pupuk['nama'] ?? '-').toString();
-    final jenis = (pupuk['jenis_pupuk'] ?? '-').toString();
-    final jumlah = (pupuk['jumlah_pupuk'] ?? '-').toString();
+  Color warnaStatus(String status) {
+    if (status == 'disetujui') return blueStatus;
+    if (status == 'ditolak') return redStatus;
+    if (status == 'sudah_diambil') return primaryGreen;
+    return orangeStatus;
+  }
 
-    final hasil = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-          title: const Text(
-            'Tandai Sudah Diambil?',
-            style: TextStyle(color: textDark, fontWeight: FontWeight.w800),
-          ),
-          content: Text(
-            'Pastikan $nama benar-benar sudah mengambil pupuk $jenis sebanyak $jumlah Kg. Setelah dikonfirmasi, stok pupuk akan dikurangi.',
-            style: const TextStyle(color: textGrey),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryGreen,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Sudah Diambil'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (!mounted) return;
-
-    if (hasil == true) {
-      await tandaiSudahDiambil(id, pupuk);
-    }
+  Color backgroundStatus(String status) {
+    if (status == 'disetujui') return const Color(0xffE3F2FD);
+    if (status == 'ditolak') return const Color(0xffFEE2E2);
+    if (status == 'sudah_diambil') return lightGreen;
+    return const Color(0xffFFF3E0);
   }
 
   Map<String, int> hitungStatus(List<MapEntry<String, dynamic>> data) {
@@ -315,7 +156,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
 
     for (final entry in data) {
       if (entry.value is Map) {
-        final item = Map<String, dynamic>.from(entry.value as Map);
+        final item = Map<dynamic, dynamic>.from(entry.value as Map);
         final status = normalStatus(item);
 
         if (status == 'menunggu') menunggu++;
@@ -340,59 +181,261 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     if (selectedFilter == 'semua') return data;
 
     return data.where((entry) {
-      final item = Map<String, dynamic>.from(entry.value as Map);
+      final item = Map<dynamic, dynamic>.from(entry.value as Map);
       return normalStatus(item) == selectedFilter;
     }).toList();
   }
 
-  Color warnaStatus(String status) {
-    if (status == 'disetujui') return blueStatus;
-    if (status == 'ditolak') return Colors.red;
-    if (status == 'sudah_diambil') return primaryGreen;
-    return orangeStatus;
+  Future<void> updateStatus(
+    String id,
+    String status,
+    Map<dynamic, dynamic> item,
+  ) async {
+    if (isProcessing) return;
+
+    setState(() => isProcessing = true);
+
+    try {
+      await bantuanPupukRef.child(id).update({
+        'status': status,
+        'tanggal_verifikasi': DateTime.now().toIso8601String(),
+      });
+
+      final nik = ambilNik(item);
+      final jenisPupuk = ambilJenisPupuk(item);
+      debugPrint('NIK USER UNTUK NOTIF: $nik');
+      debugPrint('JENIS PUPUK UNTUK NOTIF: $jenisPupuk');
+
+      if (status == 'disetujui') {
+        unawaited(
+          NotificationHelper.pupukDisetujui(nik: nik, jenisPupuk: jenisPupuk),
+        );
+      } else if (status == 'ditolak') {
+        unawaited(
+          NotificationHelper.pupukDitolak(nik: nik, jenisPupuk: jenisPupuk),
+        );
+      }
+
+      if (!mounted) return;
+
+      _showSnackBar(
+        status == 'disetujui'
+            ? 'Pengajuan bantuan pupuk berhasil disetujui'
+            : 'Pengajuan bantuan pupuk berhasil ditolak',
+        status == 'disetujui' ? primaryGreen : redStatus,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Gagal mengubah status: $e', redStatus);
+    } finally {
+      if (mounted) setState(() => isProcessing = false);
+    }
   }
 
-  Color backgroundStatus(String status) {
-    if (status == 'disetujui') return const Color(0xffE3F2FD);
-    if (status == 'ditolak') return const Color(0xffFFEBEE);
-    if (status == 'sudah_diambil') return lightGreen;
-    return const Color(0xffFFF3E0);
+  Future<void> tandaiSudahDiambil(String id, Map<dynamic, dynamic> item) async {
+    if (isProcessing) return;
+
+    setState(() => isProcessing = true);
+
+    try {
+      final status = normalStatus(item);
+      final pupukId = ambilIdPupuk(item);
+      final jumlahKg = ambilJumlahKg(item);
+      final nik = ambilNik(item);
+      final jenisPupuk = ambilJenisPupuk(item);
+
+      if (status != 'disetujui') {
+        throw Exception('Hanya pengajuan disetujui yang bisa ditandai diambil');
+      }
+
+      if (jumlahKg <= 0) {
+        throw Exception('Jumlah pupuk tidak valid');
+      }
+
+      if (pupukId == '-') {
+        throw Exception('ID pupuk tidak ditemukan pada data pengajuan');
+      }
+
+      final snapshot = await pupukRef.child(pupukId).get();
+
+      if (!snapshot.exists || snapshot.value == null) {
+        throw Exception('Data pupuk tidak ditemukan');
+      }
+
+      final dataPupuk = Map<dynamic, dynamic>.from(snapshot.value as Map);
+
+      final stokKey =
+          dataPupuk.containsKey('stok')
+              ? 'stok'
+              : dataPupuk.containsKey('stok_kg')
+              ? 'stok_kg'
+              : dataPupuk.containsKey('jumlah_stok')
+              ? 'jumlah_stok'
+              : 'stok';
+
+      final stokSaatIni = _number(dataPupuk[stokKey]);
+
+      if (stokSaatIni < jumlahKg) {
+        throw Exception(
+          'Stok tidak cukup. Stok tersedia ${formatKg(stokSaatIni)} kg, kebutuhan ${formatKg(jumlahKg)} kg',
+        );
+      }
+
+      final stokBaru = stokSaatIni - jumlahKg;
+
+      await pupukRef.child(pupukId).update({
+        stokKey: stokBaru,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+
+      await bantuanPupukRef.child(id).update({
+        'status': 'sudah_diambil',
+        'tanggal_diambil': DateTime.now().toIso8601String(),
+      });
+
+      unawaited(
+        NotificationHelper.pupukSudahDiambil(
+          nik: nik,
+          jenisPupuk: jenisPupuk,
+          jumlahKg: formatKg(jumlahKg),
+        ),
+      );
+
+      if (!mounted) return;
+
+      _showSnackBar(
+        'Pupuk berhasil ditandai sudah diambil dan stok berkurang',
+        primaryGreen,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Gagal memproses: $e', redStatus);
+    } finally {
+      if (mounted) setState(() => isProcessing = false);
+    }
   }
 
-  String teksStatus(String status) {
-    if (status == 'disetujui') return 'Disetujui';
-    if (status == 'ditolak') return 'Ditolak';
-    if (status == 'sudah_diambil') return 'Sudah Diambil';
-    return 'Menunggu';
+  Future<void> konfirmasiStatus({
+    required String id,
+    required String status,
+    required Map<dynamic, dynamic> item,
+  }) async {
+    final nama = ambilNama(item);
+    final isSetuju = status == 'disetujui';
+
+    final hasil = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: Text(
+            isSetuju ? 'Setujui Pengajuan?' : 'Tolak Pengajuan?',
+            style: const TextStyle(
+              color: textDark,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Text(
+            isSetuju
+                ? 'Pengajuan bantuan pupuk dari $nama akan disetujui.'
+                : 'Pengajuan bantuan pupuk dari $nama akan ditolak.',
+            style: const TextStyle(color: textGrey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isSetuju ? primaryGreen : redStatus,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(isSetuju ? 'Setujui' : 'Tolak'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (hasil == true) {
+      await updateStatus(id, status, item);
+    }
   }
 
-  Color warnaJatah(String statusJatah) {
-    if (statusJatah == 'melebihi_jatah') return Colors.red;
-    return primaryGreen;
+  Future<void> konfirmasiSudahDiambil({
+    required String id,
+    required Map<dynamic, dynamic> item,
+  }) async {
+    final nama = ambilNama(item);
+    final pupuk = ambilJenisPupuk(item);
+    final jumlah = formatKg(ambilJumlahKg(item));
+
+    final hasil = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Text(
+            'Tandai Sudah Diambil?',
+            style: TextStyle(color: textDark, fontWeight: FontWeight.w800),
+          ),
+          content: Text(
+            'Pastikan $nama sudah mengambil pupuk $pupuk sebanyak $jumlah kg. Stok pupuk akan otomatis berkurang.',
+            style: const TextStyle(color: textGrey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryGreen,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Ya, Diambil'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (hasil == true) {
+      await tandaiSudahDiambil(id, item);
+    }
   }
 
-  String teksJatah(String statusJatah) {
-    if (statusJatah == 'melebihi_jatah') return 'Melebihi Jatah';
-    return 'Sesuai Jatah';
-  }
-
-  String ambilLahan(Map<String, dynamic> pupuk) {
-    return (pupuk['luas_sawah'] ?? pupuk['jumlah_petak_sawah'] ?? '-')
-        .toString();
-  }
-
-  String _duaDigit(int value) {
-    return value.toString().padLeft(2, '0');
-  }
-
-  void _showSnackBar(String message, Color color) {
+  void _showSnackBar(String pesan, Color color) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          pesan,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -410,7 +453,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                 if (snapshot.hasError) {
                   return Column(
                     children: [
-                      _header(0),
+                      _headerPage(0),
                       Expanded(
                         child: _messageState(
                           icon: Icons.error_outline_rounded,
@@ -425,7 +468,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Column(
                     children: [
-                      _header(0),
+                      _headerPage(0),
                       const Expanded(
                         child: Center(
                           child: CircularProgressIndicator(color: primaryGreen),
@@ -445,49 +488,52 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                 }
 
                 final jumlahStatus = hitungStatus(semuaData);
-                final totalMenunggu = jumlahStatus['menunggu'] ?? 0;
+
                 final totalSemua = jumlahStatus['semua'] ?? 0;
+                final totalMenunggu = jumlahStatus['menunggu'] ?? 0;
                 final totalDisetujui = jumlahStatus['disetujui'] ?? 0;
+                final totalDiambil = jumlahStatus['sudah_diambil'] ?? 0;
                 final totalDitolak = jumlahStatus['ditolak'] ?? 0;
-                final totalSudahDiambil = jumlahStatus['sudah_diambil'] ?? 0;
-                final pupukList = filterData(semuaData);
+
+                final listPupuk = filterData(semuaData);
 
                 return Column(
                   children: [
-                    _header(totalMenunggu),
+                    _headerPage(totalMenunggu),
                     Expanded(
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
                         children: [
-                          _statusControlPanel(
+                          _statusPanel(
                             totalSemua: totalSemua,
                             totalMenunggu: totalMenunggu,
                             totalDisetujui: totalDisetujui,
+                            totalDiambil: totalDiambil,
                             totalDitolak: totalDitolak,
-                            totalSudahDiambil: totalSudahDiambil,
                           ),
                           const SizedBox(height: 14),
                           if (semuaData.isEmpty)
                             _messageState(
-                              icon: Icons.inbox_outlined,
+                              icon: Icons.grass_rounded,
                               title: 'Belum Ada Pengajuan',
-                              message: 'Belum ada pengajuan bantuan pupuk.',
+                              message:
+                                  'Data bantuan pupuk anggota belum tersedia.',
                             )
-                          else if (pupukList.isEmpty)
+                          else if (listPupuk.isEmpty)
                             _messageState(
                               icon: Icons.search_off_rounded,
                               title: 'Data Tidak Ditemukan',
                               message:
-                                  'Tidak ada pengajuan pupuk dengan status ini.',
+                                  'Tidak ada pengajuan bantuan pupuk dengan status ini.',
                             )
                           else
-                            ...pupukList.map((entry) {
+                            ...listPupuk.map((entry) {
                               final id = entry.key.toString();
-                              final pupuk = Map<String, dynamic>.from(
+                              final item = Map<dynamic, dynamic>.from(
                                 entry.value as Map,
                               );
 
-                              return _pupukCard(id, pupuk);
+                              return _pupukCard(id, item);
                             }),
                         ],
                       ),
@@ -509,176 +555,129 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     );
   }
 
-  Widget _header(int totalMenunggu) {
+  Widget _headerPage(int totalMenunggu) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 22),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: primaryGreen,
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+          bottomLeft: Radius.circular(26),
+          bottomRight: Radius.circular(26),
         ),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+            color: darkGreen.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned(
-            right: -22,
-            bottom: -38,
-            child: Icon(
-              Icons.grass_rounded,
-              size: 145,
-              color: Colors.white.withValues(alpha: 0.08),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Row(
-                children: [
-                  _backButton(),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Verifikasi Bantuan Pupuk',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+              _backButton(),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Verifikasi Bantuan Pupuk',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
                   ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              Text(
-                totalMenunggu == 0
-                    ? 'Semua pengajuan bantuan pupuk sudah diproses.'
-                    : '$totalMenunggu pengajuan bantuan pupuk masih menunggu verifikasi admin.',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.4,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            totalMenunggu == 0
+                ? 'Semua pengajuan bantuan pupuk sudah diproses.'
+                : '$totalMenunggu pengajuan bantuan pupuk masih menunggu verifikasi.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.82),
+              fontSize: 13,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _statusControlPanel({
+  Widget _statusPanel({
     required int totalSemua,
     required int totalMenunggu,
     required int totalDisetujui,
+    required int totalDiambil,
     required int totalDitolak,
-    required int totalSudahDiambil,
   }) {
-    final aman = totalMenunggu == 0;
-
     final filters = [
       _FilterItem(
-        label: 'Semua',
-        value: 'semua',
-        total: totalSemua,
-        icon: Icons.list_alt_rounded,
-        color: primaryGreen,
+        'Semua',
+        'semua',
+        totalSemua,
+        Icons.list_alt_rounded,
+        primaryGreen,
       ),
       _FilterItem(
-        label: 'Menunggu',
-        value: 'menunggu',
-        total: totalMenunggu,
-        icon: Icons.schedule_rounded,
-        color: orangeStatus,
+        'Menunggu',
+        'menunggu',
+        totalMenunggu,
+        Icons.schedule_rounded,
+        orangeStatus,
       ),
       _FilterItem(
-        label: 'Disetujui',
-        value: 'disetujui',
-        total: totalDisetujui,
-        icon: Icons.check_circle_rounded,
-        color: blueStatus,
+        'Setuju',
+        'disetujui',
+        totalDisetujui,
+        Icons.check_circle_rounded,
+        blueStatus,
       ),
       _FilterItem(
-        label: 'Ditolak',
-        value: 'ditolak',
-        total: totalDitolak,
-        icon: Icons.cancel_rounded,
-        color: Colors.red,
+        'Diambil',
+        'sudah_diambil',
+        totalDiambil,
+        Icons.task_alt_rounded,
+        primaryGreen,
       ),
       _FilterItem(
-        label: 'Diambil',
-        value: 'sudah_diambil',
-        total: totalSudahDiambil,
-        icon: Icons.inventory_rounded,
-        color: primaryGreen,
+        'Ditolak',
+        'ditolak',
+        totalDitolak,
+        Icons.cancel_rounded,
+        redStatus,
       ),
     ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(15),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                height: 46,
-                width: 46,
-                decoration: BoxDecoration(
-                  color:
-                      aman
-                          ? primaryGreen.withValues(alpha: 0.12)
-                          : orangeStatus.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  aman ? Icons.verified_rounded : Icons.priority_high_rounded,
-                  color: aman ? primaryGreen : orangeStatus,
-                ),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Status Pengajuan',
-                      style: TextStyle(
-                        color: textDark,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      aman
-                          ? 'Tidak ada pengajuan pupuk yang perlu diverifikasi.'
-                          : 'Ada $totalMenunggu pengajuan bantuan pupuk yang belum diverifikasi.',
-                      style: TextStyle(
-                        color: aman ? primaryGreen : const Color(0xff92400E),
-                        fontSize: 12.5,
-                        height: 1.35,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const Text(
+            'Status Pengajuan',
+            style: TextStyle(
+              color: textDark,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            totalMenunggu == 0
+                ? 'Tidak ada pengajuan yang perlu diverifikasi.'
+                : 'Ada $totalMenunggu pengajuan yang belum diproses.',
+            style: TextStyle(
+              color: totalMenunggu == 0 ? primaryGreen : orangeStatus,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 14),
           GridView.builder(
@@ -687,7 +686,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              mainAxisExtent: 72,
+              mainAxisExtent: 68,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
             ),
@@ -701,17 +700,13 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                     selectedFilter = item.value;
                   });
                 },
-                borderRadius: BorderRadius.circular(18),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
                     color:
                         aktif ? item.color : item.color.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color:
                           aktif
@@ -721,27 +716,16 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        height: 36,
-                        width: 36,
-                        decoration: BoxDecoration(
-                          color:
-                              aktif
-                                  ? Colors.white.withValues(alpha: 0.22)
-                                  : item.color.withValues(alpha: 0.13),
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        child: Icon(
-                          item.icon,
-                          color: aktif ? Colors.white : item.color,
-                          size: 20,
-                        ),
+                      Icon(
+                        item.icon,
+                        color: aktif ? Colors.white : item.color,
+                        size: 24,
                       ),
-                      const SizedBox(width: 9),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               item.total.toString(),
@@ -775,96 +759,63 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     );
   }
 
-  Widget _pupukCard(String id, Map<String, dynamic> pupuk) {
-    final status = normalStatus(pupuk);
-    final statusJatah = (pupuk['status_jatah'] ?? 'sesuai_jatah').toString();
-    final idPupuk = (pupuk['id_pupuk'] ?? '').toString();
+  Widget _pupukCard(String id, Map<dynamic, dynamic> item) {
+    final nama = ambilNama(item);
+    final nik = ambilNik(item);
+    final jenisPupuk = ambilJenisPupuk(item);
+    final jumlahKg = ambilJumlahKg(item);
+    final idPupuk = ambilIdPupuk(item);
+    final tanggal = formatTanggal(
+      _text(item['tanggal_pengajuan'] ?? item['created_at']),
+    );
+    final alasan = _text(
+      item['alasan'] ?? item['keterangan'] ?? item['catatan'],
+    );
+    final status = normalStatus(item);
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+    return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardTop(pupuk, status),
-          const SizedBox(height: 16),
+          _cardTop(title: jenisPupuk, subtitle: nama, status: status),
+          const SizedBox(height: 14),
           _infoBox(
             children: [
-              _infoRow(Icons.badge_outlined, 'NIK', pupuk['nik'] ?? '-'),
-              _infoRow(
-                Icons.qr_code_rounded,
-                'ID Pupuk',
-                idPupuk.isEmpty ? 'Belum ada id_pupuk' : idPupuk,
-              ),
-              _infoRow(
-                Icons.grass_rounded,
-                'Jenis Pupuk',
-                pupuk['jenis_pupuk'] ?? '-',
-              ),
-              _infoRow(
-                Icons.landscape_rounded,
-                'Luas Sawah',
-                '${ambilLahan(pupuk)} Ha',
-              ),
+              _infoRow(Icons.person_rounded, 'Nama', nama),
+              _infoRow(Icons.badge_outlined, 'NIK', nik),
+              _infoRow(Icons.grass_rounded, 'Jenis Pupuk', jenisPupuk),
               _infoRow(
                 Icons.scale_rounded,
-                'Jatah Pupuk',
-                '${pupuk['jatah_pupuk'] ?? '-'} Kg',
+                'Jumlah',
+                '${formatKg(jumlahKg)} Kg',
+                valueColor: jumlahKg <= 0 ? redStatus : textDark,
               ),
-              _infoRow(
-                Icons.inventory_2_rounded,
-                'Diajukan',
-                '${pupuk['jumlah_pupuk'] ?? '-'} Kg',
-              ),
-              _infoRow(Icons.notes_rounded, 'Catatan', pupuk['catatan'] ?? '-'),
-              if (status == 'sudah_diambil') ...[
+              _infoRow(Icons.qr_code_rounded, 'ID Pupuk', idPupuk),
+              _infoRow(Icons.calendar_today_rounded, 'Tanggal', tanggal),
+              if (status == 'sudah_diambil')
                 _infoRow(
-                  Icons.event_available_rounded,
-                  'Tanggal Ambil',
-                  pupuk['tanggal_pengambilan'] ?? '-',
+                  Icons.task_alt_rounded,
+                  'Diambil',
+                  formatTanggal(_text(item['tanggal_diambil'])),
                 ),
-                _infoRow(
-                  Icons.access_time_rounded,
-                  'Waktu Ambil',
-                  pupuk['waktu_pengambilan'] ?? '-',
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _badge(
-                teksStatus(status),
-                warnaStatus(status),
-                backgroundStatus(status),
-              ),
-              _badge(
-                teksJatah(statusJatah),
-                warnaJatah(statusJatah),
-                warnaJatah(statusJatah).withValues(alpha: 0.12),
-              ),
+              if (alasan != '-')
+                _infoRow(Icons.notes_rounded, 'Keterangan', alasan),
             ],
           ),
           if (status == 'menunggu') ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 15),
             Row(
               children: [
                 Expanded(
                   child: _actionButton(
                     title: 'Tolak',
                     icon: Icons.close_rounded,
-                    color: Colors.red,
+                    color: redStatus,
                     onPressed: () {
-                      tampilkanKonfirmasi(
-                        id: id,
-                        status: 'ditolak',
-                        pupuk: pupuk,
-                      );
+                      konfirmasiStatus(id: id, status: 'ditolak', item: item);
                     },
                   ),
                 ),
@@ -875,11 +826,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                     icon: Icons.check_rounded,
                     color: primaryGreen,
                     onPressed: () {
-                      tampilkanKonfirmasi(
-                        id: id,
-                        status: 'disetujui',
-                        pupuk: pupuk,
-                      );
+                      konfirmasiStatus(id: id, status: 'disetujui', item: item);
                     },
                   ),
                 ),
@@ -887,13 +834,13 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
             ),
           ],
           if (status == 'disetujui') ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 15),
             _actionButton(
               title: 'Tandai Sudah Diambil',
-              icon: Icons.inventory_rounded,
+              icon: Icons.task_alt_rounded,
               color: primaryGreen,
               onPressed: () {
-                tampilkanKonfirmasiPengambilan(id: id, pupuk: pupuk);
+                konfirmasiSudahDiambil(id: id, item: item);
               },
             ),
           ],
@@ -902,71 +849,92 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     );
   }
 
-  Widget _cardTop(Map<String, dynamic> pupuk, String status) {
+  Widget _cardTop({
+    required String title,
+    required String subtitle,
+    required String status,
+  }) {
     return Row(
       children: [
         Container(
-          width: 52,
-          height: 52,
+          height: 50,
+          width: 50,
           decoration: BoxDecoration(
             color: lightGreen,
-            borderRadius: BorderRadius.circular(17),
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: const Icon(
-            Icons.person_rounded,
-            color: primaryGreen,
-            size: 28,
-          ),
+          child: const Icon(Icons.grass_rounded, color: primaryGreen, size: 28),
         ),
-        const SizedBox(width: 13),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                (pupuk['nama'] ?? '-').toString(),
+                title == '-' ? 'Bantuan Pupuk' : title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: textDark,
                   fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                (pupuk['nik'] ?? '-').toString(),
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: textGrey,
-                  fontSize: 12,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
         ),
-        _badge(
-          teksStatus(status),
-          warnaStatus(status),
-          backgroundStatus(status),
-        ),
+        _statusBadge(status),
       ],
+    );
+  }
+
+  Widget _statusBadge(String status) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundStatus(status),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Text(
+        teksStatus(status).toUpperCase(),
+        style: TextStyle(
+          color: warnaStatus(status),
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 
   Widget _infoBox({required List<Widget> children}) {
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.fromLTRB(13, 13, 13, 4),
       decoration: BoxDecoration(
         color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xffE5E7EB)),
       ),
       child: Column(children: children),
     );
   }
 
-  Widget _infoRow(IconData icon, String label, dynamic value) {
+  Widget _infoRow(
+    IconData icon,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
       child: Row(
@@ -975,7 +943,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
           Icon(icon, color: primaryGreen, size: 17),
           const SizedBox(width: 8),
           SizedBox(
-            width: 105,
+            width: 104,
             child: Text(
               label,
               style: const TextStyle(
@@ -987,34 +955,15 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
           ),
           Expanded(
             child: Text(
-              value.toString().isEmpty ? '-' : value.toString(),
-              style: const TextStyle(
-                color: textDark,
+              value.isEmpty ? '-' : value,
+              style: TextStyle(
+                color: valueColor ?? textDark,
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _badge(String text, Color color, Color background) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Text(
-        text.toUpperCase(),
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-        ),
       ),
     );
   }
@@ -1034,12 +983,15 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
           elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
         onPressed: isProcessing ? null : onPressed,
         icon: Icon(icon, size: 18),
-        label: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+        label: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+        ),
       ),
     );
   }
@@ -1052,8 +1004,9 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
         height: 42,
         width: 42,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
+          color: Colors.white.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         ),
         child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
@@ -1072,13 +1025,13 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              height: 86,
-              width: 86,
+              height: 84,
+              width: 84,
               decoration: const BoxDecoration(
                 color: lightGreen,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: primaryGreen, size: 42),
+              child: Icon(icon, color: primaryGreen, size: 40),
             ),
             const SizedBox(height: 18),
             Text(
@@ -1087,7 +1040,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
               style: const TextStyle(
                 color: textDark,
                 fontSize: 18,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 8),
@@ -1098,6 +1051,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                 color: textGrey,
                 fontSize: 13,
                 height: 1.4,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -1109,13 +1063,13 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(20),
       border: Border.all(color: const Color(0xffE5E7EB)),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 10,
+          offset: const Offset(0, 5),
         ),
       ],
     );
@@ -1129,11 +1083,5 @@ class _FilterItem {
   final IconData icon;
   final Color color;
 
-  const _FilterItem({
-    required this.label,
-    required this.value,
-    required this.total,
-    required this.icon,
-    required this.color,
-  });
+  const _FilterItem(this.label, this.value, this.total, this.icon, this.color);
 }
