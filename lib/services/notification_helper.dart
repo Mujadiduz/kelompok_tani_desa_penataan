@@ -25,21 +25,27 @@ class NotificationHelper {
 
     if (cleanNik.isEmpty || cleanNik == '-') return;
 
-    await _notifRef.child(cleanNik).push().set({
-      'judul': judul,
-      'pesan': pesan,
-      'tipe': tipe,
-      'status': 'belum_dibaca',
-      'dibaca': false,
-      'tanggal': DateTime.now().toIso8601String(),
-    });
+    await _notifRef
+        .child(cleanNik)
+        .push()
+        .set({
+          'judul': judul,
+          'pesan': pesan,
+          'tipe': tipe,
+          'status': 'belum_dibaca',
+          'dibaca': false,
+          'tanggal': DateTime.now().toIso8601String(),
+        })
+        .timeout(const Duration(seconds: 10));
   }
 
   static Future<void> pengumumanUntukSemuaAnggota({
     required String judul,
     required String isi,
   }) async {
-    final snapshot = await _anggotaRef.get();
+    final snapshot = await _anggotaRef.get().timeout(
+      const Duration(seconds: 12),
+    );
 
     if (!snapshot.exists || snapshot.value == null) return;
 
@@ -227,6 +233,22 @@ class NotificationHelper {
     await NotificationService.showLocalNotification(
       title: judul,
       body: 'Pendaftaran Anda belum dapat disetujui.',
+    );
+  }
+
+  static Future<void> passwordBerhasilDireset({
+    required String nik,
+    required String passwordBaru,
+  }) async {
+    const judul = 'Password Berhasil Direset';
+    final pesan =
+        'Password sementara Anda adalah: $passwordBaru. Silakan login dan segera ubah password Anda melalui menu Profil.';
+
+    await _simpan(nik: nik, judul: judul, pesan: pesan, tipe: 'reset_password');
+
+    await NotificationService.showLocalNotification(
+      title: judul,
+      body: 'Password akun Anda telah direset oleh admin.',
     );
   }
 }

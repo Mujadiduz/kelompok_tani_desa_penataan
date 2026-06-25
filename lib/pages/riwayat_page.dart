@@ -2,6 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
+import '../widgets/app_background.dart';
+
 class RiwayatPage extends StatefulWidget {
   final String nik;
 
@@ -13,16 +15,19 @@ class RiwayatPage extends StatefulWidget {
 
 class _RiwayatPageState extends State<RiwayatPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
-  static const Color lightGreen = Color(0xffE8F5E9);
-  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color darkGreen = Color(0xff14532D);
+  static const Color bgColor = Color(0xffF3F7F3);
+  static const Color softGreen = Color(0xffEAF7EC);
+  static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color orangeStatus = Color(0xffF57C00);
   static const Color blueStatus = Color(0xff1976D2);
   static const Color purpleStatus = Color(0xff7B1FA2);
+  static const Color redStatus = Color(0xffDC2626);
 
   int selectedTab = 0;
+  final Set<String> expandedCards = {};
 
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -40,57 +45,186 @@ class _RiwayatPageState extends State<RiwayatPage> {
     peminjamanRef = db.ref('peminjaman_alat');
   }
 
-  List<Map<String, dynamic>> ambilDataUser(dynamic value) {
+  Future<void> _refreshData() async {
+    await Future.wait([pupukRef.get(), peminjamanRef.get()]);
+  }
+
+  List<Map<String, dynamic>> ambilDataUser(dynamic value, String jenis) {
     if (value == null || value is! Map) return [];
 
     final data = Map<dynamic, dynamic>.from(value);
-    final nik = widget.nik.trim();
+    final nikUser = widget.nik.trim();
 
-    return data.values
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .where((item) {
-          final nikData = (item['nik'] ?? '').toString().trim();
-          return nikData == nik;
-        })
-        .toList()
-        .reversed
-        .toList();
+    final list =
+        data.entries
+            .where((entry) => entry.value is Map)
+            .map((entry) {
+              final item = Map<String, dynamic>.from(entry.value as Map);
+              item['id_riwayat'] = entry.key.toString();
+              item['jenis_riwayat'] = jenis;
+              return item;
+            })
+            .where((item) {
+              final nikData = (item['nik'] ?? '').toString().trim();
+              return nikData == nikUser;
+            })
+            .toList();
+
+    list.sort((a, b) => timeValue(b).compareTo(timeValue(a)));
+    return list;
+  }
+
+  int timeValue(Map<String, dynamic> item) {
+    final raw =
+        item['tanggal_pengajuan'] ??
+        item['created_at'] ??
+        item['createdAt'] ??
+        item['tanggal_pinjam'] ??
+        item['tanggal_diambil'] ??
+        item['tanggal_dikembalikan'];
+
+    final parsed = DateTime.tryParse((raw ?? '').toString().trim());
+    return parsed?.millisecondsSinceEpoch ?? 0;
+  }
+
+  String tanggalUtama(Map<String, dynamic> item) {
+    return (item['tanggal_pengajuan'] ??
+            item['created_at'] ??
+            item['createdAt'] ??
+            item['tanggal_pinjam'] ??
+            '')
+        .toString();
+  }
+
+  Map<String, List<Map<String, dynamic>>> groupedByDate(
+    List<Map<String, dynamic>> list,
+  ) {
+    final result = <String, List<Map<String, dynamic>>>{};
+
+    for (final item in list) {
+      final label = groupDateLabel(tanggalUtama(item));
+      result.putIfAbsent(label, () => []);
+      result[label]!.add(item);
+    }
+
+    return result;
+  }
+
+  String groupDateLabel(String value) {
+    final date = DateTime.tryParse(value.trim());
+    if (date == null) return 'Tanggal Tidak Diketahui';
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final itemDate = DateTime(date.year, date.month, date.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    if (itemDate == today) return 'Hari Ini';
+    if (itemDate == yesterday) return 'Kemarin';
+
+    return '${date.day} ${namaBulan(date.month)} ${date.year}';
+  }
+
+  String namaBulan(int month) {
+    const bulan = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+
+    if (month < 1 || month > 12) return '';
+    return bulan[month - 1];
+  }
+
+  String formatTanggalJam(String value) {
+    final date = DateTime.tryParse(value.trim());
+    if (date == null) return value.trim().isEmpty ? '-' : value;
+
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year;
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+
+    return '$day/$month/$year • $hour:$minute';
   }
 
   int hitungStatus(List<Map<String, dynamic>> data, List<String> statusList) {
     return data.where((item) {
-      final itemStatus =
+      final status =
           (item['status'] ?? 'menunggu').toString().toLowerCase().trim();
-      return statusList.contains(itemStatus);
+      return statusList.contains(status);
     }).length;
   }
 
   Color warnaStatus(String status) {
-    if (status == 'disetujui') return blueStatus;
-    if (status == 'sudah_diambil') return primaryGreen;
-    if (status == 'dipinjam') return purpleStatus;
-    if (status == 'dikembalikan') return primaryGreen;
-    if (status == 'ditolak') return Colors.red;
+    final clean = status.toLowerCase().trim();
+
+    if (clean == 'disetujui') return blueStatus;
+    if (clean == 'sudah_diambil') return primaryGreen;
+    if (clean == 'dipinjam') return purpleStatus;
+    if (clean == 'dikembalikan') return primaryGreen;
+    if (clean == 'ditolak') return redStatus;
+
     return orangeStatus;
   }
 
   Color backgroundStatus(String status) {
-    if (status == 'disetujui') return const Color(0xffE3F2FD);
-    if (status == 'sudah_diambil') return lightGreen;
-    if (status == 'dipinjam') return const Color(0xffF3E5F5);
-    if (status == 'dikembalikan') return lightGreen;
-    if (status == 'ditolak') return const Color(0xffFFEBEE);
-    return const Color(0xffFFF3E0);
+    final clean = status.toLowerCase().trim();
+
+    if (clean == 'disetujui') return const Color(0xffE3F2FD);
+    if (clean == 'sudah_diambil') return softGreen;
+    if (clean == 'dipinjam') return const Color(0xffF3E5F5);
+    if (clean == 'dikembalikan') return softGreen;
+    if (clean == 'ditolak') return const Color(0xffFEE2E2);
+
+    return const Color(0xffFFF7ED);
   }
 
   String teksStatus(String status) {
-    if (status == 'disetujui') return 'Disetujui';
-    if (status == 'sudah_diambil') return 'Sudah Diambil';
-    if (status == 'dipinjam') return 'Dipinjam';
-    if (status == 'dikembalikan') return 'Dikembalikan';
-    if (status == 'ditolak') return 'Ditolak';
+    final clean = status.toLowerCase().trim();
+
+    if (clean == 'disetujui') return 'Disetujui';
+    if (clean == 'sudah_diambil') return 'Selesai';
+    if (clean == 'dipinjam') return 'Dipinjam';
+    if (clean == 'dikembalikan') return 'Selesai';
+    if (clean == 'ditolak') return 'Ditolak';
+
     return 'Menunggu';
+  }
+
+  String teksStatusPanjang(String status) {
+    final clean = status.toLowerCase().trim();
+
+    if (clean == 'disetujui') return 'Disetujui Admin';
+    if (clean == 'sudah_diambil') return 'Pupuk Sudah Diambil';
+    if (clean == 'dipinjam') return 'Alat Sedang Dipinjam';
+    if (clean == 'dikembalikan') return 'Alat Sudah Dikembalikan';
+    if (clean == 'ditolak') return 'Pengajuan Ditolak';
+
+    return 'Menunggu Verifikasi';
+  }
+
+  double progressValue(String status) {
+    final clean = status.toLowerCase().trim();
+
+    if (clean == 'menunggu') return 0.33;
+    if (clean == 'disetujui') return 0.66;
+    if (clean == 'dipinjam') return 0.66;
+    if (clean == 'sudah_diambil') return 1.0;
+    if (clean == 'dikembalikan') return 1.0;
+    if (clean == 'ditolak') return 1.0;
+
+    return 0.33;
   }
 
   IconData iconAlat(String alat) {
@@ -110,9 +244,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
       return 'Terlambat ${item['jumlah_hari_terlambat'] ?? 0} hari';
     }
 
-    if (status == 'tepat_waktu') {
-      return 'Tepat waktu';
-    }
+    if (status == 'tepat_waktu') return 'Tepat waktu';
 
     return 'Belum diketahui';
   }
@@ -120,245 +252,163 @@ class _RiwayatPageState extends State<RiwayatPage> {
   Color warnaPengembalian(Map<String, dynamic> item) {
     final status = (item['status_pengembalian'] ?? '').toString();
 
-    if (status == 'terlambat') return Colors.red;
+    if (status == 'terlambat') return redStatus;
     if (status == 'tepat_waktu') return primaryGreen;
 
     return textGrey;
   }
 
+  void toggleExpand(String id) {
+    setState(() {
+      if (expandedCards.contains(id)) {
+        expandedCards.remove(id);
+      } else {
+        expandedCards.add(id);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: StreamBuilder<DatabaseEvent>(
-          stream: pupukRef.onValue,
-          builder: (context, pupukSnapshot) {
-            return StreamBuilder<DatabaseEvent>(
-              stream: peminjamanRef.onValue,
-              builder: (context, alatSnapshot) {
-                final riwayatPupuk = ambilDataUser(
-                  pupukSnapshot.data?.snapshot.value,
-                );
+      backgroundColor: bgColor,
+      body: AppBackground(
+        child: SafeArea(
+          child: StreamBuilder<DatabaseEvent>(
+            stream: pupukRef.onValue,
+            builder: (context, pupukSnapshot) {
+              return StreamBuilder<DatabaseEvent>(
+                stream: peminjamanRef.onValue,
+                builder: (context, alatSnapshot) {
+                  final riwayatPupuk = ambilDataUser(
+                    pupukSnapshot.data?.snapshot.value,
+                    'pupuk',
+                  );
 
-                final riwayatAlat = ambilDataUser(
-                  alatSnapshot.data?.snapshot.value,
-                );
+                  final riwayatAlat = ambilDataUser(
+                    alatSnapshot.data?.snapshot.value,
+                    'alat',
+                  );
 
-                final semuaRiwayat = [...riwayatPupuk, ...riwayatAlat];
+                  final semuaRiwayat = [...riwayatPupuk, ...riwayatAlat];
 
-                final totalPengajuan = semuaRiwayat.length;
-                final totalSelesai = hitungStatus(semuaRiwayat, [
-                  'sudah_diambil',
-                  'dikembalikan',
-                ]);
-                final totalProses = hitungStatus(semuaRiwayat, [
-                  'menunggu',
-                  'disetujui',
-                  'dipinjam',
-                ]);
-                final totalDitolak = hitungStatus(semuaRiwayat, ['ditolak']);
+                  final totalPengajuan = semuaRiwayat.length;
+                  final totalSelesai = hitungStatus(semuaRiwayat, [
+                    'sudah_diambil',
+                    'dikembalikan',
+                  ]);
+                  final totalProses = hitungStatus(semuaRiwayat, [
+                    'menunggu',
+                    'disetujui',
+                    'dipinjam',
+                  ]);
+                  final totalDitolak = hitungStatus(semuaRiwayat, ['ditolak']);
 
-                final listAktif = selectedTab == 0 ? riwayatPupuk : riwayatAlat;
+                  final listAktif =
+                      selectedTab == 0 ? riwayatPupuk : riwayatAlat;
+                  final grouped = groupedByDate(listAktif);
 
-                return Column(
-                  children: [
-                    _header(context),
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
-                        children: [
-                          _summaryGrid(
-                            total: totalPengajuan,
-                            selesai: totalSelesai,
-                            proses: totalProses,
-                            ditolak: totalDitolak,
+                  return Column(
+                    children: [
+                      _header(context),
+                      Expanded(
+                        child: RefreshIndicator(
+                          color: primaryGreen,
+                          backgroundColor: Colors.white,
+                          onRefresh: _refreshData,
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                            children: [
+                              _summaryGrid(
+                                total: totalPengajuan,
+                                selesai: totalSelesai,
+                                proses: totalProses,
+                                ditolak: totalDitolak,
+                              ),
+                              const SizedBox(height: 14),
+                              _tabSelector(
+                                totalPupuk: riwayatPupuk.length,
+                                totalAlat: riwayatAlat.length,
+                              ),
+                              const SizedBox(height: 14),
+                              _infoBox(),
+                              const SizedBox(height: 16),
+                              _groupedContent(grouped),
+                            ],
                           ),
-                          const SizedBox(height: 18),
-                          _tabSelector(
-                            totalPupuk: riwayatPupuk.length,
-                            totalAlat: riwayatAlat.length,
-                          ),
-                          const SizedBox(height: 14),
-                          _infoBox(),
-                          const SizedBox(height: 18),
-                          selectedTab == 0
-                              ? _riwayatPupuk(listAktif)
-                              : _riwayatAlat(listAktif),
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
+                    ],
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
   Widget _header(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen, Color(0xff43A047)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: darkGreen.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [darkGreen, primaryGreen],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -24,
-            bottom: -36,
-            child: Icon(
-              Icons.history_rounded,
-              size: 145,
-              color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: [
+            BoxShadow(
+              color: darkGreen.withValues(alpha: 0.20),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          ],
+        ),
+        child: Row(
+          children: [
+            _backButton(context),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _backButton(context),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Riwayat Pengajuan',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
+                  Text(
+                    'Riwayat',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 21,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  SizedBox(height: 5),
+                  Text(
+                    'Pantau bantuan pupuk dan peminjaman alat',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 22),
-              const Text(
-                'Aktivitas Pengajuan',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Pantau bantuan pupuk dan peminjaman alat secara terpisah.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _tabSelector({required int totalPupuk, required int totalAlat}) {
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xffE5E7EB)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _tabButton(
-              title: 'Bantuan Pupuk',
-              total: totalPupuk,
-              icon: Icons.grass_rounded,
-              aktif: selectedTab == 0,
-              color: primaryGreen,
-              onTap: () {
-                setState(() {
-                  selectedTab = 0;
-                });
-              },
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _tabButton(
-              title: 'Peminjaman Alat',
-              total: totalAlat,
-              icon: Icons.agriculture_rounded,
-              aktif: selectedTab == 1,
-              color: orangeStatus,
-              onTap: () {
-                setState(() {
-                  selectedTab = 1;
-                });
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _tabButton({
-    required String title,
-    required int total,
-    required IconData icon,
-    required bool aktif,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-        decoration: BoxDecoration(
-          color: aktif ? color : color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: aktif ? Colors.white : color, size: 23),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: aktif ? Colors.white : textDark,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
+            Container(
+              height: 48,
+              width: 48,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              '$total data',
-              style: TextStyle(
-                color: aktif ? Colors.white70 : textGrey,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w700,
-              ),
+              child: const Icon(Icons.history_rounded, color: Colors.white),
             ),
           ],
         ),
@@ -382,7 +432,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
             color: primaryGreen,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: _summaryMini(
             title: 'Proses',
@@ -391,7 +441,7 @@ class _RiwayatPageState extends State<RiwayatPage> {
             color: orangeStatus,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: _summaryMini(
             title: 'Selesai',
@@ -400,13 +450,13 @@ class _RiwayatPageState extends State<RiwayatPage> {
             color: primaryGreen,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: _summaryMini(
             title: 'Ditolak',
             value: ditolak.toString(),
             icon: Icons.cancel_rounded,
-            color: Colors.red,
+            color: redStatus,
           ),
         ),
       ],
@@ -420,12 +470,12 @@ class _RiwayatPageState extends State<RiwayatPage> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: _cardDecoration(radius: 18),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 7),
+          Icon(icon, color: color, size: 21),
+          const SizedBox(height: 6),
           Text(
             value,
             style: TextStyle(
@@ -448,40 +498,122 @@ class _RiwayatPageState extends State<RiwayatPage> {
     );
   }
 
-  Widget _infoBox() {
+  Widget _tabSelector({required int totalPupuk, required int totalAlat}) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color:
-            selectedTab == 0
-                ? const Color(0xffECFDF5)
-                : const Color(0xffFFF7ED),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color:
-              selectedTab == 0
-                  ? primaryGreen.withValues(alpha: 0.16)
-                  : orangeStatus.withValues(alpha: 0.22),
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 9,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(
-            selectedTab == 0 ? Icons.grass_rounded : Icons.agriculture_rounded,
-            color: selectedTab == 0 ? primaryGreen : orangeStatus,
+          Expanded(
+            child: _tabButton(
+              title: 'Bantuan Pupuk',
+              total: totalPupuk,
+              icon: Icons.eco_rounded,
+              aktif: selectedTab == 0,
+              color: primaryGreen,
+              onTap: () => setState(() => selectedTab = 0),
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _tabButton(
+              title: 'Peminjaman Alat',
+              total: totalAlat,
+              icon: Icons.agriculture_rounded,
+              aktif: selectedTab == 1,
+              color: orangeStatus,
+              onTap: () => setState(() => selectedTab = 1),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tabButton({
+    required String title,
+    required int total,
+    required IconData icon,
+    required bool aktif,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+        decoration: BoxDecoration(
+          color: aktif ? color : color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: aktif ? Colors.white : color, size: 22),
+            const SizedBox(height: 5),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: aktif ? Colors.white : textDark,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '$total data',
+              style: TextStyle(
+                color: aktif ? Colors.white70 : textGrey,
+                fontSize: 10.3,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoBox() {
+    final color = selectedTab == 0 ? primaryGreen : orangeStatus;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: color, size: 20),
+          const SizedBox(width: 9),
           Expanded(
             child: Text(
               selectedTab == 0
-                  ? 'Riwayat ini khusus menampilkan pengajuan bantuan pupuk.'
-                  : 'Riwayat ini khusus menampilkan peminjaman alat pertanian.',
-              style: const TextStyle(
-                color: textGrey,
+                  ? 'Riwayat bantuan pupuk diurutkan berdasarkan tanggal pengajuan terbaru.'
+                  : 'Riwayat peminjaman alat diurutkan berdasarkan tanggal pengajuan terbaru.',
+              style: TextStyle(
+                color: color,
                 fontSize: 12.5,
-                height: 1.45,
-                fontWeight: FontWeight.w600,
+                height: 1.4,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -490,234 +622,275 @@ class _RiwayatPageState extends State<RiwayatPage> {
     );
   }
 
-  Widget _riwayatPupuk(List<Map<String, dynamic>> list) {
-    if (list.isEmpty) {
+  Widget _groupedContent(Map<String, List<Map<String, dynamic>>> grouped) {
+    if (grouped.isEmpty) {
       return _emptyCard(
-        icon: Icons.grass_rounded,
-        text: 'Belum ada riwayat bantuan pupuk.',
+        icon: selectedTab == 0 ? Icons.eco_rounded : Icons.agriculture_rounded,
+        title:
+            selectedTab == 0
+                ? 'Belum Ada Riwayat Pupuk'
+                : 'Belum Ada Riwayat Alat',
+        text:
+            selectedTab == 0
+                ? 'Riwayat bantuan pupuk akan tampil setelah Anda melakukan pengajuan.'
+                : 'Riwayat peminjaman alat akan tampil setelah Anda melakukan pengajuan.',
       );
     }
 
+    final keys = grouped.keys.toList();
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children:
-          list.map((item) {
-            final status =
-                (item['status'] ?? 'menunggu').toString().toLowerCase();
+          keys.map((dateTitle) {
+            final items = grouped[dateTitle] ?? [];
 
-            final details = <_DetailItem>[
-              _DetailItem(
-                icon: Icons.grass_rounded,
-                label: 'Jenis',
-                value: '${item['jenis_pupuk'] ?? '-'}',
-              ),
-              _DetailItem(
-                icon: Icons.scale_rounded,
-                label: 'Jumlah',
-                value: '${item['jumlah_pupuk'] ?? item['jumlah'] ?? '-'} Kg',
-              ),
-              _DetailItem(
-                icon: Icons.inventory_2_rounded,
-                label: 'Jatah',
-                value: '${item['jatah_pupuk'] ?? '-'} Kg',
-              ),
-              _DetailItem(
-                icon: Icons.notes_rounded,
-                label: 'Catatan',
-                value: '${item['catatan'] ?? item['keterangan'] ?? '-'}',
-              ),
-            ];
-
-            if (status == 'sudah_diambil') {
-              details.addAll([
-                _DetailItem(
-                  icon: Icons.event_available_rounded,
-                  label: 'Tgl Ambil',
-                  value: '${item['tanggal_pengambilan'] ?? '-'}',
-                ),
-                _DetailItem(
-                  icon: Icons.access_time_rounded,
-                  label: 'Jam Ambil',
-                  value: '${item['waktu_pengambilan'] ?? '-'}',
-                ),
-              ]);
-            }
-
-            return _riwayatCard(
-              icon: Icons.grass_rounded,
-              iconColor: primaryGreen,
-              title: (item['jenis_pupuk'] ?? 'Bantuan Pupuk').toString(),
-              subtitle: 'Kategori: Bantuan Pupuk',
-              details: details,
-              status: status,
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _dateHeader(dateTitle),
+                const SizedBox(height: 8),
+                ...items.map((item) {
+                  return selectedTab == 0 ? _pupukCard(item) : _alatCard(item);
+                }),
+                const SizedBox(height: 4),
+              ],
             );
           }).toList(),
     );
   }
 
-  Widget _riwayatAlat(List<Map<String, dynamic>> list) {
-    if (list.isEmpty) {
-      return _emptyCard(
-        icon: Icons.agriculture_rounded,
-        text: 'Belum ada riwayat peminjaman alat.',
-      );
-    }
-
-    return Column(
-      children:
-          list.map((item) {
-            final status =
-                (item['status'] ?? 'menunggu').toString().toLowerCase();
-            final alat = (item['alat'] ?? item['nama_alat'] ?? '-').toString();
-
-            final details = <_DetailItem>[
-              _DetailItem(
-                icon: Icons.handyman_rounded,
-                label: 'Alat',
-                value: alat,
-              ),
-              _DetailItem(
-                icon: Icons.inventory_2_rounded,
-                label: 'Jumlah',
-                value: '${item['jumlah'] ?? item['jumlah_alat'] ?? 1} Unit',
-              ),
-              _DetailItem(
-                icon: Icons.calendar_today_rounded,
-                label: 'Pinjam',
-                value: '${item['tanggal_pinjam'] ?? '-'}',
-              ),
-              _DetailItem(
-                icon: Icons.event_available_rounded,
-                label: 'Rencana',
-                value: '${item['tanggal_kembali'] ?? '-'}',
-              ),
-              _DetailItem(
-                icon: Icons.notes_rounded,
-                label: 'Catatan',
-                value: '${item['catatan'] ?? '-'}',
-              ),
-            ];
-
-            if (status == 'dipinjam' || status == 'dikembalikan') {
-              details.addAll([
-                _DetailItem(
-                  icon: Icons.output_rounded,
-                  label: 'Tgl Ambil',
-                  value: '${item['tanggal_diambil'] ?? '-'}',
-                ),
-                _DetailItem(
-                  icon: Icons.access_time_rounded,
-                  label: 'Jam Ambil',
-                  value: '${item['waktu_diambil'] ?? '-'}',
-                ),
-              ]);
-            }
-
-            if (status == 'dikembalikan') {
-              details.addAll([
-                _DetailItem(
-                  icon: Icons.event_repeat_rounded,
-                  label: 'Tgl Aktual',
-                  value: '${item['tanggal_dikembalikan'] ?? '-'}',
-                ),
-                _DetailItem(
-                  icon: Icons.access_time_rounded,
-                  label: 'Jam Kembali',
-                  value: '${item['waktu_dikembalikan'] ?? '-'}',
-                ),
-                _DetailItem(
-                  icon: Icons.timer_outlined,
-                  label: 'Ketepatan',
-                  value: teksPengembalian(item),
-                  valueColor: warnaPengembalian(item),
-                ),
-              ]);
-            }
-
-            return _riwayatCard(
-              icon: iconAlat(alat),
-              iconColor: orangeStatus,
-              title: alat,
-              subtitle: 'Kategori: Peminjaman Alat',
-              details: details,
-              status: status,
-            );
-          }).toList(),
+  Widget _dateHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 6, 2, 2),
+      child: Row(
+        children: [
+          Container(
+            height: 30,
+            width: 5,
+            decoration: BoxDecoration(
+              color: selectedTab == 0 ? primaryGreen : orangeStatus,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(width: 9),
+          Text(
+            title,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _riwayatCard({
+  Widget _pupukCard(Map<String, dynamic> item) {
+    final id = (item['id_riwayat'] ?? '').toString();
+    final expanded = expandedCards.contains(id);
+    final status = (item['status'] ?? 'menunggu').toString().toLowerCase();
+    final title = (item['jenis_pupuk'] ?? 'Bantuan Pupuk').toString();
+
+    final details = <_DetailItem>[
+      _DetailItem('Jenis Pupuk', title),
+      _DetailItem(
+        'Jumlah Diajukan',
+        '${item['jumlah_pupuk'] ?? item['jumlah'] ?? '-'} Kg',
+      ),
+      _DetailItem('Jatah Pupuk', '${item['jatah_pupuk'] ?? '-'} Kg'),
+      _DetailItem('Catatan', '${item['catatan'] ?? item['keterangan'] ?? '-'}'),
+      _DetailItem('Tanggal Pengajuan', formatTanggalJam(tanggalUtama(item))),
+    ];
+
+    if (status == 'sudah_diambil') {
+      details.add(
+        _DetailItem(
+          'Tanggal Diambil',
+          formatTanggalJam(
+            '${item['tanggal_pengambilan'] ?? item['tanggal_diambil'] ?? '-'}',
+          ),
+        ),
+      );
+    }
+
+    return _timelineCard(
+      id: id,
+      expanded: expanded,
+      color: primaryGreen,
+      icon: Icons.eco_rounded,
+      title: title,
+      subtitle: 'Bantuan Pupuk',
+      status: status,
+      details: details,
+    );
+  }
+
+  Widget _alatCard(Map<String, dynamic> item) {
+    final id = (item['id_riwayat'] ?? '').toString();
+    final expanded = expandedCards.contains(id);
+    final status = (item['status'] ?? 'menunggu').toString().toLowerCase();
+    final alat =
+        (item['alat'] ?? item['nama_alat'] ?? 'Alat Pertanian').toString();
+
+    final details = <_DetailItem>[
+      _DetailItem('Nama Alat', alat),
+      _DetailItem(
+        'Jumlah',
+        '${item['jumlah'] ?? item['jumlah_alat'] ?? 1} Unit',
+      ),
+      _DetailItem('Tanggal Pinjam', '${item['tanggal_pinjam'] ?? '-'}'),
+      _DetailItem('Tanggal Kembali', '${item['tanggal_kembali'] ?? '-'}'),
+      _DetailItem('Catatan', '${item['catatan'] ?? '-'}'),
+      _DetailItem('Tanggal Pengajuan', formatTanggalJam(tanggalUtama(item))),
+    ];
+
+    if (status == 'dipinjam' || status == 'dikembalikan') {
+      details.add(
+        _DetailItem('Tanggal Diambil', '${item['tanggal_diambil'] ?? '-'}'),
+      );
+    }
+
+    if (status == 'dikembalikan') {
+      details.addAll([
+        _DetailItem(
+          'Tanggal Aktual Kembali',
+          '${item['tanggal_dikembalikan'] ?? '-'}',
+        ),
+        _DetailItem(
+          'Ketepatan',
+          teksPengembalian(item),
+          valueColor: warnaPengembalian(item),
+        ),
+      ]);
+    }
+
+    return _timelineCard(
+      id: id,
+      expanded: expanded,
+      color: orangeStatus,
+      icon: iconAlat(alat),
+      title: alat,
+      subtitle: 'Peminjaman Alat',
+      status: status,
+      details: details,
+    );
+  }
+
+  Widget _timelineCard({
+    required String id,
+    required bool expanded,
+    required Color color,
     required IconData icon,
-    required Color iconColor,
     required String title,
     required String subtitle,
-    required List<_DetailItem> details,
     required String status,
+    required List<_DetailItem> details,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Column(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Column(
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(17),
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: color.withValues(alpha: 0.12)),
                 ),
-                child: Icon(icon, color: iconColor, size: 27),
+                child: Icon(icon, color: color, size: 24),
               ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: textDark,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: textGrey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+              Container(
+                width: 2,
+                height: expanded ? 250 : 112,
+                color: color.withValues(alpha: 0.18),
               ),
-              _statusBadge(status),
             ],
           ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(
-              color: const Color(0xffF9FAFB),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xffE5E7EB)),
-            ),
-            child: Column(
-              children:
-                  details.map((item) {
-                    return _detailRow(
-                      item.icon,
-                      item.label,
-                      item.value,
-                      valueColor: item.valueColor,
-                    );
-                  }).toList(),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+                onTap: () => toggleExpand(id),
+                borderRadius: BorderRadius.circular(20),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.all(14),
+                  decoration: _cardDecoration(
+                    radius: 20,
+                  ).copyWith(border: Border.all(color: cardBorder)),
+                  child: Column(
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: textDark,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  subtitle,
+                                  style: const TextStyle(
+                                    color: textGrey,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _statusBadge(status),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _progressStatus(status),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              teksStatusPanjang(status),
+                              style: TextStyle(
+                                color: warnaStatus(status),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            expanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            color: textGrey,
+                          ),
+                        ],
+                      ),
+                      if (expanded) ...[
+                        const SizedBox(height: 12),
+                        _detailBox(details),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -725,37 +898,59 @@ class _RiwayatPageState extends State<RiwayatPage> {
     );
   }
 
-  Widget _detailRow(
-    IconData icon,
-    String label,
-    String value, {
-    Color? valueColor,
-  }) {
+  Widget _progressStatus(String status) {
+    final color = warnaStatus(status);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(99),
+      child: LinearProgressIndicator(
+        value: progressValue(status),
+        minHeight: 7,
+        backgroundColor: color.withValues(alpha: 0.12),
+        valueColor: AlwaysStoppedAnimation<Color>(color),
+      ),
+    );
+  }
+
+  Widget _detailBox(List<_DetailItem> details) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xffFAFAFA),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cardBorder),
+      ),
+      child: Column(children: details.map((item) => _detailRow(item)).toList()),
+    );
+  }
+
+  Widget _detailRow(_DetailItem item) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: primaryGreen, size: 17),
-          const SizedBox(width: 8),
           SizedBox(
-            width: 82,
+            width: 112,
             child: Text(
-              label,
+              item.label,
               style: const TextStyle(
                 color: textGrey,
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
           Expanded(
             child: Text(
-              value.isEmpty ? '-' : value,
+              item.value.trim().isEmpty ? '-' : item.value,
+              textAlign: TextAlign.right,
               style: TextStyle(
-                color: valueColor ?? textDark,
+                color: item.valueColor ?? textDark,
                 fontSize: 12,
-                fontWeight: FontWeight.w800,
+                height: 1.35,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
@@ -766,50 +961,65 @@ class _RiwayatPageState extends State<RiwayatPage> {
 
   Widget _statusBadge(String status) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 98),
+      constraints: const BoxConstraints(maxWidth: 96),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: backgroundStatus(status),
         borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: warnaStatus(status).withValues(alpha: 0.15)),
       ),
       child: Text(
         teksStatus(status),
         textAlign: TextAlign.center,
-        maxLines: 2,
+        maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: warnaStatus(status),
-          fontSize: 9.5,
-          height: 1.1,
+          fontSize: 10,
           fontWeight: FontWeight.w900,
         ),
       ),
     );
   }
 
-  Widget _emptyCard({required IconData icon, required String text}) {
+  Widget _emptyCard({
+    required IconData icon,
+    required String title,
+    required String text,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(radius: 20),
       child: Column(
         children: [
           Container(
-            height: 72,
-            width: 72,
-            decoration: const BoxDecoration(
-              color: lightGreen,
-              shape: BoxShape.circle,
+            height: 76,
+            width: 76,
+            decoration: BoxDecoration(
+              color: softGreen,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
             ),
-            child: Icon(icon, color: primaryGreen, size: 36),
+            child: Icon(icon, color: primaryGreen, size: 38),
           ),
           const SizedBox(height: 14),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
           Text(
             text,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 13,
+              fontSize: 12.5,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -822,29 +1032,30 @@ class _RiwayatPageState extends State<RiwayatPage> {
   Widget _backButton(BuildContext context) {
     return InkWell(
       onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(15),
       child: Container(
-        height: 42,
-        width: 42,
+        height: 44,
+        width: 44,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
         ),
         child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  BoxDecoration _cardDecoration({double radius = 20}) {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.03),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
         ),
       ],
     );
@@ -852,15 +1063,9 @@ class _RiwayatPageState extends State<RiwayatPage> {
 }
 
 class _DetailItem {
-  final IconData icon;
   final String label;
   final String value;
   final Color? valueColor;
 
-  const _DetailItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
+  const _DetailItem(this.label, this.value, {this.valueColor});
 }

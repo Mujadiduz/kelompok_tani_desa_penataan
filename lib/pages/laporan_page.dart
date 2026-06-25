@@ -13,113 +13,143 @@ class LaporanPage extends StatefulWidget {
 
 class _LaporanPageState extends State<LaporanPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
-  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color darkGreen = Color(0xff14532D);
+  static const Color bgColor = Color(0xffF4F7F4);
+  static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffFB8C00);
-  static const Color blueStatus = Color(0xff1976D2);
+  static const Color orangeStatus = Color(0xffF57C00);
+  static const Color blueStatus = Color(0xff2563EB);
 
-  final FirebaseDatabase db = FirebaseDatabase.instanceFor(
+  final FirebaseDatabase _db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 
-  late final DatabaseReference anggotaRef;
-  late final DatabaseReference calonAnggotaRef;
-  late final DatabaseReference pupukRef;
-  late final DatabaseReference peminjamanRef;
-
-  int totalAnggota = 0;
-  int totalCalon = 0;
-  int calonMenunggu = 0;
-  int calonDisetujui = 0;
-  int calonDitolak = 0;
-
-  int totalPupuk = 0;
-  int pupukMenunggu = 0;
-  int pupukDisetujui = 0;
-  int pupukSudahDiambil = 0;
-  int pupukDitolak = 0;
-  double totalKgDisalurkan = 0;
-
-  int totalPeminjaman = 0;
-  int peminjamanMenunggu = 0;
-  int peminjamanDisetujui = 0;
-  int peminjamanDipinjam = 0;
-  int peminjamanDikembalikan = 0;
-  int peminjamanDitolak = 0;
+  late final DatabaseReference _rootRef;
 
   @override
   void initState() {
     super.initState();
-    anggotaRef = db.ref('anggota');
-    calonAnggotaRef = db.ref('calon_anggota');
-    pupukRef = db.ref('bantuan_pupuk');
-    peminjamanRef = db.ref('peminjaman_alat');
+    _rootRef = _db.ref();
   }
 
-  int hitungTotal(dynamic value) {
-    if (value == null || value is! Map) return 0;
-    return value.length;
+  Map<dynamic, dynamic> _asMap(dynamic value) {
+    if (value == null || value is! Map) return {};
+    return Map<dynamic, dynamic>.from(value);
   }
 
-  int hitungStatus(dynamic value, String statusTarget) {
-    if (value == null || value is! Map) return 0;
+  String _status(dynamic value) {
+    return (value ?? '').toString().toLowerCase().trim();
+  }
 
+  int _countAll(dynamic value) {
+    return _asMap(value).length;
+  }
+
+  int _countStatus(dynamic value, List<String> targets) {
+    final data = _asMap(value);
     int total = 0;
-    final data = Map<dynamic, dynamic>.from(value);
 
     for (final item in data.values) {
-      if (item is Map) {
-        final mapItem = Map<dynamic, dynamic>.from(item);
-        final status =
-            (mapItem['status'] ?? 'menunggu').toString().toLowerCase().trim();
+      if (item is! Map) continue;
 
-        if (status == statusTarget) {
-          total++;
-        }
+      final detail = Map<dynamic, dynamic>.from(item);
+      final status = _status(detail['status']);
+
+      if (targets.contains(status)) total++;
+    }
+
+    return total;
+  }
+
+  int _countAnggotaAktif(dynamic value) {
+    final data = _asMap(value);
+    int total = 0;
+
+    for (final item in data.values) {
+      if (item is! Map) continue;
+
+      final detail = Map<dynamic, dynamic>.from(item);
+      final status = _status(detail['status']);
+
+      if (status.isEmpty ||
+          status == 'aktif' ||
+          status == 'anggota' ||
+          status == 'disetujui') {
+        total++;
       }
     }
 
     return total;
   }
 
-  double hitungTotalKgDisalurkan(dynamic value) {
-    if (value == null || value is! Map) return 0;
-
+  double _countKgDisalurkan(dynamic value) {
+    final data = _asMap(value);
     double total = 0;
-    final data = Map<dynamic, dynamic>.from(value);
 
     for (final item in data.values) {
-      if (item is Map) {
-        final mapItem = Map<dynamic, dynamic>.from(item);
-        final status = (mapItem['status'] ?? '').toString().toLowerCase();
+      if (item is! Map) continue;
 
-        if (status == 'sudah_diambil') {
-          total +=
-              double.tryParse(
-                (mapItem['jumlah_pupuk_diambil'] ??
-                        mapItem['jumlah_pupuk'] ??
-                        0)
-                    .toString()
-                    .replaceAll(',', '.'),
-              ) ??
-              0;
-        }
+      final detail = Map<dynamic, dynamic>.from(item);
+      final status = _status(detail['status']);
+
+      if (status == 'sudah_diambil' || status == 'sudah diambil') {
+        total +=
+            double.tryParse(
+              (detail['jumlah_pupuk_diambil'] ??
+                      detail['jumlah_kg'] ??
+                      detail['jumlah_pupuk'] ??
+                      detail['jumlah'] ??
+                      0)
+                  .toString()
+                  .replaceAll(',', '.'),
+            ) ??
+            0;
       }
     }
 
     return total;
   }
 
-  double persen(int bagian, int total) {
+  double _progress(int value, int total) {
     if (total <= 0) return 0;
-    return bagian / total;
+    return value / total;
   }
 
-  String formatTanggalCetak() {
+  String _todayText() {
+    final now = DateTime.now();
+
+    const days = [
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+      'Minggu',
+    ];
+
+    const months = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+
+    return '${days[now.weekday - 1]}, ${now.day} ${months[now.month - 1]} ${now.year}';
+  }
+
+  String _formatCetak() {
     final now = DateTime.now();
 
     return '${now.day.toString().padLeft(2, '0')}-'
@@ -129,7 +159,51 @@ class _LaporanPageState extends State<LaporanPage> {
         '${now.minute.toString().padLeft(2, '0')}';
   }
 
-  Future<void> cetakLaporanPdf() async {
+  _ReportData _buildReport(dynamic value) {
+    final root = _asMap(value);
+
+    final anggota = root['anggota'];
+    final calon = root['calon_anggota'];
+    final pupuk = root['bantuan_pupuk'];
+    final peminjaman = root['peminjaman_alat'];
+
+    return _ReportData(
+      totalAnggotaAktif: _countAnggotaAktif(anggota),
+      totalCalonAnggota: _countAll(calon),
+      calonMenunggu: _countStatus(calon, ['menunggu']),
+      calonDisetujui: _countStatus(calon, ['disetujui']),
+      calonDitolak: _countStatus(calon, ['ditolak']),
+      totalBantuanPupuk: _countAll(pupuk),
+      pupukMenunggu: _countStatus(pupuk, ['menunggu']),
+      pupukDisetujui: _countStatus(pupuk, ['disetujui']),
+      pupukSudahDiambil: _countStatus(pupuk, [
+        'sudah_diambil',
+        'sudah diambil',
+      ]),
+      pupukDitolak: _countStatus(pupuk, ['ditolak']),
+      totalKgDisalurkan: _countKgDisalurkan(pupuk),
+      totalPeminjamanAlat: _countAll(peminjaman),
+      alatMenunggu: _countStatus(peminjaman, ['menunggu']),
+      alatDisetujui: _countStatus(peminjaman, ['disetujui']),
+      alatDipinjam: _countStatus(peminjaman, [
+        'dipinjam',
+        'sedang_dipinjam',
+        'diambil',
+      ]),
+      alatDikembalikan: _countStatus(peminjaman, [
+        'dikembalikan',
+        'sudah_dikembalikan',
+        'selesai',
+      ]),
+      alatDitolak: _countStatus(peminjaman, ['ditolak']),
+    );
+  }
+
+  Future<void> _refresh() async {
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+  }
+
+  Future<void> _cetakLaporanPdf(_ReportData data) async {
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -146,49 +220,39 @@ class _LaporanPageState extends State<LaporanPage> {
               style: const pw.TextStyle(fontSize: 10),
             ),
             pw.SizedBox(height: 8),
-            pw.Text('Tanggal Cetak: ${formatTanggalCetak()}'),
+            pw.Text('Tanggal Cetak: ${_formatCetak()}'),
             pw.SizedBox(height: 18),
-
-            _pdfSectionTitle('Rekap Anggota'),
+            _pdfTitle('Rekap Anggota'),
             _pdfTable([
-              ['Total Anggota Aktif', totalAnggota.toString()],
-              ['Total Calon Anggota', totalCalon.toString()],
-              ['Calon Menunggu', calonMenunggu.toString()],
-              ['Calon Disetujui', calonDisetujui.toString()],
-              ['Calon Ditolak', calonDitolak.toString()],
+              ['Total Anggota Aktif', data.totalAnggotaAktif.toString()],
+              ['Total Calon Anggota', data.totalCalonAnggota.toString()],
+              ['Calon Menunggu', data.calonMenunggu.toString()],
+              ['Calon Disetujui', data.calonDisetujui.toString()],
+              ['Calon Ditolak', data.calonDitolak.toString()],
             ]),
-
             pw.SizedBox(height: 14),
-            _pdfSectionTitle('Laporan Bantuan Pupuk'),
+            _pdfTitle('Laporan Bantuan Pupuk'),
             _pdfTable([
-              ['Total Pengajuan', totalPupuk.toString()],
-              ['Menunggu Verifikasi', pupukMenunggu.toString()],
-              ['Disetujui Admin', pupukDisetujui.toString()],
-              ['Sudah Diambil', pupukSudahDiambil.toString()],
-              ['Ditolak Admin', pupukDitolak.toString()],
+              ['Total Pengajuan', data.totalBantuanPupuk.toString()],
+              ['Menunggu Verifikasi', data.pupukMenunggu.toString()],
+              ['Disetujui Admin', data.pupukDisetujui.toString()],
+              ['Sudah Diambil', data.pupukSudahDiambil.toString()],
+              ['Ditolak Admin', data.pupukDitolak.toString()],
               [
                 'Total Pupuk Disalurkan',
-                '${totalKgDisalurkan.toStringAsFixed(1)} Kg',
+                '${data.totalKgDisalurkan.toStringAsFixed(1)} Kg',
               ],
             ]),
-
             pw.SizedBox(height: 14),
-            _pdfSectionTitle('Laporan Peminjaman Alat'),
+            _pdfTitle('Laporan Peminjaman Alat'),
             _pdfTable([
-              ['Total Peminjaman', totalPeminjaman.toString()],
-              ['Menunggu Verifikasi', peminjamanMenunggu.toString()],
-              ['Disetujui Admin', peminjamanDisetujui.toString()],
-              ['Sedang Dipinjam', peminjamanDipinjam.toString()],
-              ['Sudah Dikembalikan', peminjamanDikembalikan.toString()],
-              ['Ditolak Admin', peminjamanDitolak.toString()],
+              ['Total Peminjaman', data.totalPeminjamanAlat.toString()],
+              ['Menunggu Verifikasi', data.alatMenunggu.toString()],
+              ['Disetujui Admin', data.alatDisetujui.toString()],
+              ['Sedang Dipinjam', data.alatDipinjam.toString()],
+              ['Sudah Dikembalikan', data.alatDikembalikan.toString()],
+              ['Ditolak Admin', data.alatDitolak.toString()],
             ]),
-
-            pw.SizedBox(height: 28),
-            pw.Divider(),
-            pw.Text(
-              'Dicetak melalui Aplikasi Kelompok Tani Desa Penataan',
-              style: const pw.TextStyle(fontSize: 10),
-            ),
           ];
         },
       ),
@@ -197,7 +261,7 @@ class _LaporanPageState extends State<LaporanPage> {
     await Printing.layoutPdf(onLayout: (format) async => pdf.save());
   }
 
-  pw.Widget _pdfSectionTitle(String title) {
+  pw.Widget _pdfTitle(String title) {
     return pw.Padding(
       padding: const pw.EdgeInsets.only(bottom: 6),
       child: pw.Text(
@@ -213,7 +277,6 @@ class _LaporanPageState extends State<LaporanPage> {
       data: data,
       headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
       cellStyle: const pw.TextStyle(fontSize: 10),
-      headerDecoration: const pw.BoxDecoration(),
       cellAlignment: pw.Alignment.centerLeft,
       columnWidths: {
         0: const pw.FlexColumnWidth(3),
@@ -225,31 +288,46 @@ class _LaporanPageState extends State<LaporanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: bgColor,
       body: SafeArea(
         child: StreamBuilder<DatabaseEvent>(
-          stream: anggotaRef.onValue,
-          builder: (context, anggotaSnapshot) {
-            return StreamBuilder<DatabaseEvent>(
-              stream: calonAnggotaRef.onValue,
-              builder: (context, calonSnapshot) {
-                return StreamBuilder<DatabaseEvent>(
-                  stream: pupukRef.onValue,
-                  builder: (context, pupukSnapshot) {
-                    return StreamBuilder<DatabaseEvent>(
-                      stream: peminjamanRef.onValue,
-                      builder: (context, peminjamanSnapshot) {
-                        return _laporanBody(
-                          anggotaSnapshot.data?.snapshot.value,
-                          calonSnapshot.data?.snapshot.value,
-                          pupukSnapshot.data?.snapshot.value,
-                          peminjamanSnapshot.data?.snapshot.value,
-                        );
-                      },
-                    );
-                  },
-                );
-              },
+          stream: _rootRef.onValue,
+          builder: (context, snapshot) {
+            final data = _buildReport(snapshot.data?.snapshot.value);
+
+            return RefreshIndicator(
+              color: primaryGreen,
+              onRefresh: _refresh,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                children: [
+                  _header(data),
+                  const SizedBox(height: 16),
+                  _sectionTitle(
+                    title: 'Ringkasan Laporan',
+                    subtitle: 'Data utama aplikasi TaniGo',
+                  ),
+                  const SizedBox(height: 12),
+                  _summaryGrid(data),
+                  const SizedBox(height: 18),
+                  _sectionTitle(
+                    title: 'Progress Sistem',
+                    subtitle: 'Pantauan penyaluran pupuk dan peminjaman alat',
+                  ),
+                  const SizedBox(height: 12),
+                  _progressCard(data),
+                  const SizedBox(height: 18),
+                  _sectionTitle(
+                    title: 'Detail Rekap',
+                    subtitle: 'Rincian berdasarkan fitur aplikasi',
+                  ),
+                  const SizedBox(height: 12),
+                  _detailCards(data),
+                  const SizedBox(height: 18),
+                  _pdfButton(data),
+                ],
+              ),
             );
           },
         ),
@@ -257,232 +335,195 @@ class _LaporanPageState extends State<LaporanPage> {
     );
   }
 
-  Widget _laporanBody(
-    dynamic anggotaValue,
-    dynamic calonValue,
-    dynamic pupukValue,
-    dynamic peminjamanValue,
-  ) {
-    totalAnggota = hitungTotal(anggotaValue);
-
-    totalCalon = hitungTotal(calonValue);
-    calonMenunggu = hitungStatus(calonValue, 'menunggu');
-    calonDisetujui = hitungStatus(calonValue, 'disetujui');
-    calonDitolak = hitungStatus(calonValue, 'ditolak');
-
-    totalPupuk = hitungTotal(pupukValue);
-    pupukMenunggu = hitungStatus(pupukValue, 'menunggu');
-    pupukDisetujui = hitungStatus(pupukValue, 'disetujui');
-    pupukSudahDiambil = hitungStatus(pupukValue, 'sudah_diambil');
-    pupukDitolak = hitungStatus(pupukValue, 'ditolak');
-    totalKgDisalurkan = hitungTotalKgDisalurkan(pupukValue);
-
-    totalPeminjaman = hitungTotal(peminjamanValue);
-    peminjamanMenunggu = hitungStatus(peminjamanValue, 'menunggu');
-    peminjamanDisetujui = hitungStatus(peminjamanValue, 'disetujui');
-    peminjamanDipinjam = hitungStatus(peminjamanValue, 'dipinjam');
-    peminjamanDikembalikan = hitungStatus(peminjamanValue, 'dikembalikan');
-    peminjamanDitolak = hitungStatus(peminjamanValue, 'ditolak');
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _header(context),
-          const SizedBox(height: 20),
-          _summaryUtama(),
-          const SizedBox(height: 18),
-          _pdfButton(),
-          const SizedBox(height: 18),
-          _progressSection(),
-          const SizedBox(height: 18),
-          _laporanCard(
-            title: 'Rekap Anggota',
-            icon: Icons.groups_rounded,
-            color: primaryGreen,
-            children: [
-              _dataItem('Total Anggota Aktif', totalAnggota.toString()),
-              _dataItem('Calon Anggota Baru', totalCalon.toString()),
-              _dataItem('Calon Menunggu', calonMenunggu.toString()),
-              _dataItem('Calon Disetujui', calonDisetujui.toString()),
-              _dataItem('Calon Ditolak', calonDitolak.toString()),
-            ],
-          ),
-          const SizedBox(height: 18),
-          _laporanCard(
-            title: 'Laporan Bantuan Pupuk',
-            icon: Icons.eco_rounded,
-            color: primaryGreen,
-            children: [
-              _dataItem('Total Pengajuan', totalPupuk.toString()),
-              _dataItem('Menunggu Verifikasi', pupukMenunggu.toString()),
-              _dataItem('Disetujui Admin', pupukDisetujui.toString()),
-              _dataItem('Sudah Diambil', pupukSudahDiambil.toString()),
-              _dataItem('Ditolak Admin', pupukDitolak.toString()),
-              _dataItem(
-                'Total Pupuk Disalurkan',
-                '${totalKgDisalurkan.toStringAsFixed(1)} Kg',
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          _laporanCard(
-            title: 'Laporan Peminjaman Alat',
-            icon: Icons.agriculture_rounded,
-            color: orangeStatus,
-            children: [
-              _dataItem('Total Peminjaman', totalPeminjaman.toString()),
-              _dataItem('Menunggu Verifikasi', peminjamanMenunggu.toString()),
-              _dataItem('Disetujui Admin', peminjamanDisetujui.toString()),
-              _dataItem('Sedang Dipinjam', peminjamanDipinjam.toString()),
-              _dataItem(
-                'Sudah Dikembalikan',
-                peminjamanDikembalikan.toString(),
-              ),
-              _dataItem('Ditolak Admin', peminjamanDitolak.toString()),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _header(BuildContext context) {
+  Widget _header(_ReportData data) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen, Color(0xff43A047)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(30),
+        color: darkGreen,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+            color: darkGreen.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Stack(
+      child: Row(
         children: [
-          Positioned(
-            right: -24,
-            bottom: -36,
-            child: Icon(
-              Icons.description_rounded,
-              size: 145,
-              color: Colors.white.withValues(alpha: 0.08),
+          Container(
+            height: 52,
+            width: 52,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+            ),
+            child: const Icon(
+              Icons.bar_chart_rounded,
+              color: Colors.white,
+              size: 28,
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _backButton(context),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Laporan',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _todayText(),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.74),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
-              ),
-              const SizedBox(height: 22),
-              const Text(
-                'Rekap Data Sistem',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
                 ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Ringkasan data anggota, bantuan pupuk, dan peminjaman alat pertanian.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.45,
+                const SizedBox(height: 4),
+                const Text(
+                  'Laporan Admin',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  'Rekap anggota, pupuk, dan alat',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            constraints: const BoxConstraints(minWidth: 56, minHeight: 50),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  data.totalData.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'data',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _summaryUtama() {
-    return Row(
+  Widget _summaryGrid(_ReportData data) {
+    return Column(
       children: [
-        Expanded(
-          child: _summaryCard(
-            title: 'Anggota',
-            value: totalAnggota.toString(),
-            icon: Icons.groups_rounded,
-            color: primaryGreen,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _summaryBox(
+                title: 'Anggota Aktif',
+                value: data.totalAnggotaAktif,
+                icon: Icons.groups_rounded,
+                color: primaryGreen,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _summaryBox(
+                title: 'Calon Anggota',
+                value: data.totalCalonAnggota,
+                icon: Icons.person_add_alt_1_rounded,
+                color: orangeStatus,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _summaryCard(
-            title: 'Pupuk',
-            value: totalPupuk.toString(),
-            icon: Icons.grass_rounded,
-            color: blueStatus,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _summaryCard(
-            title: 'Alat',
-            value: totalPeminjaman.toString(),
-            icon: Icons.agriculture_rounded,
-            color: orangeStatus,
-          ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _summaryBox(
+                title: 'Bantuan Pupuk',
+                value: data.totalBantuanPupuk,
+                icon: Icons.eco_rounded,
+                color: primaryGreen,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _summaryBox(
+                title: 'Peminjaman Alat',
+                value: data.totalPeminjamanAlat,
+                icon: Icons.agriculture_rounded,
+                color: blueStatus,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _summaryCard({
+  Widget _summaryBox({
     required String title,
-    required String value,
+    required int value,
     required IconData icon,
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      height: 104,
+      padding: const EdgeInsets.all(13),
       decoration: _cardDecoration(),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 27),
-          const SizedBox(height: 8),
+          Container(
+            height: 38,
+            width: 38,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 21),
+          ),
+          const Spacer(),
           Text(
-            value,
+            value.toString(),
             style: TextStyle(
               color: color,
-              fontSize: 22,
+              fontSize: 23,
+              height: 1,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 5),
           Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: textGrey,
+              color: textDark,
               fontSize: 12,
               fontWeight: FontWeight.w800,
             ),
@@ -492,38 +533,35 @@ class _LaporanPageState extends State<LaporanPage> {
     );
   }
 
-  Widget _progressSection() {
-    final progressPupuk = persen(pupukSudahDiambil, totalPupuk);
-    final progressAlat = persen(peminjamanDikembalikan, totalPeminjaman);
+  Widget _progressCard(_ReportData data) {
+    final pupukProgress = _progress(
+      data.pupukSudahDiambil,
+      data.totalBantuanPupuk,
+    );
+
+    final alatProgress = _progress(
+      data.alatDikembalikan,
+      data.totalPeminjamanAlat,
+    );
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Progress Laporan',
-            style: TextStyle(
-              color: textDark,
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 14),
           _progressItem(
             title: 'Penyaluran Pupuk',
             subtitle:
-                '$pupukSudahDiambil dari $totalPupuk pengajuan sudah diambil',
-            value: progressPupuk,
+                '${data.pupukSudahDiambil} dari ${data.totalBantuanPupuk} pengajuan sudah diambil',
+            value: pupukProgress,
             color: primaryGreen,
           ),
           const SizedBox(height: 16),
           _progressItem(
             title: 'Pengembalian Alat',
             subtitle:
-                '$peminjamanDikembalikan dari $totalPeminjaman peminjaman sudah dikembalikan',
-            value: progressAlat,
+                '${data.alatDikembalikan} dari ${data.totalPeminjamanAlat} peminjaman sudah selesai',
+            value: alatProgress,
             color: orangeStatus,
           ),
         ],
@@ -537,7 +575,7 @@ class _LaporanPageState extends State<LaporanPage> {
     required double value,
     required Color color,
   }) {
-    final persenText = '${(value * 100).toStringAsFixed(0)}%';
+    final percent = '${(value * 100).toStringAsFixed(0)}%';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -555,7 +593,7 @@ class _LaporanPageState extends State<LaporanPage> {
               ),
             ),
             Text(
-              persenText,
+              percent,
               style: TextStyle(
                 color: color,
                 fontSize: 13,
@@ -570,12 +608,13 @@ class _LaporanPageState extends State<LaporanPage> {
           style: const TextStyle(
             color: textGrey,
             fontSize: 12,
+            height: 1.35,
             fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 9),
         ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(99),
           child: LinearProgressIndicator(
             value: value,
             minHeight: 9,
@@ -587,95 +626,128 @@ class _LaporanPageState extends State<LaporanPage> {
     );
   }
 
-  Widget _pdfButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton.icon(
-        onPressed: cetakLaporanPdf,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryGreen,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
+  Widget _detailCards(_ReportData data) {
+    return Column(
+      children: [
+        _reportCard(
+          title: 'Rekap Anggota',
+          icon: Icons.groups_rounded,
+          color: primaryGreen,
+          items: [
+            _ReportItem('Anggota Aktif', data.totalAnggotaAktif.toString()),
+            _ReportItem('Calon Anggota', data.totalCalonAnggota.toString()),
+            _ReportItem('Calon Menunggu', data.calonMenunggu.toString()),
+            _ReportItem('Calon Disetujui', data.calonDisetujui.toString()),
+            _ReportItem('Calon Ditolak', data.calonDitolak.toString()),
+          ],
         ),
-        icon: const Icon(Icons.picture_as_pdf_rounded),
-        label: const Text(
-          'Cetak Laporan PDF',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+        const SizedBox(height: 12),
+        _reportCard(
+          title: 'Laporan Bantuan Pupuk',
+          icon: Icons.eco_rounded,
+          color: primaryGreen,
+          items: [
+            _ReportItem('Total Pengajuan', data.totalBantuanPupuk.toString()),
+            _ReportItem('Menunggu', data.pupukMenunggu.toString()),
+            _ReportItem('Disetujui', data.pupukDisetujui.toString()),
+            _ReportItem('Sudah Diambil', data.pupukSudahDiambil.toString()),
+            _ReportItem('Ditolak', data.pupukDitolak.toString()),
+            _ReportItem(
+              'Pupuk Disalurkan',
+              '${data.totalKgDisalurkan.toStringAsFixed(1)} Kg',
+            ),
+          ],
         ),
-      ),
+        const SizedBox(height: 12),
+        _reportCard(
+          title: 'Laporan Peminjaman Alat',
+          icon: Icons.agriculture_rounded,
+          color: orangeStatus,
+          items: [
+            _ReportItem(
+              'Total Peminjaman',
+              data.totalPeminjamanAlat.toString(),
+            ),
+            _ReportItem('Menunggu', data.alatMenunggu.toString()),
+            _ReportItem('Disetujui', data.alatDisetujui.toString()),
+            _ReportItem('Sedang Dipinjam', data.alatDipinjam.toString()),
+            _ReportItem('Dikembalikan', data.alatDikembalikan.toString()),
+            _ReportItem('Ditolak', data.alatDitolak.toString()),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _laporanCard({
+  Widget _reportCard({
     required String title,
     required IconData icon,
     required Color color,
-    required List<Widget> children,
+    required List<_ReportItem> items,
   }) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              CircleAvatar(
-                backgroundColor: color.withValues(alpha: 0.14),
-                child: Icon(icon, color: color),
+              Container(
+                height: 42,
+                width: 42,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(icon, color: color, size: 22),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Expanded(
                 child: Text(
                   title,
                   style: const TextStyle(
                     color: textDark,
+                    fontSize: 15,
                     fontWeight: FontWeight.w900,
-                    fontSize: 17,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          ...children,
+          const SizedBox(height: 13),
+          ...items.map((item) => _dataRow(item)),
         ],
       ),
     );
   }
 
-  Widget _dataItem(String label, String value) {
+  Widget _dataRow(_ReportItem item) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
         color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xffE5E7EB)),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: cardBorder),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
-              label,
+              item.label,
               style: const TextStyle(
                 color: textGrey,
-                fontSize: 13,
+                fontSize: 12.5,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
           Text(
-            value,
+            item.value,
             style: const TextStyle(
               color: textDark,
+              fontSize: 14,
               fontWeight: FontWeight.w900,
-              fontSize: 16,
             ),
           ),
         ],
@@ -683,34 +755,136 @@ class _LaporanPageState extends State<LaporanPage> {
     );
   }
 
-  Widget _backButton(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
+  Widget _pdfButton(_ReportData data) {
+    return SizedBox(
+      height: 52,
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: () => _cetakLaporanPdf(data),
+        icon: const Icon(Icons.picture_as_pdf_rounded),
+        label: const Text(
+          'Cetak Laporan PDF',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
         ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryGreen,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(13),
+          ),
+        ),
       ),
+    );
+  }
+
+  Widget _sectionTitle({required String title, required String subtitle}) {
+    return Row(
+      children: [
+        Container(
+          height: 34,
+          width: 5,
+          decoration: BoxDecoration(
+            color: primaryGreen,
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      borderRadius: BorderRadius.circular(13),
+      border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 9,
+          offset: const Offset(0, 3),
         ),
       ],
     );
   }
+}
+
+class _ReportData {
+  final int totalAnggotaAktif;
+  final int totalCalonAnggota;
+  final int calonMenunggu;
+  final int calonDisetujui;
+  final int calonDitolak;
+
+  final int totalBantuanPupuk;
+  final int pupukMenunggu;
+  final int pupukDisetujui;
+  final int pupukSudahDiambil;
+  final int pupukDitolak;
+  final double totalKgDisalurkan;
+
+  final int totalPeminjamanAlat;
+  final int alatMenunggu;
+  final int alatDisetujui;
+  final int alatDipinjam;
+  final int alatDikembalikan;
+  final int alatDitolak;
+
+  const _ReportData({
+    required this.totalAnggotaAktif,
+    required this.totalCalonAnggota,
+    required this.calonMenunggu,
+    required this.calonDisetujui,
+    required this.calonDitolak,
+    required this.totalBantuanPupuk,
+    required this.pupukMenunggu,
+    required this.pupukDisetujui,
+    required this.pupukSudahDiambil,
+    required this.pupukDitolak,
+    required this.totalKgDisalurkan,
+    required this.totalPeminjamanAlat,
+    required this.alatMenunggu,
+    required this.alatDisetujui,
+    required this.alatDipinjam,
+    required this.alatDikembalikan,
+    required this.alatDitolak,
+  });
+
+  int get totalData =>
+      totalAnggotaAktif +
+      totalCalonAnggota +
+      totalBantuanPupuk +
+      totalPeminjamanAlat;
+}
+
+class _ReportItem {
+  final String label;
+  final String value;
+
+  const _ReportItem(this.label, this.value);
 }

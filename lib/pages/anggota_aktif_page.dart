@@ -2,6 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
+import '../widgets/app_background.dart';
+
 class AnggotaAktifPage extends StatefulWidget {
   const AnggotaAktifPage({super.key});
 
@@ -11,17 +13,22 @@ class AnggotaAktifPage extends StatefulWidget {
 
 class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
+  static const Color darkGreen = Color(0xff14532D);
   static const Color lightGreen = Color(0xffE8F5E9);
   static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
+  static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color blueStatus = Color(0xff1976D2);
 
-  final TextEditingController searchController = TextEditingController();
-  final FocusNode searchFocusNode = FocusNode();
-  final ValueNotifier<String> keywordNotifier = ValueNotifier<String>('');
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
 
-  final DatabaseReference anggotaRef = FirebaseDatabase.instanceFor(
+  final ValueNotifier<String> _keywordNotifier = ValueNotifier<String>('');
+  final ValueNotifier<String> _filterNotifier = ValueNotifier<String>('semua');
+
+  final DatabaseReference _anggotaRef = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
@@ -29,49 +36,135 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
 
   @override
   void dispose() {
-    searchController.dispose();
-    searchFocusNode.dispose();
-    keywordNotifier.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _keywordNotifier.dispose();
+    _filterNotifier.dispose();
     super.dispose();
   }
 
-  List<Map<String, dynamic>> ambilAnggota(dynamic value) {
+  Future<void> _refreshData() async {
+    await _anggotaRef.get();
+  }
+
+  List<Map<String, dynamic>> _ambilData(dynamic value) {
     if (value == null || value is! Map) return [];
 
     final data = Map<dynamic, dynamic>.from(value);
 
     final list =
-        data.values
-            .whereType<Map>()
-            .map((item) {
-              return Map<String, dynamic>.from(item);
+        data.entries
+            .where((entry) => entry.value is Map)
+            .map((entry) {
+              final item = Map<String, dynamic>.from(entry.value as Map);
+              item['id'] = entry.key.toString();
+              return item;
             })
-            .where((anggota) {
-              final status =
-                  (anggota['status'] ?? '').toString().toLowerCase().trim();
-              return status == 'aktif' || status.isEmpty;
+            .where((item) {
+              final status = _statusData(item);
+              return status.isEmpty ||
+                  status == 'aktif' ||
+                  status == 'anggota' ||
+                  status == 'disetujui';
             })
             .toList();
 
     list.sort((a, b) {
-      final namaA = (a['nama'] ?? '').toString().toLowerCase();
-      final namaB = (b['nama'] ?? '').toString().toLowerCase();
+      final namaA = _text(a['nama']).toLowerCase();
+      final namaB = _text(b['nama']).toLowerCase();
       return namaA.compareTo(namaB);
     });
 
     return list;
   }
 
-  List<Map<String, dynamic>> filterAnggota(
-    List<Map<String, dynamic>> data,
-    String keyword,
-  ) {
+  String _text(dynamic value, {String fallback = '-'}) {
+    final result = (value ?? '').toString().trim();
+    return result.isEmpty ? fallback : result;
+  }
+
+  String _statusData(Map<String, dynamic> item) {
+    return _text(item['status'], fallback: '').toLowerCase().trim();
+  }
+
+  String _telepon(Map<String, dynamic> item) {
+    return _text(item['telepon'] ?? item['no_hp'] ?? item['nomor_hp']);
+  }
+
+  String _genderRaw(Map<String, dynamic> item) {
+    return _text(
+      item['jenis_kelamin'] ?? item['jenisKelamin'],
+      fallback: '',
+    ).toLowerCase().trim();
+  }
+
+  String _genderText(Map<String, dynamic> item) {
+    final gender = _genderRaw(item);
+
+    if (gender == 'laki-laki' || gender == 'laki laki' || gender == 'pria') {
+      return 'Laki-laki';
+    }
+
+    if (gender == 'perempuan' || gender == 'wanita') {
+      return 'Perempuan';
+    }
+
+    return '-';
+  }
+
+  String _tanggalDaftar(Map<String, dynamic> item) {
+    final raw = _text(
+      item['tanggal_daftar'] ??
+          item['tanggal_verifikasi'] ??
+          item['created_at'] ??
+          item['tanggal'],
+      fallback: '',
+    );
+
+    if (raw.isEmpty) return '-';
+
+    try {
+      final date = DateTime.parse(raw);
+      return '${date.day.toString().padLeft(2, '0')}/'
+          '${date.month.toString().padLeft(2, '0')}/'
+          '${date.year}';
+    } catch (_) {
+      return raw;
+    }
+  }
+
+  int _countGender(List<Map<String, dynamic>> data, List<String> values) {
+    return data.where((item) => values.contains(_genderRaw(item))).length;
+  }
+
+  List<Map<String, dynamic>> _filterData({
+    required List<Map<String, dynamic>> data,
+    required String keyword,
+    required String filter,
+  }) {
+    var result = data;
+
+    if (filter == 'laki') {
+      result =
+          result.where((item) {
+            final gender = _genderRaw(item);
+            return gender == 'laki-laki' ||
+                gender == 'laki laki' ||
+                gender == 'pria';
+          }).toList();
+    } else if (filter == 'perempuan') {
+      result =
+          result.where((item) {
+            final gender = _genderRaw(item);
+            return gender == 'perempuan' || gender == 'wanita';
+          }).toList();
+    }
+
     final q = keyword.toLowerCase().trim();
+    if (q.isEmpty) return result;
 
-    if (q.isEmpty) return data;
-
-    return data.where((item) {
-      final gabungan = [
+    return result.where((item) {
+      final combined = [
         item['nama'],
         item['nik'],
         item['alamat'],
@@ -79,271 +172,354 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
         item['no_hp'],
         item['nomor_hp'],
         item['jenis_kelamin'],
-      ].map((e) => (e ?? '').toString().toLowerCase()).join(' ');
+        item['jenisKelamin'],
+      ].map((e) => _text(e, fallback: '').toLowerCase()).join(' ');
 
-      return gabungan.contains(q);
+      return combined.contains(q);
     }).toList();
-  }
-
-  String ambilLuasSawah(Map<String, dynamic> item) {
-    return (item['luas_sawah'] ??
-            item['jumlah_petak_sawah'] ??
-            item['luasSawah'] ??
-            '-')
-        .toString();
-  }
-
-  String ambilTelepon(Map<String, dynamic> item) {
-    return (item['telepon'] ?? item['no_hp'] ?? item['nomor_hp'] ?? '-')
-        .toString();
-  }
-
-  String ambilAlamat(Map<String, dynamic> item) {
-    return (item['alamat'] ?? '-').toString();
-  }
-
-  String ambilJenisKelamin(Map<String, dynamic> item) {
-    return (item['jenis_kelamin'] ?? item['jenisKelamin'] ?? '-').toString();
-  }
-
-  String ambilTanggalDaftar(Map<String, dynamic> item) {
-    final raw =
-        (item['tanggal_daftar'] ??
-                item['tanggal_verifikasi'] ??
-                item['created_at'] ??
-                '')
-            .toString();
-
-    if (raw.isEmpty) return '-';
-
-    try {
-      final date = DateTime.parse(raw);
-      return '${date.day.toString().padLeft(2, '0')}-'
-          '${date.month.toString().padLeft(2, '0')}-'
-          '${date.year}';
-    } catch (_) {
-      return raw;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: StreamBuilder<DatabaseEvent>(
-          stream: anggotaRef.onValue,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Column(
-                children: [
-                  _header(0),
-                  const Expanded(
-                    child: Center(
-                      child: CircularProgressIndicator(color: primaryGreen),
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            if (snapshot.hasError) {
-              return Column(
-                children: [
-                  _header(0),
-                  Expanded(
-                    child: _emptyState(
+      body: AppBackground(
+        child: SafeArea(
+          child: StreamBuilder<DatabaseEvent>(
+            stream: _anggotaRef.onValue,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
+                  children: [
+                    _header(total: 0),
+                    const SizedBox(height: 16),
+                    _emptyState(
                       icon: Icons.error_outline_rounded,
                       title: 'Terjadi Kesalahan',
                       message: snapshot.error.toString(),
                     ),
-                  ),
-                ],
-              );
-            }
+                  ],
+                );
+              }
 
-            final semuaAnggota = ambilAnggota(snapshot.data?.snapshot.value);
+              final semuaData = _ambilData(snapshot.data?.snapshot.value);
+              final laki = _countGender(semuaData, [
+                'laki-laki',
+                'laki laki',
+                'pria',
+              ]);
+              final perempuan = _countGender(semuaData, [
+                'perempuan',
+                'wanita',
+              ]);
 
-            return Column(
-              children: [
-                _header(semuaAnggota.length),
-                Expanded(
-                  child: ListView(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.manual,
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
-                    children: [
-                      _searchBox(),
-                      const SizedBox(height: 16),
-                      ValueListenableBuilder<String>(
-                        valueListenable: keywordNotifier,
-                        builder: (context, keyword, _) {
-                          final hasilFilter = filterAnggota(
-                            semuaAnggota,
-                            keyword,
-                          );
+              return RefreshIndicator(
+                color: primaryGreen,
+                backgroundColor: Colors.white,
+                onRefresh: _refreshData,
+                child: ListView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.manual,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
+                  children: [
+                    _header(total: semuaData.length),
+                    const SizedBox(height: 16),
+                    _summaryCard(
+                      total: semuaData.length,
+                      laki: laki,
+                      perempuan: perempuan,
+                    ),
+                    const SizedBox(height: 14),
+                    _searchBox(),
+                    const SizedBox(height: 12),
+                    _filterChips(),
+                    const SizedBox(height: 18),
+                    ValueListenableBuilder<String>(
+                      valueListenable: _keywordNotifier,
+                      builder: (context, keyword, _) {
+                        return ValueListenableBuilder<String>(
+                          valueListenable: _filterNotifier,
+                          builder: (context, filter, _) {
+                            final dataFilter = _filterData(
+                              data: semuaData,
+                              keyword: keyword,
+                              filter: filter,
+                            );
 
-                          return Column(
-                            children: [
-                              _summaryCard(
-                                semuaAnggota.length,
-                                hasilFilter.length,
-                                keyword,
-                              ),
-                              const SizedBox(height: 16),
-                              if (semuaAnggota.isEmpty)
-                                _emptyState(
-                                  icon: Icons.groups_2_outlined,
-                                  title: 'Belum Ada Anggota Aktif',
-                                  message:
-                                      'Data anggota yang sudah disetujui admin akan muncul di halaman ini.',
-                                )
-                              else if (hasilFilter.isEmpty)
-                                _emptyState(
-                                  icon: Icons.search_off_rounded,
-                                  title: 'Data Tidak Ditemukan',
-                                  message:
-                                      'Tidak ada anggota yang sesuai dengan pencarian.',
-                                )
-                              else
-                                ...hasilFilter.map(
-                                  (item) => _anggotaCard(item),
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _sectionTitle(
+                                  title: 'Daftar Data',
+                                  subtitle:
+                                      '${dataFilter.length} data ditampilkan',
                                 ),
-                            ],
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                                const SizedBox(height: 12),
+                                if (snapshot.connectionState ==
+                                        ConnectionState.waiting &&
+                                    semuaData.isEmpty)
+                                  const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(28),
+                                      child: CircularProgressIndicator(
+                                        color: primaryGreen,
+                                      ),
+                                    ),
+                                  )
+                                else if (semuaData.isEmpty)
+                                  _emptyState(
+                                    icon: Icons.groups_2_outlined,
+                                    title: 'Belum Ada Data',
+                                    message:
+                                        'Data anggota aktif akan muncul setelah calon anggota disetujui admin.',
+                                  )
+                                else if (dataFilter.isEmpty)
+                                  _emptyState(
+                                    icon: Icons.search_off_rounded,
+                                    title: 'Data Tidak Ditemukan',
+                                    message:
+                                        'Tidak ada data yang sesuai dengan pencarian atau filter.',
+                                  )
+                                else
+                                  ...dataFilter.asMap().entries.map(
+                                    (entry) => _dataCard(
+                                      nomor: entry.key + 1,
+                                      item: entry.value,
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _header(int totalAnggota) {
+  Widget _header({required int total}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xff14532D), Color(0xff2E7D32), Color(0xff66BB6A)],
+          colors: [darkGreen, primaryGreen],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(34),
-          bottomRight: Radius.circular(34),
-        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.22),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: darkGreen.withValues(alpha: 0.20),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Stack(
-        clipBehavior: Clip.none,
+      child: Column(
         children: [
-          Positioned(
-            right: -30,
-            bottom: -42,
-            child: Icon(
-              Icons.groups_rounded,
-              size: 155,
-              color: Colors.white.withValues(alpha: 0.08),
+          Row(
+            children: [
+              _backButton(),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Anggota Aktif',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              _headerBadge('$total Data'),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _headerInfo(
+            icon: Icons.groups_rounded,
+            text:
+                total == 0
+                    ? 'Belum ada data anggota aktif.'
+                    : 'Menampilkan data anggota aktif secara ringkas dan mudah dibaca.',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerBadge(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget _headerInfo({required IconData icon, required String text}) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 42,
+            width: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: Colors.white),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.90),
+                fontSize: 12.5,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryCard({
+    required int total,
+    required int laki,
+    required int perempuan,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Ringkasan Data',
+            style: TextStyle(
+              color: textDark,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Pantauan data anggota aktif yang tersimpan di sistem.',
+            style: TextStyle(
+              color: textGrey,
+              fontSize: 12.2,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 13),
+          Row(
             children: [
-              Row(
-                children: [
-                  _backButton(),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Anggota Aktif',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
+              Expanded(
+                child: _summaryItem(
+                  title: 'Total',
+                  value: total.toString(),
+                  icon: Icons.dataset_rounded,
+                  color: primaryGreen,
+                ),
               ),
-              const SizedBox(height: 22),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Data Anggota Resmi',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 25,
-                        height: 1.15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    constraints: const BoxConstraints(
-                      minWidth: 58,
-                      minHeight: 58,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.35),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          totalAnggota.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            height: 1,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'aktif',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.88),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 9),
+              Expanded(
+                child: _summaryItem(
+                  title: 'Laki-laki',
+                  value: laki.toString(),
+                  icon: Icons.man_rounded,
+                  color: blueStatus,
+                ),
               ),
-              const SizedBox(height: 10),
-              Text(
-                'Menampilkan anggota kelompok tani yang sudah disetujui dan berstatus aktif.',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.78),
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: 9),
+              Expanded(
+                child: _summaryItem(
+                  title: 'Perempuan',
+                  value: perempuan.toString(),
+                  icon: Icons.woman_rounded,
+                  color: orangeStatus,
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryItem({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 104),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: color.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 21),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 19,
+              height: 1,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 10.5,
+              height: 1,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
@@ -354,27 +530,25 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
     return Container(
       decoration: _cardDecoration(),
       child: TextField(
-        controller: searchController,
-        focusNode: searchFocusNode,
+        controller: _searchController,
+        focusNode: _searchFocusNode,
         maxLines: 1,
         textInputAction: TextInputAction.search,
         keyboardType: TextInputType.text,
-        onChanged: (value) {
-          keywordNotifier.value = value;
-        },
+        onChanged: (value) => _keywordNotifier.value = value,
         decoration: InputDecoration(
-          hintText: 'Cari nama lengkap, NIK, alamat, atau telepon',
+          hintText: 'Cari nama, NIK, alamat, atau telepon',
           prefixIcon: const Icon(Icons.search_rounded, color: primaryGreen),
           suffixIcon: ValueListenableBuilder<String>(
-            valueListenable: keywordNotifier,
+            valueListenable: _keywordNotifier,
             builder: (context, value, _) {
               if (value.isEmpty) return const SizedBox.shrink();
 
               return IconButton(
                 onPressed: () {
-                  searchController.clear();
-                  keywordNotifier.value = '';
-                  searchFocusNode.requestFocus();
+                  _searchController.clear();
+                  _keywordNotifier.value = '';
+                  _searchFocusNode.requestFocus();
                 },
                 icon: const Icon(Icons.close_rounded, color: textGrey),
               );
@@ -387,136 +561,170 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
           ),
           hintStyle: const TextStyle(
             color: textGrey,
-            fontSize: 13,
             fontWeight: FontWeight.w600,
+            fontSize: 13,
           ),
         ),
       ),
     );
   }
 
-  Widget _summaryCard(int total, int tampil, String keyword) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: lightGreen,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 46,
-            width: 46,
-            decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(Icons.verified_user_rounded, color: primaryGreen),
+  Widget _filterChips() {
+    final filters = [
+      ['semua', 'Semua'],
+      ['laki', 'Laki-laki'],
+      ['perempuan', 'Perempuan'],
+    ];
+
+    return ValueListenableBuilder<String>(
+      valueListenable: _filterNotifier,
+      builder: (context, selected, _) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+          child: Row(
+            children:
+                filters.map((item) {
+                  final aktif = selected == item[0];
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      selected: aktif,
+                      label: Text(item[1]),
+                      selectedColor: primaryGreen,
+                      backgroundColor: Colors.white,
+                      side: BorderSide(
+                        color: aktif ? primaryGreen : cardBorder,
+                      ),
+                      labelStyle: TextStyle(
+                        color: aktif ? Colors.white : textGrey,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                      onSelected: (_) => _filterNotifier.value = item[0],
+                    ),
+                  );
+                }).toList(),
           ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Text(
-              keyword.trim().isEmpty
-                  ? 'Terdapat $total anggota aktif yang terdaftar dalam sistem.'
-                  : 'Menampilkan $tampil dari $total anggota aktif sesuai pencarian.',
-              style: const TextStyle(
-                color: textDark,
-                fontSize: 13,
-                height: 1.4,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _anggotaCard(Map<String, dynamic> item) {
-    final nama = (item['nama'] ?? '-').toString();
-    final nik = (item['nik'] ?? '-').toString();
-    final telepon = ambilTelepon(item);
-    final alamat = ambilAlamat(item);
-    final jenisKelamin = ambilJenisKelamin(item);
-    final luasSawah = ambilLuasSawah(item);
-    final tanggalDaftar = ambilTanggalDaftar(item);
+  Widget _sectionTitle({required String title, required String subtitle}) {
+    return Row(
+      children: [
+        Container(
+          height: 34,
+          width: 5,
+          decoration: BoxDecoration(
+            color: primaryGreen,
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _dataCard({required int nomor, required Map<String, dynamic> item}) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              _avatar(nama),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          _numberBox(nomor),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _text(item['nama']),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'NIK ${_text(item['nik'])}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 9),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
                   children: [
-                    Text(
-                      nama,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: textDark,
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      nik,
-                      style: const TextStyle(
-                        color: textGrey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    _miniTag(Icons.phone_rounded, _telepon(item), primaryGreen),
+                    _miniTag(Icons.wc_rounded, _genderText(item), blueStatus),
+                    _miniTag(
+                      Icons.event_rounded,
+                      _tanggalDaftar(item),
+                      orangeStatus,
                     ),
                   ],
                 ),
-              ),
-              _statusBadge(),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 15),
-          _infoBox(
-            children: [
-              _infoRow(Icons.phone_rounded, 'Telepon', telepon),
-              _infoRow(Icons.wc_rounded, 'Jenis Kelamin', jenisKelamin),
-              _infoRow(Icons.location_on_rounded, 'Alamat', alamat),
-              _infoRow(Icons.landscape_rounded, 'Luas Sawah', '$luasSawah Ha'),
-              _infoRow(
-                Icons.event_available_rounded,
-                'Terdaftar',
-                tanggalDaftar,
-              ),
-            ],
-          ),
+          const SizedBox(width: 8),
+          _statusBadge(),
         ],
       ),
     );
   }
 
-  Widget _avatar(String nama) {
-    final initial = nama.trim().isEmpty ? 'A' : nama.trim()[0].toUpperCase();
-
+  Widget _numberBox(int nomor) {
     return Container(
-      height: 54,
-      width: 54,
+      height: 42,
+      width: 42,
       decoration: BoxDecoration(
-        color: primaryGreen.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(18),
+        color: primaryGreen.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Center(
         child: Text(
-          initial,
+          nomor.toString(),
           style: const TextStyle(
             color: primaryGreen,
-            fontSize: 22,
+            fontSize: 13,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -526,82 +734,49 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
 
   Widget _statusBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      constraints: const BoxConstraints(maxWidth: 92),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: lightGreen,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.14)),
       ),
       child: const Text(
         'AKTIF',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: primaryGreen,
-          fontSize: 10,
+          fontSize: 9.5,
           fontWeight: FontWeight.w900,
         ),
       ),
     );
   }
 
-  Widget _infoBox({required List<Widget> children}) {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xffE5E7EB)),
-      ),
-      child: Column(children: children),
-    );
-  }
+  Widget _miniTag(IconData icon, String text, Color color) {
+    final value = text.trim().isEmpty ? '-' : text.trim();
 
-  Widget _infoRow(IconData icon, String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: primaryGreen, size: 17),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 96,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: textGrey,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value.toString().trim().isEmpty ? '-' : value.toString(),
-              style: const TextStyle(
-                color: textDark,
-                fontSize: 12,
-                height: 1.35,
-                fontWeight: FontWeight.w800,
-              ),
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _backButton() {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(15),
-      child: Container(
-        height: 44,
-        width: 44,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-        ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
     );
   }
@@ -611,36 +786,39 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
     required String title,
     required String message,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 46, horizontal: 22),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 20),
+      decoration: _cardDecoration(),
       child: Column(
         children: [
           Container(
-            height: 88,
-            width: 88,
-            decoration: const BoxDecoration(
+            height: 84,
+            width: 84,
+            decoration: BoxDecoration(
               color: lightGreen,
               shape: BoxShape.circle,
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
             ),
-            child: Icon(icon, color: primaryGreen, size: 42),
+            child: Icon(icon, color: primaryGreen, size: 40),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           Text(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textDark,
-              fontSize: 18,
+              fontSize: 17,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
           Text(
             message,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 13,
+              fontSize: 12.5,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -650,16 +828,36 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
     );
   }
 
+  Widget _backButton() {
+    return InkWell(
+      onTap: () {
+        if (!mounted) return;
+        Navigator.pop(context);
+      },
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        height: 44,
+        width: 44,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+      ),
+    );
+  }
+
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 13,
+          offset: const Offset(0, 6),
         ),
       ],
     );

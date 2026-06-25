@@ -11,40 +11,48 @@ class KelolaAlatPage extends StatefulWidget {
 
 class _KelolaAlatPageState extends State<KelolaAlatPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
-  static const Color lightGreen = Color(0xffE8F5E9);
-  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color darkGreen = Color(0xff14532D);
+  static const Color bgColor = Color(0xffF4F7F4);
+  static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffFB8C00);
-  static const Color blueStatus = Color(0xff1976D2);
+  static const Color orangeStatus = Color(0xffF57C00);
+  static const Color blueStatus = Color(0xff2563EB);
+  static const Color redStatus = Color(0xffDC2626);
 
-  final namaController = TextEditingController();
-  final jumlahController = TextEditingController();
+  final TextEditingController _namaController = TextEditingController();
+  final TextEditingController _jumlahController = TextEditingController();
 
-  final DatabaseReference alatRef = FirebaseDatabase.instanceFor(
+  final DatabaseReference _alatRef = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   ).ref('alat_pertanian');
 
-  Future<void> simpanAlat(String? id) async {
-    final namaAlat = namaController.text.trim();
-    final jumlahUnit = int.tryParse(jumlahController.text.trim()) ?? 0;
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _jumlahController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _simpanAlat(String? id) async {
+    final namaAlat = _namaController.text.trim();
+    final jumlahUnit = int.tryParse(_jumlahController.text.trim()) ?? 0;
 
     if (namaAlat.isEmpty) {
-      _showSnackBar('Nama alat wajib diisi', Colors.red);
+      _showSnackBar('Nama alat wajib diisi', redStatus);
       return;
     }
 
     if (jumlahUnit <= 0) {
-      _showSnackBar('Jumlah unit harus lebih dari 0', Colors.red);
+      _showSnackBar('Jumlah unit harus lebih dari 0', redStatus);
       return;
     }
 
     try {
       if (id == null) {
-        await alatRef
+        await _alatRef
             .push()
             .set({
               'nama_alat': namaAlat,
@@ -54,7 +62,7 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
             })
             .timeout(const Duration(seconds: 10));
       } else {
-        await alatRef
+        await _alatRef
             .child(id)
             .update({
               'nama_alat': namaAlat,
@@ -66,8 +74,8 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
 
       if (!mounted) return;
 
-      namaController.clear();
-      jumlahController.clear();
+      _namaController.clear();
+      _jumlahController.clear();
       Navigator.pop(context);
 
       _showSnackBar(
@@ -76,19 +84,19 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Gagal menyimpan alat: $e', Colors.red);
+      _showSnackBar('Gagal menyimpan alat: $e', redStatus);
     }
   }
 
-  Future<void> hapusAlat(String id) async {
+  Future<void> _hapusAlat(String id) async {
     try {
-      await alatRef.child(id).remove().timeout(const Duration(seconds: 10));
+      await _alatRef.child(id).remove().timeout(const Duration(seconds: 10));
 
       if (!mounted) return;
       _showSnackBar('Alat berhasil dihapus', primaryGreen);
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Gagal menghapus alat: $e', Colors.red);
+      _showSnackBar('Gagal menghapus alat: $e', redStatus);
     }
   }
 
@@ -104,14 +112,40 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
     );
   }
 
-  List<MapEntry<String, dynamic>> ambilAlatList(dynamic value) {
+  List<MapEntry<String, dynamic>> _ambilAlatList(dynamic value) {
     if (value == null || value is! Map) return [];
 
     final data = Map<String, dynamic>.from(value);
-    return data.entries.toList().reversed.toList();
+    final list = data.entries.toList();
+
+    list.sort((a, b) {
+      final alatA = Map<String, dynamic>.from(a.value as Map);
+      final alatB = Map<String, dynamic>.from(b.value as Map);
+
+      final dateA = _parseDate(
+        alatA['tanggal_input'] ?? alatA['tanggal_update'],
+      );
+      final dateB = _parseDate(
+        alatB['tanggal_input'] ?? alatB['tanggal_update'],
+      );
+
+      return dateB.compareTo(dateA);
+    });
+
+    return list;
   }
 
-  int hitungTotalUnit(List<MapEntry<String, dynamic>> list) {
+  DateTime _parseDate(dynamic value) {
+    if (value == null) return DateTime.fromMillisecondsSinceEpoch(0);
+
+    try {
+      return DateTime.parse(value.toString().trim());
+    } catch (_) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+  }
+
+  int _hitungTotalUnit(List<MapEntry<String, dynamic>> list) {
     int total = 0;
 
     for (final entry in list) {
@@ -122,7 +156,7 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
     return total;
   }
 
-  int hitungAktif(List<MapEntry<String, dynamic>> list) {
+  int _hitungAktif(List<MapEntry<String, dynamic>> list) {
     return list.where((entry) {
       final alat = Map<String, dynamic>.from(entry.value as Map);
       final status = (alat['status'] ?? 'aktif').toString().toLowerCase();
@@ -130,7 +164,7 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
     }).length;
   }
 
-  IconData iconAlat(String nama) {
+  IconData _iconAlat(String nama) {
     final alat = nama.toLowerCase();
 
     if (alat.contains('sprayer')) return Icons.water_drop_rounded;
@@ -140,19 +174,19 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
     return Icons.handyman_rounded;
   }
 
-  Color warnaAlat(String nama) {
+  Color _warnaAlat(String nama) {
     final alat = nama.toLowerCase();
 
     if (alat.contains('sprayer')) return blueStatus;
-    if (alat.contains('cangkul')) return const Color(0xffD97706);
-    if (alat.contains('traktor')) return orangeStatus;
+    if (alat.contains('cangkul')) return orangeStatus;
+    if (alat.contains('traktor')) return primaryGreen;
 
     return primaryGreen;
   }
 
-  void formAlat({String? id, Map<String, dynamic>? data}) {
-    namaController.text = (data?['nama_alat'] ?? '').toString();
-    jumlahController.text = (data?['jumlah_unit'] ?? '').toString();
+  void _formAlat({String? id, Map<String, dynamic>? data}) {
+    _namaController.text = (data?['nama_alat'] ?? '').toString();
+    _jumlahController.text = (data?['jumlah_unit'] ?? '').toString();
 
     showModalBottomSheet(
       context: context,
@@ -161,20 +195,21 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
       builder: (context) {
         return Padding(
           padding: EdgeInsets.only(
-            left: 18,
-            right: 18,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 18,
+            left: 16,
+            right: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
           ),
           child: Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: cardBorder),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 22,
-                  offset: const Offset(0, 10),
+                  color: Colors.black.withValues(alpha: 0.10),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
@@ -184,70 +219,65 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
               children: [
                 Center(
                   child: Container(
-                    width: 46,
+                    width: 44,
                     height: 5,
                     decoration: BoxDecoration(
                       color: const Color(0xffD1D5DB),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(99),
                     ),
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Container(
-                      height: 52,
-                      width: 52,
+                      height: 48,
+                      width: 48,
                       decoration: BoxDecoration(
-                        color: lightGreen,
-                        borderRadius: BorderRadius.circular(18),
+                        color: primaryGreen.withValues(alpha: 0.11),
+                        borderRadius: BorderRadius.circular(13),
                       ),
                       child: const Icon(
                         Icons.agriculture_rounded,
                         color: primaryGreen,
-                        size: 28,
+                        size: 27,
                       ),
                     ),
-                    const SizedBox(width: 13),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            id == null ? 'Tambah Alat' : 'Edit Alat',
-                            style: const TextStyle(
-                              color: textDark,
-                              fontSize: 21,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Lengkapi data alat pertanian.',
-                            style: TextStyle(
-                              color: textGrey,
-                              fontSize: 12.5,
-                              height: 1.35,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        id == null ? 'Tambah Alat' : 'Edit Alat',
+                        style: const TextStyle(
+                          color: textDark,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 6),
+                const Text(
+                  'Lengkapi data alat pertanian yang digunakan untuk peminjaman anggota.',
+                  style: TextStyle(
+                    color: textGrey,
+                    fontSize: 12.5,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 18),
                 TextField(
-                  controller: namaController,
+                  controller: _namaController,
                   textInputAction: TextInputAction.next,
                   decoration: _inputDecoration(
                     label: 'Nama Alat',
                     icon: Icons.agriculture_rounded,
                   ),
                 ),
-                const SizedBox(height: 13),
+                const SizedBox(height: 12),
                 TextField(
-                  controller: jumlahController,
+                  controller: _jumlahController,
                   keyboardType: TextInputType.number,
                   decoration: _inputDecoration(
                     label: 'Jumlah Unit',
@@ -256,22 +286,22 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
                 ),
                 const SizedBox(height: 14),
                 _bottomSheetInfo(),
-                const SizedBox(height: 22),
+                const SizedBox(height: 20),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: textGrey,
-                          side: const BorderSide(color: Color(0xffE5E7EB)),
+                          side: const BorderSide(color: cardBorder),
                           padding: const EdgeInsets.symmetric(vertical: 13),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(13),
                           ),
                         ),
                         onPressed: () {
-                          namaController.clear();
-                          jumlahController.clear();
+                          _namaController.clear();
+                          _jumlahController.clear();
                           Navigator.pop(context);
                         },
                         child: const Text(
@@ -289,10 +319,10 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 13),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(13),
                           ),
                         ),
-                        onPressed: () => simpanAlat(id),
+                        onPressed: () => _simpanAlat(id),
                         icon: const Icon(Icons.save_rounded, size: 18),
                         label: const Text(
                           'Simpan',
@@ -310,13 +340,60 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
     );
   }
 
+  void _konfirmasiHapus(String id) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Text(
+            'Hapus Alat?',
+            style: TextStyle(color: textDark, fontWeight: FontWeight.w900),
+          ),
+          content: const Text(
+            'Data alat ini akan dihapus dari Firebase. Tindakan ini tidak dapat dibatalkan.',
+            style: TextStyle(
+              color: textGrey,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: redStatus,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                _hapusAlat(id);
+              },
+              icon: const Icon(Icons.delete_rounded, size: 18),
+              label: const Text('Hapus'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _bottomSheetInfo() {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: const Color(0xffECFDF5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
+        color: primaryGreen.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,7 +402,7 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
           SizedBox(width: 9),
           Expanded(
             child: Text(
-              'Jumlah unit akan menjadi stok awal alat. Stok tersedia dihitung otomatis dari alat yang sedang dipinjam.',
+              'Jumlah unit menjadi stok dasar. Ketersediaan alat akan digunakan pada fitur peminjaman.',
               style: TextStyle(
                 color: textGrey,
                 fontSize: 12,
@@ -339,65 +416,15 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
     );
   }
 
-  void konfirmasiHapus(String id) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          title: const Text(
-            'Hapus Alat?',
-            style: TextStyle(color: textDark, fontWeight: FontWeight.w900),
-          ),
-          content: const Text(
-            'Data alat ini akan dihapus dari Firebase. Tindakan ini tidak dapat dibatalkan.',
-            style: TextStyle(color: textGrey, height: 1.4),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                hapusAlat(id);
-              },
-              icon: const Icon(Icons.delete_rounded, size: 18),
-              label: const Text('Hapus'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    namaController.dispose();
-    jumlahController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: bgColor,
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: primaryGreen,
         foregroundColor: Colors.white,
-        elevation: 4,
-        onPressed: () => formAlat(),
+        elevation: 3,
+        onPressed: () => _formAlat(),
         icon: const Icon(Icons.add_rounded),
         label: const Text(
           'Tambah Alat',
@@ -406,40 +433,46 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
       ),
       body: SafeArea(
         child: StreamBuilder<DatabaseEvent>(
-          stream: alatRef.onValue,
+          stream: _alatRef.onValue,
           builder: (context, snapshot) {
-            final alatList = ambilAlatList(snapshot.data?.snapshot.value);
-            final totalUnit = hitungTotalUnit(alatList);
-            final alatAktif = hitungAktif(alatList);
+            final alatList = _ambilAlatList(snapshot.data?.snapshot.value);
+            final totalUnit = _hitungTotalUnit(alatList);
+            final alatAktif = _hitungAktif(alatList);
 
-            return CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _header(context)),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                    child: _summaryGrid(
-                      totalJenis: alatList.length,
-                      alatAktif: alatAktif,
-                      totalUnit: totalUnit,
-                    ),
+            return ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _header(alatList.length),
+                const SizedBox(height: 16),
+                _sectionTitle(
+                  title: 'Ringkasan Alat',
+                  subtitle: 'Pantauan data alat pertanian yang tersedia',
+                  horizontalPadding: 16,
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _summaryGrid(
+                    totalJenis: alatList.length,
+                    alatAktif: alatAktif,
+                    totalUnit: totalUnit,
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                    child: _infoPanel(),
-                  ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _infoPanel(),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 22, 18, 12),
-                    child: _sectionTitle('Daftar Alat Pertanian'),
-                  ),
+                const SizedBox(height: 18),
+                _sectionTitle(
+                  title: 'Daftar Alat',
+                  subtitle: 'Kelola nama alat dan jumlah unit',
+                  horizontalPadding: 16,
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 100),
-                  sliver: _buildContent(snapshot, alatList),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                  child: _buildContent(snapshot, alatList),
                 ),
               ],
             );
@@ -454,174 +487,123 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
     List<MapEntry<String, dynamic>> alatList,
   ) {
     if (snapshot.connectionState == ConnectionState.waiting) {
-      return SliverList(
-        delegate: SliverChildListDelegate(
-          List.generate(3, (_) => _loadingCard()),
-        ),
-      );
+      return Column(children: List.generate(3, (_) => _loadingCard()));
     }
 
     if (snapshot.hasError) {
-      return SliverToBoxAdapter(
-        child: _messageState(
-          icon: Icons.error_outline_rounded,
-          title: 'Terjadi Kesalahan',
-          message: snapshot.error.toString(),
-        ),
+      return _messageState(
+        icon: Icons.error_outline_rounded,
+        title: 'Terjadi Kesalahan',
+        message: snapshot.error.toString(),
       );
     }
 
     if (alatList.isEmpty) {
-      return SliverToBoxAdapter(
-        child: _messageState(
-          icon: Icons.inventory_2_outlined,
-          title: 'Belum Ada Data Alat',
-          message: 'Tekan tombol tambah untuk memasukkan data alat pertanian.',
-        ),
+      return _messageState(
+        icon: Icons.inventory_2_outlined,
+        title: 'Belum Ada Data Alat',
+        message: 'Tekan tombol tambah untuk memasukkan data alat pertanian.',
       );
     }
 
-    return SliverList(
-      delegate: SliverChildBuilderDelegate((context, index) {
-        final id = alatList[index].key.toString();
-        final alat = Map<String, dynamic>.from(alatList[index].value as Map);
+    return Column(
+      children:
+          alatList.map((entry) {
+            final id = entry.key.toString();
+            final alat = Map<String, dynamic>.from(entry.value as Map);
 
-        return _alatCard(id, alat);
-      }, childCount: alatList.length),
+            return _alatCard(id, alat);
+          }).toList(),
     );
   }
 
-  Widget _header(BuildContext context) {
+  Widget _header(int total) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 26),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xff14532D), Color(0xff2E7D32), Color(0xff66BB6A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: darkGreen,
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(36),
-          bottomRight: Radius.circular(36),
+          bottomLeft: Radius.circular(26),
+          bottomRight: Radius.circular(26),
         ),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.24),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            color: darkGreen.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Stack(
+      child: Row(
         children: [
-          Positioned(
-            right: -26,
-            bottom: -42,
-            child: Icon(
-              Icons.agriculture_rounded,
-              size: 160,
-              color: Colors.white.withValues(alpha: 0.08),
+          _backButton(),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Kelola Alat',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Atur data alat pertanian untuk peminjaman',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.74),
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _backButton(context),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Kelola Alat',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Data Alat Pertanian',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              const Text(
-                'Kelola alat pertanian milik desa untuk kebutuhan peminjaman anggota kelompok tani.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.24),
-                  ),
-                ),
-                child: const Row(
-                  children: [
-                    SizedBox(
-                      height: 42,
-                      width: 42,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Color(0x24FFFFFF),
-                          borderRadius: BorderRadius.all(Radius.circular(14)),
-                        ),
-                        child: Icon(
-                          Icons.inventory_2_rounded,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Data alat ini terhubung ke halaman peminjaman dan jadwal alat.',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12.5,
-                          height: 1.35,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          _headerCounter(total),
         ],
       ),
     );
   }
 
-  Widget _backButton(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+  Widget _headerCounter(int total) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 52, minHeight: 48),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            total.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              height: 1,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'alat',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.82),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -631,72 +613,83 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
     required int alatAktif,
     required int totalUnit,
   }) {
-    return Row(
+    final items = [
+      _SummaryItem(
+        title: 'Jenis Alat',
+        value: totalJenis,
+        icon: Icons.handyman_rounded,
+        color: primaryGreen,
+      ),
+      _SummaryItem(
+        title: 'Alat Aktif',
+        value: alatAktif,
+        icon: Icons.check_circle_rounded,
+        color: blueStatus,
+      ),
+      _SummaryItem(
+        title: 'Total Unit',
+        value: totalUnit,
+        icon: Icons.inventory_2_rounded,
+        color: orangeStatus,
+      ),
+    ];
+
+    return Column(
       children: [
-        Expanded(
-          child: _summaryMini(
-            icon: Icons.handyman_rounded,
-            title: 'Jenis',
-            value: totalJenis.toString(),
-            color: primaryGreen,
-          ),
+        Row(
+          children: [
+            Expanded(child: _summaryCard(items[0])),
+            const SizedBox(width: 10),
+            Expanded(child: _summaryCard(items[1])),
+          ],
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _summaryMini(
-            icon: Icons.check_circle_rounded,
-            title: 'Aktif',
-            value: alatAktif.toString(),
-            color: blueStatus,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _summaryMini(
-            icon: Icons.inventory_2_rounded,
-            title: 'Total Unit',
-            value: totalUnit.toString(),
-            color: orangeStatus,
-          ),
-        ),
+        const SizedBox(height: 10),
+        _summaryCard(items[2]),
       ],
     );
   }
 
-  Widget _summaryMini({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-  }) {
+  Widget _summaryCard(_SummaryItem item) {
     return Container(
-      height: 112,
+      height: 92,
       padding: const EdgeInsets.all(13),
       decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Icon(icon, color: color, size: 25),
-          const Spacer(),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
+          Container(
+            height: 40,
+            width: 40,
+            decoration: BoxDecoration(
+              color: item.color.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Icon(item.icon, color: item.color, size: 22),
           ),
-          const SizedBox(height: 2),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.value.toString(),
+                  style: TextStyle(
+                    color: item.color,
+                    fontSize: 22,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  item.title,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -706,11 +699,11 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
 
   Widget _infoPanel() {
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xffECFDF5),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
+        color: primaryGreen.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -719,7 +712,7 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Jumlah unit menjadi stok dasar. Ketersediaan alat pada peminjaman dihitung dari total unit dikurangi alat yang sedang dipinjam.',
+              'Data alat ini terhubung ke halaman peminjaman dan jadwal alat. Jumlah unit menjadi stok dasar alat.',
               style: TextStyle(
                 color: textGrey,
                 fontSize: 12.5,
@@ -733,100 +726,53 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Row(
-      children: [
-        Container(
-          height: 36,
-          width: 36,
-          decoration: BoxDecoration(
-            color: lightGreen,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(
-            Icons.agriculture_rounded,
-            color: primaryGreen,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _alatCard(String id, Map<String, dynamic> alat) {
     final namaAlat = (alat['nama_alat'] ?? '-').toString();
     final jumlahUnit = int.tryParse((alat['jumlah_unit'] ?? 0).toString()) ?? 0;
     final status = (alat['status'] ?? 'aktif').toString();
-    final icon = iconAlat(namaAlat);
-    final color = warnaAlat(namaAlat);
+    final icon = _iconAlat(namaAlat);
+    final color = _warnaAlat(namaAlat);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(13),
       decoration: _cardDecoration(),
       child: Column(
         children: [
           Row(
             children: [
               Container(
-                height: 58,
-                width: 58,
+                height: 48,
+                width: 48,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(20),
+                  color: color.withValues(alpha: 0.11),
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(icon, color: color, size: 30),
+                child: Icon(icon, color: color, size: 27),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      namaAlat,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: textDark,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'ID Alat: $id',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: textGrey,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  namaAlat,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
               _statusBadge(status),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.all(13),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xffF9FAFB),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xffE5E7EB)),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: cardBorder),
             ),
             child: Row(
               children: [
@@ -838,7 +784,7 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
                     color: color,
                   ),
                 ),
-                Container(width: 1, height: 42, color: const Color(0xffE5E7EB)),
+                Container(width: 1, height: 40, color: cardBorder),
                 Expanded(
                   child: _detailMini(
                     icon: Icons.verified_rounded,
@@ -848,13 +794,13 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
                     color:
                         status.toLowerCase() == 'aktif'
                             ? primaryGreen
-                            : Colors.red,
+                            : redStatus,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -862,7 +808,7 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
                   icon: Icons.edit_rounded,
                   label: 'Edit',
                   color: orangeStatus,
-                  onTap: () => formAlat(id: id, data: alat),
+                  onTap: () => _formAlat(id: id, data: alat),
                 ),
               ),
               const SizedBox(width: 10),
@@ -870,8 +816,8 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
                 child: _actionButton(
                   icon: Icons.delete_rounded,
                   label: 'Hapus',
-                  color: Colors.red,
-                  onTap: () => konfirmasiHapus(id),
+                  color: redStatus,
+                  onTap: () => _konfirmasiHapus(id),
                 ),
               ),
             ],
@@ -916,16 +862,16 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
     final aktif = status.toLowerCase() == 'aktif';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: aktif ? lightGreen : const Color(0xffFFEBEE),
-        borderRadius: BorderRadius.circular(30),
+        color: (aktif ? primaryGreen : redStatus).withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         aktif ? 'AKTIF' : 'NONAKTIF',
         style: TextStyle(
-          color: aktif ? primaryGreen : Colors.red,
-          fontSize: 10,
+          color: aktif ? primaryGreen : redStatus,
+          fontSize: 9.5,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -940,13 +886,13 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(13),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.11),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.16)),
+          color: color.withValues(alpha: 0.09),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: color.withValues(alpha: 0.13)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -969,36 +915,36 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
 
   Widget _loadingCard() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(13),
       decoration: _cardDecoration(),
       child: Row(
         children: [
           Container(
-            height: 58,
-            width: 58,
+            height: 48,
+            width: 48,
             decoration: BoxDecoration(
-              color: const Color(0xffE5E7EB),
-              borderRadius: BorderRadius.circular(20),
+              color: cardBorder,
+              borderRadius: BorderRadius.circular(13),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               children: [
                 Container(
                   height: 14,
                   decoration: BoxDecoration(
-                    color: const Color(0xffE5E7EB),
-                    borderRadius: BorderRadius.circular(20),
+                    color: cardBorder,
+                    borderRadius: BorderRadius.circular(99),
                   ),
                 ),
                 const SizedBox(height: 10),
                 Container(
                   height: 12,
                   decoration: BoxDecoration(
-                    color: const Color(0xffE5E7EB),
-                    borderRadius: BorderRadius.circular(20),
+                    color: cardBorder,
+                    borderRadius: BorderRadius.circular(99),
                   ),
                 ),
               ],
@@ -1016,16 +962,15 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 26),
       decoration: _cardDecoration(),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            height: 76,
-            width: 76,
-            decoration: const BoxDecoration(
-              color: lightGreen,
+            height: 78,
+            width: 78,
+            decoration: BoxDecoration(
+              color: primaryGreen.withValues(alpha: 0.10),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: primaryGreen, size: 38),
@@ -1056,6 +1001,73 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
     );
   }
 
+  Widget _sectionTitle({
+    required String title,
+    required String subtitle,
+    required double horizontalPadding,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+      child: Row(
+        children: [
+          Container(
+            height: 34,
+            width: 5,
+            decoration: BoxDecoration(
+              color: primaryGreen,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _backButton() {
+    return InkWell(
+      onTap: () {
+        if (!mounted) return;
+        Navigator.pop(context);
+      },
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        height: 44,
+        width: 44,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+      ),
+    );
+  }
+
   InputDecoration _inputDecoration({
     required String label,
     required IconData icon,
@@ -1067,13 +1079,13 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
       filled: true,
       fillColor: const Color(0xffF9FAFB),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(13)),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xffE5E7EB)),
+        borderRadius: BorderRadius.circular(13),
+        borderSide: const BorderSide(color: cardBorder),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(13),
         borderSide: const BorderSide(color: primaryGreen, width: 1.5),
       ),
     );
@@ -1082,15 +1094,29 @@ class _KelolaAlatPageState extends State<KelolaAlatPage> {
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      borderRadius: BorderRadius.circular(13),
+      border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 9,
+          offset: const Offset(0, 3),
         ),
       ],
     );
   }
+}
+
+class _SummaryItem {
+  final String title;
+  final int value;
+  final IconData icon;
+  final Color color;
+
+  const _SummaryItem({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 }

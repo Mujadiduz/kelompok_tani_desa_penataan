@@ -1,81 +1,68 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/app_background.dart';
+
 class TentangAplikasiPage extends StatelessWidget {
   const TentangAplikasiPage({super.key});
 
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
-  static const Color lightGreen = Color(0xffE8F5E9);
-  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color darkGreen = Color(0xff14532D);
+  static const Color softGreen = Color(0xffEAF7EC);
+  static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffFB8C00);
-  static const Color blueStatus = Color(0xff1976D2);
+  static const Color orangeStatus = Color(0xffF59E0B);
+  static const Color blueStatus = Color(0xff2563EB);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _header(context)),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
-                child: _appCard(),
+      body: AppBackground(
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+            children: [
+              _header(context),
+              const SizedBox(height: 16),
+              _appCard(),
+              const SizedBox(height: 18),
+              _sectionTitle(
+                title: 'Fitur Utama',
+                subtitle: 'Layanan yang tersedia di aplikasi',
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
-                child: _sectionTitle('Informasi Aplikasi'),
+              const SizedBox(height: 12),
+              _featureCard(),
+              const SizedBox(height: 18),
+              _sectionTitle(
+                title: 'Informasi',
+                subtitle: 'Ringkasan sistem dan pengembang',
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-                child: _featureGrid(),
+              const SizedBox(height: 12),
+              _infoTile(
+                icon: Icons.flag_rounded,
+                title: 'Tujuan Aplikasi',
+                content:
+                    'Membantu administrasi Kelompok Tani Desa Penataan melalui pendataan anggota, pengajuan bantuan pupuk, peminjaman alat, pengumuman, notifikasi, dan laporan.',
+                color: primaryGreen,
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
-                child: _cardInfo(
-                  icon: Icons.flag_rounded,
-                  title: 'Tujuan Aplikasi',
-                  color: primaryGreen,
-                  content:
-                      'Aplikasi ini dibuat untuk membantu proses administrasi Kelompok Tani Desa Penataan, mulai dari pendaftaran anggota, bantuan pupuk, peminjaman alat pertanian, sampai pengelolaan laporan secara realtime.',
-                ),
+              const SizedBox(height: 10),
+              _infoTile(
+                icon: Icons.code_rounded,
+                title: 'Teknologi',
+                content:
+                    'Dikembangkan menggunakan Flutter sebagai framework aplikasi dan Firebase Realtime Database sebagai penyimpanan data realtime.',
+                color: blueStatus,
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
-                child: _cardInfo(
-                  icon: Icons.code_rounded,
-                  title: 'Teknologi',
-                  color: blueStatus,
-                  content:
-                      'Aplikasi dikembangkan menggunakan Flutter sebagai framework mobile dan Firebase Realtime Database sebagai media penyimpanan data realtime.',
-                ),
+              const SizedBox(height: 10),
+              _infoTile(
+                icon: Icons.school_rounded,
+                title: 'Pengembang',
+                content:
+                    'Mujaddiduz Zaman\nProgram Studi Teknik Informatika\nUniversitas Yudharta Pasuruan',
+                color: orangeStatus,
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
-                child: _cardInfo(
-                  icon: Icons.school_rounded,
-                  title: 'Pengembang',
-                  color: orangeStatus,
-                  content:
-                      'Mujaddiduz Zaman\nProgram Studi Teknik Informatika\nUniversitas Yudharta Pasuruan',
-                ),
-              ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 30)),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -83,135 +70,75 @@ class TentangAplikasiPage extends StatelessWidget {
 
   Widget _header(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 26),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xff14532D), Color(0xff2E7D32), Color(0xff66BB6A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(36),
-          bottomRight: Radius.circular(36),
-        ),
+        color: darkGreen,
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.24),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            color: darkGreen.withValues(alpha: 0.20),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Stack(
+      child: Row(
         children: [
-          Positioned(
-            right: -26,
-            bottom: -42,
-            child: Icon(
-              Icons.eco_rounded,
-              size: 160,
-              color: Colors.white.withValues(alpha: 0.08),
+          InkWell(
+            onTap: () => Navigator.pop(context),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              height: 42,
+              width: 42,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+              ),
+              child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _backButton(context),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Tentang Aplikasi',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Kelompok Tani',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              const Text(
-                'Sistem informasi berbasis Flutter dan Firebase Realtime Database untuk mendukung administrasi kelompok tani Desa Penataan.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.24),
+          const SizedBox(width: 12),
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.info_outline_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 13),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tentang Aplikasi',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-                child: const Row(
-                  children: [
-                    SizedBox(
-                      height: 42,
-                      width: 42,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Color(0x24FFFFFF),
-                          borderRadius: BorderRadius.all(Radius.circular(14)),
-                        ),
-                        child: Icon(
-                          Icons.verified_rounded,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Aplikasi skripsi final untuk pengelolaan data anggota, pupuk, alat, notifikasi, dan laporan.',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12.5,
-                          height: 1.35,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
+                SizedBox(height: 4),
+                Text(
+                  'Informasi singkat aplikasi TaniGo.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12.2,
+                    height: 1.3,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _backButton(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
     );
   }
@@ -219,185 +146,194 @@ class TentangAplikasiPage extends StatelessWidget {
   Widget _appCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(radius: 24),
       child: Column(
         children: [
           Container(
-            height: 96,
-            width: 96,
+            height: 78,
+            width: 78,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [primaryGreen, Color(0xff66BB6A)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
+              color: darkGreen,
+              borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: primaryGreen.withValues(alpha: 0.22),
+                  color: darkGreen.withValues(alpha: 0.18),
                   blurRadius: 16,
-                  offset: const Offset(0, 8),
+                  offset: const Offset(0, 7),
                 ),
               ],
             ),
-            child: const Icon(Icons.eco_rounded, color: Colors.white, size: 54),
+            child: const Icon(
+              Icons.agriculture_rounded,
+              color: Colors.white,
+              size: 42,
+            ),
           ),
-          const SizedBox(height: 17),
+          const SizedBox(height: 14),
+          const Text(
+            'TaniGo',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: textDark,
+              fontSize: 25,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 5),
           const Text(
             'Sistem Informasi Kelompok Tani Desa Penataan',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: textDark,
-              fontSize: 21,
-              fontWeight: FontWeight.w900,
-              height: 1.25,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Aplikasi mobile untuk pendataan anggota, bantuan pupuk, peminjaman alat pertanian, notifikasi, dan laporan realtime.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
               color: textGrey,
-              fontSize: 13,
-              height: 1.45,
-              fontWeight: FontWeight.w600,
+              fontSize: 12.8,
+              height: 1.4,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 14),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: const [
-              _SmallBadge(text: 'Flutter', color: blueStatus),
-              _SmallBadge(text: 'Firebase RTDB', color: primaryGreen),
-              _SmallBadge(text: 'Versi 1.0', color: orangeStatus),
-            ],
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: softGreen.withValues(alpha: 0.88),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.13)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.verified_rounded, color: primaryGreen, size: 22),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Aplikasi skripsi untuk membantu proses administrasi kelompok tani secara digital.',
+                    style: TextStyle(
+                      color: textGrey,
+                      fontSize: 12.4,
+                      height: 1.4,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _featureGrid() {
-    final items = [
+  Widget _featureCard() {
+    final features = [
       _FeatureItem(
         icon: Icons.person_add_alt_1_rounded,
-        title: 'Pendaftaran',
+        title: 'Pendaftaran Anggota',
+        subtitle: 'Calon anggota dapat mendaftar melalui aplikasi.',
         color: primaryGreen,
       ),
       _FeatureItem(
         icon: Icons.verified_user_rounded,
-        title: 'Verifikasi',
+        title: 'Verifikasi Admin',
+        subtitle: 'Admin memproses verifikasi data anggota dan pengajuan.',
         color: blueStatus,
       ),
       _FeatureItem(
-        icon: Icons.grass_rounded,
+        icon: Icons.eco_rounded,
         title: 'Bantuan Pupuk',
+        subtitle: 'Anggota dapat mengajukan bantuan pupuk.',
         color: primaryGreen,
       ),
       _FeatureItem(
         icon: Icons.agriculture_rounded,
         title: 'Peminjaman Alat',
+        subtitle: 'Anggota dapat mengajukan peminjaman alat pertanian.',
         color: orangeStatus,
+      ),
+      _FeatureItem(
+        icon: Icons.campaign_rounded,
+        title: 'Pengumuman',
+        subtitle: 'Admin dapat membagikan informasi kepada anggota.',
+        color: primaryGreen,
       ),
       _FeatureItem(
         icon: Icons.notifications_rounded,
         title: 'Notifikasi',
+        subtitle: 'Anggota menerima pemberitahuan status layanan.',
         color: blueStatus,
       ),
       _FeatureItem(
-        icon: Icons.bar_chart_rounded,
+        icon: Icons.description_rounded,
         title: 'Laporan',
-        color: primaryGreen,
+        subtitle: 'Admin dapat melihat rekap data sistem.',
+        color: orangeStatus,
       ),
     ];
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: items.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisExtent: 106,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(radius: 24),
+      child: Column(
+        children: [
+          for (int i = 0; i < features.length; i++) ...[
+            _featureTile(features[i]),
+            if (i != features.length - 1)
+              Divider(height: 24, color: cardBorder.withValues(alpha: 0.85)),
+          ],
+        ],
       ),
-      itemBuilder: (context, index) {
-        final item = items[index];
-
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: _cardDecoration(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                height: 42,
-                width: 42,
-                decoration: BoxDecoration(
-                  color: item.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Icon(item.icon, color: item.color, size: 23),
-              ),
-              const Spacer(),
-              Text(
-                item.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: textDark,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
-  Widget _sectionTitle(String title) {
+  Widget _featureTile(_FeatureItem item) {
     return Row(
       children: [
         Container(
-          height: 36,
-          width: 36,
+          height: 46,
+          width: 46,
           decoration: BoxDecoration(
-            color: lightGreen,
-            borderRadius: BorderRadius.circular(12),
+            color: item.color.withValues(alpha: 0.11),
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: const Icon(Icons.apps_rounded, color: primaryGreen, size: 20),
+          child: Icon(item.icon, color: item.color, size: 24),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 13),
         Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                item.subtitle,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 12,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _cardInfo({
+  Widget _infoTile({
     required IconData icon,
     required String title,
     required String content,
     required Color color,
   }) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(15),
+      decoration: _cardDecoration(radius: 22),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -405,10 +341,10 @@ class TentangAplikasiPage extends StatelessWidget {
             height: 48,
             width: 48,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: color.withValues(alpha: 0.11),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(icon, color: color, size: 25),
+            child: Icon(icon, color: color),
           ),
           const SizedBox(width: 13),
           Expanded(
@@ -419,16 +355,16 @@ class TentangAplikasiPage extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 15.5,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 7),
+                const SizedBox(height: 5),
                 Text(
                   content,
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 13,
+                    fontSize: 12.5,
                     height: 1.45,
                     fontWeight: FontWeight.w600,
                   ),
@@ -441,15 +377,55 @@ class TentangAplikasiPage extends StatelessWidget {
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  Widget _sectionTitle({required String title, required String subtitle}) {
+    return Row(
+      children: [
+        Container(
+          height: 34,
+          width: 5,
+          decoration: BoxDecoration(
+            color: primaryGreen,
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 11.7,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  BoxDecoration _cardDecoration({double radius = 20}) {
     return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      color: Colors.white.withValues(alpha: 0.96),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
+          blurRadius: 16,
           offset: const Offset(0, 7),
         ),
       ],
@@ -457,41 +433,16 @@ class TentangAplikasiPage extends StatelessWidget {
   }
 }
 
-class _SmallBadge extends StatelessWidget {
-  final String text;
-  final Color color;
-
-  const _SmallBadge({required this.text, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: color.withValues(alpha: 0.16)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: color,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
 class _FeatureItem {
   final IconData icon;
   final String title;
+  final String subtitle;
   final Color color;
 
   const _FeatureItem({
     required this.icon,
     required this.title,
+    required this.subtitle,
     required this.color,
   });
 }

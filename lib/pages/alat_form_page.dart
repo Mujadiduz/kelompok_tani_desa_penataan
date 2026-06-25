@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../widgets/app_background.dart';
 import 'alat_konfirmasi_page.dart';
 
 class AlatFormPage extends StatefulWidget {
@@ -23,16 +25,18 @@ class AlatFormPage extends StatefulWidget {
 
 class _AlatFormPageState extends State<AlatFormPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
-  static const Color lightGreen = Color(0xffE8F5E9);
-  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color darkGreen = Color(0xff14532D);
+  static const Color bgColor = Color(0xffF3F7F3);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color borderColor = Color(0xffE5E7EB);
+  static const Color orangeStatus = Color(0xffF57C00);
+  static const Color redStatus = Color(0xffDC2626);
   static const Color blueStatus = Color(0xff1976D2);
 
-  final tanggalKembaliController = TextEditingController();
-  final catatanController = TextEditingController();
+  final TextEditingController tanggalKembaliController =
+      TextEditingController();
+  final TextEditingController catatanController = TextEditingController();
 
   @override
   void dispose() {
@@ -42,8 +46,18 @@ class _AlatFormPageState extends State<AlatFormPage> {
   }
 
   void lanjutKonfirmasi() {
+    FocusScope.of(context).unfocus();
+
     if (tanggalKembaliController.text.trim().isEmpty) {
-      _showSnackBar('Tanggal kembali wajib diisi', Colors.red);
+      _showSnackBar('Tanggal kembali wajib diisi', redStatus);
+      return;
+    }
+
+    if (!tanggalKembaliValid()) {
+      _showSnackBar(
+        'Tanggal kembali tidak boleh sebelum tanggal pinjam',
+        redStatus,
+      );
       return;
     }
 
@@ -65,11 +79,17 @@ class _AlatFormPageState extends State<AlatFormPage> {
   }
 
   void _showSnackBar(String pesan, Color color) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(pesan),
+        content: Text(
+          pesan,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -94,36 +114,53 @@ class _AlatFormPageState extends State<AlatFormPage> {
     return primaryGreen;
   }
 
-Future<void> pilihTanggalKembali() async {
-  final tanggalPinjam = _parseTanggal(widget.tanggalDipilih);
+  Future<void> pilihTanggalKembali() async {
+    FocusScope.of(context).unfocus();
 
-  if (tanggalPinjam == null) {
-    _showSnackBar('Format tanggal pinjam tidak valid', Colors.red);
-    return;
+    final tanggalPinjam = _parseTanggal(widget.tanggalDipilih);
+
+    if (tanggalPinjam == null) {
+      _showSnackBar('Format tanggal pinjam tidak valid', redStatus);
+      return;
+    }
+
+    final awalPinjam = DateTime(
+      tanggalPinjam.year,
+      tanggalPinjam.month,
+      tanggalPinjam.day,
+    );
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: awalPinjam,
+      firstDate: awalPinjam,
+      lastDate: awalPinjam.add(const Duration(days: 365)),
+      helpText: 'Pilih Tanggal Kembali',
+      confirmText: 'Pilih',
+      cancelText: 'Batal',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: primaryGreen,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: textDark,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (picked != null) {
+      setState(() {
+        tanggalKembaliController.text = _formatTanggal(picked);
+      });
+    }
   }
-
-  final awalPinjam = DateTime(
-    tanggalPinjam.year,
-    tanggalPinjam.month,
-    tanggalPinjam.day,
-  );
-
-  final picked = await showDatePicker(
-    context: context,
-    initialDate: awalPinjam,
-    firstDate: awalPinjam,
-    lastDate: awalPinjam.add(const Duration(days: 365)),
-    helpText: 'Pilih Tanggal Kembali',
-  );
-
-  if (!mounted) return;
-
-  if (picked != null) {
-    setState(() {
-      tanggalKembaliController.text = _formatTanggal(picked);
-    });
-  }
-}
 
   DateTime? _parseTanggal(String value) {
     try {
@@ -131,6 +168,8 @@ Future<void> pilihTanggalKembali() async {
 
       if (clean.contains('-')) {
         final parts = clean.split('-');
+
+        if (parts.length != 3) return null;
 
         if (parts[0].length == 4) {
           return DateTime(
@@ -149,6 +188,8 @@ Future<void> pilihTanggalKembali() async {
 
       if (clean.contains('/')) {
         final parts = clean.split('/');
+        if (parts.length != 3) return null;
+
         return DateTime(
           int.parse(parts[2]),
           int.parse(parts[1]),
@@ -197,267 +238,224 @@ Future<void> pilihTanggalKembali() async {
     return !akhir.isBefore(awal);
   }
 
+  String sensorNik(String nik) {
+    final cleanNik = nik.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanNik.length <= 4) return nik;
+    return '•••• •••• •••• ${cleanNik.substring(cleanNik.length - 4)}';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final validTanggal = tanggalKembaliValid();
+    final durasi = durasiHari();
+
+    final bisaLanjut =
+        tanggalKembaliController.text.trim().isNotEmpty && validTanggal;
 
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _header(context)),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                child: _stepIndicator(),
-              ),
+      resizeToAvoidBottomInset: true,
+      backgroundColor: bgColor,
+      body: AppBackground(
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: SafeArea(
+            child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+              padding: EdgeInsets.fromLTRB(16, 14, 16, bottomInset + 96),
+              children: [
+                _headerPage(),
+                const SizedBox(height: 16),
+                _userInfoCard(),
+                const SizedBox(height: 14),
+                _stepCard(),
+                const SizedBox(height: 14),
+                _alatInfoCard(),
+                const SizedBox(height: 14),
+                _formCard(validTanggal, durasi),
+              ],
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
-                child: _alatInfoCard(),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
-                child: _anggotaCard(),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 14, 18, 110),
-                child: _formCard(validTanggal),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
-      bottomNavigationBar: _bottomSubmitBar(validTanggal),
+      bottomNavigationBar: _bottomButton(bisaLanjut),
     );
   }
 
-  Widget _header(BuildContext context) {
+  Widget _headerPage() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xff14532D), Color(0xff2E7D32), Color(0xff66BB6A)],
+          colors: [darkGreen, primaryGreen],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(34),
-          bottomRight: Radius.circular(34),
-        ),
+        borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.24),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            color: darkGreen.withValues(alpha: 0.20),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Stack(
+      child: Row(
         children: [
-          Positioned(
-            right: -26,
-            bottom: -42,
-            child: Icon(
-              Icons.assignment_rounded,
-              size: 160,
-              color: Colors.white.withValues(alpha: 0.08),
+          _backButton(),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Form Peminjaman',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  'Lengkapi tanggal kembali dan keperluan',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _backButton(context),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Form Peminjaman',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 22),
-              const Text(
-                'Isi Data Peminjaman',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              const Text(
-                'Lengkapi tanggal kembali dan catatan keperluan sebelum dikirim ke admin.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.24),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      height: 42,
-                      width: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '${widget.nama}\nNIK: ${widget.nik}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12.5,
-                          height: 1.35,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+            ),
+            child: const Icon(Icons.edit_note_rounded, color: Colors.white),
           ),
         ],
       ),
     );
   }
 
-  Widget _backButton(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-      ),
-    );
-  }
-
-  Widget _stepIndicator() {
+  Widget _userInfoCard() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(15),
       decoration: _cardDecoration(),
       child: Row(
         children: [
-          _stepCircle('1', 'Pilih', true, completed: true),
-          _stepLine(true),
-          _stepCircle('2', 'Jadwal', true, completed: true),
-          _stepLine(true),
-          _stepCircle('3', 'Data', true),
-          _stepLine(false),
-          _stepCircle('4', 'Kirim', false),
+          Container(
+            height: 50,
+            width: 50,
+            decoration: BoxDecoration(
+              color: primaryGreen.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: primaryGreen,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Pemohon',
+                  style: TextStyle(
+                    color: textGrey,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.nama,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'NIK ${sensorNik(widget.nik)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            height: 38,
+            width: 38,
+            decoration: BoxDecoration(
+              color: primaryGreen.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(
+              Icons.verified_user_rounded,
+              color: primaryGreen,
+              size: 21,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _stepCircle(
-    String number,
-    String label,
-    bool active, {
-    bool completed = false,
-  }) {
-    return Column(
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          height: 34,
-          width: 34,
-          decoration: BoxDecoration(
-            color: active ? primaryGreen : const Color(0xffE5E7EB),
-            shape: BoxShape.circle,
-            boxShadow:
-                active
-                    ? [
-                      BoxShadow(
-                        color: primaryGreen.withValues(alpha: 0.24),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ]
-                    : [],
+  Widget _stepCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Tahap 3 dari 4',
+            style: TextStyle(
+              color: primaryGreen,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-          child: Center(
-            child:
-                completed
-                    ? const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    )
-                    : Text(
-                      number,
-                      style: TextStyle(
-                        color: active ? Colors.white : textGrey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+          const SizedBox(height: 5),
+          const Text(
+            'Lengkapi tanggal kembali dan catatan peminjaman.',
+            style: TextStyle(
+              color: textGrey,
+              fontSize: 12,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: active ? primaryGreen : textGrey,
-            fontWeight: active ? FontWeight.w900 : FontWeight.w600,
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: LinearProgressIndicator(
+              value: 0.75,
+              minHeight: 7,
+              backgroundColor: primaryGreen.withValues(alpha: 0.12),
+              valueColor: const AlwaysStoppedAnimation<Color>(primaryGreen),
+            ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _stepLine(bool active) {
-    return Expanded(
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        height: 3,
-        margin: const EdgeInsets.only(bottom: 24),
-        decoration: BoxDecoration(
-          color: active ? primaryGreen : const Color(0xffE5E7EB),
-          borderRadius: BorderRadius.circular(30),
-        ),
+        ],
       ),
     );
   }
@@ -469,109 +467,47 @@ Future<void> pilihTanggalKembali() async {
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _infoRow(
-            icon: iconAlat(widget.namaAlat),
-            iconColor: color,
-            title: 'Alat Dipilih',
-            value: widget.namaAlat,
+          _sectionTitle(
+            icon: Icons.agriculture_rounded,
+            title: 'Data Alat',
+            subtitle: 'Alat dan tanggal pinjam yang sudah dipilih',
           ),
-          const Divider(height: 24),
-          _infoRow(
-            icon: Icons.qr_code_rounded,
-            iconColor: primaryGreen,
-            title: 'ID Alat',
-            value: widget.idAlat,
-          ),
-          const Divider(height: 24),
-          _infoRow(
-            icon: Icons.calendar_month_rounded,
-            iconColor: primaryGreen,
-            title: 'Tanggal Pinjam',
-            value: widget.tanggalDipilih,
+          const SizedBox(height: 14),
+          _infoBox(
+            children: [
+              _infoRow(
+                iconAlat(widget.namaAlat),
+                'Alat Dipilih',
+                widget.namaAlat,
+                iconColor: color,
+              ),
+              _infoRow(
+                Icons.calendar_month_rounded,
+                'Tanggal Pinjam',
+                widget.tanggalDipilih,
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _anggotaCard() {
+  Widget _formCard(bool validTanggal, int durasi) {
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Data Anggota',
-                  style: TextStyle(
-                    color: textDark,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: lightGreen,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: const Text(
-                  'AKTIF',
-                  style: TextStyle(
-                    color: primaryGreen,
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
+          _sectionTitle(
+            icon: Icons.assignment_rounded,
+            title: 'Detail Peminjaman',
+            subtitle: 'Isi tanggal kembali dan catatan keperluan',
           ),
           const SizedBox(height: 14),
-          _smallInfo(Icons.person_rounded, 'Nama', widget.nama),
-          _smallInfo(Icons.badge_rounded, 'NIK', widget.nik),
-        ],
-      ),
-    );
-  }
-
-  Widget _formCard(bool validTanggal) {
-    final durasi = durasiHari();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Detail Peminjaman',
-            style: TextStyle(
-              color: textDark,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Pilih tanggal kembali dan tulis catatan keperluan peminjaman.',
-            style: TextStyle(
-              color: textGrey,
-              fontSize: 13,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 18),
           TextField(
             controller: tanggalKembaliController,
             readOnly: true,
@@ -586,16 +522,18 @@ Future<void> pilihTanggalKembali() async {
             const SizedBox(height: 10),
             _durationBox(validTanggal, durasi),
           ],
-          const SizedBox(height: 13),
+          const SizedBox(height: 12),
           TextField(
             controller: catatanController,
             maxLines: 3,
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.done,
             decoration: _inputDecoration(
               label: 'Catatan / Keperluan',
               icon: Icons.notes_rounded,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           _ringkasanMini(validTanggal, durasi),
         ],
       ),
@@ -603,34 +541,37 @@ Future<void> pilihTanggalKembali() async {
   }
 
   Widget _durationBox(bool validTanggal, int durasi) {
-    final color = validTanggal ? primaryGreen : Colors.red;
+    final color = validTanggal ? primaryGreen : redStatus;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(16),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: color.withValues(alpha: 0.18)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            validTanggal ? Icons.timer_rounded : Icons.warning_amber_rounded,
+            validTanggal
+                ? Icons.check_circle_outline_rounded
+                : Icons.warning_amber_rounded,
             color: color,
-            size: 21,
+            size: 19,
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               validTanggal
-                  ? 'Durasi peminjaman sekitar $durasi hari.'
+                  ? 'Durasi peminjaman: $durasi hari.'
                   : 'Tanggal kembali tidak boleh sebelum tanggal pinjam.',
-              style: const TextStyle(
-                color: textGrey,
-                fontSize: 12,
-                height: 1.4,
-                fontWeight: FontWeight.w600,
+              style: TextStyle(
+                color: color,
+                fontSize: 12.3,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -641,11 +582,10 @@ Future<void> pilihTanggalKembali() async {
 
   Widget _ringkasanMini(bool validTanggal, int durasi) {
     return Container(
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xffE5E7EB)),
+        color: const Color(0xffFAFAFA),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         children: [
@@ -661,15 +601,125 @@ Future<void> pilihTanggalKembali() async {
             'Durasi',
             validTanggal && durasi > 0 ? '$durasi hari' : '-',
             valueColor: validTanggal ? primaryGreen : textDark,
+            isLast: true,
           ),
         ],
       ),
     );
   }
 
-  Widget _summaryRow(String label, String value, {Color? valueColor}) {
+  Widget _sectionTitle({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      children: [
+        Container(
+          height: 38,
+          width: 38,
+          decoration: BoxDecoration(
+            color: primaryGreen.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(icon, color: primaryGreen, size: 21),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _infoBox({required List<Widget> children}) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(13, 13, 13, 4),
+      decoration: BoxDecoration(
+        color: const Color(0xffF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _infoRow(
+    IconData icon,
+    String label,
+    String value, {
+    Color? iconColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: iconColor ?? primaryGreen, size: 17),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 112,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: textGrey,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value.trim().isEmpty ? '-' : value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: textDark,
+                fontSize: 12,
+                height: 1.35,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(
+    String label,
+    String value, {
+    Color? valueColor,
+    bool isLast = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom:
+              isLast ? BorderSide.none : const BorderSide(color: borderColor),
+        ),
+      ),
       child: Row(
         children: [
           Expanded(
@@ -698,19 +748,16 @@ Future<void> pilihTanggalKembali() async {
     );
   }
 
-  Widget _bottomSubmitBar(bool validTanggal) {
-    final bisaLanjut =
-        tanggalKembaliController.text.trim().isNotEmpty && validTanggal;
-
+  Widget _bottomButton(bool enabled) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: bgColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, -6),
+            blurRadius: 14,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
@@ -718,21 +765,22 @@ Future<void> pilihTanggalKembali() async {
         top: false,
         child: SizedBox(
           width: double.infinity,
-          height: 56,
+          height: 54,
           child: ElevatedButton.icon(
+            onPressed: enabled ? lanjutKonfirmasi : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryGreen,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.42),
+              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.38),
+              disabledForegroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(19),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
-            onPressed: bisaLanjut ? lanjutKonfirmasi : null,
             icon: const Icon(Icons.arrow_forward_rounded, size: 20),
             label: Text(
-              bisaLanjut ? 'Lanjut Konfirmasi' : 'Pilih Tanggal Kembali',
+              enabled ? 'Lanjut Konfirmasi' : 'Pilih Tanggal Kembali',
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
             ),
           ),
@@ -741,84 +789,22 @@ Future<void> pilihTanggalKembali() async {
     );
   }
 
-  Widget _infoRow({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String value,
-  }) {
-    return Row(
-      children: [
-        Container(
-          height: 50,
-          width: 50,
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(17),
-          ),
-          child: Icon(icon, color: iconColor, size: 25),
+  Widget _backButton() {
+    return InkWell(
+      onTap: () {
+        if (!mounted) return;
+        Navigator.pop(context);
+      },
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        height: 44,
+        width: 44,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
         ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: textGrey,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: textDark,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _smallInfo(IconData icon, String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: primaryGreen, size: 17),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 82,
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: textGrey,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value.isEmpty ? '-' : value,
-              style: const TextStyle(
-                color: textDark,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
     );
   }
@@ -837,13 +823,13 @@ Future<void> pilihTanggalKembali() async {
       filled: true,
       fillColor: const Color(0xffF9FAFB),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xffE5E7EB)),
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(color: borderColor),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(15),
         borderSide: const BorderSide(color: primaryGreen, width: 1.5),
       ),
     );
@@ -852,13 +838,13 @@ Future<void> pilihTanggalKembali() async {
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 13,
+          offset: const Offset(0, 6),
         ),
       ],
     );

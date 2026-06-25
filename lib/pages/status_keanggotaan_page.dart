@@ -2,6 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
+import '../widgets/app_background.dart';
+
 class StatusKeanggotaanPage extends StatefulWidget {
   const StatusKeanggotaanPage({super.key});
 
@@ -11,14 +13,16 @@ class StatusKeanggotaanPage extends StatefulWidget {
 
 class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
-  static const Color lightGreen = Color(0xffE8F5E9);
-  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color darkGreen = Color(0xff14532D);
+  static const Color softGreen = Color(0xffEAF7EC);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color borderColor = Color(0xffE5E7EB);
+  static const Color dangerColor = Color(0xffC62828);
+  static const Color warningColor = Color(0xffF59E0B);
 
-  final nikController = TextEditingController();
+  final TextEditingController nikController = TextEditingController();
+  final FocusNode nikFocus = FocusNode();
 
   bool isLoading = false;
   Map<String, dynamic>? dataAnggota;
@@ -29,18 +33,27 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 
+  @override
+  void dispose() {
+    nikController.dispose();
+    nikFocus.dispose();
+    super.dispose();
+  }
+
   Future<void> cekStatus() async {
+    FocusScope.of(context).unfocus();
+
     final nikInput = nikController.text.replaceAll(RegExp(r'[^0-9]'), '');
 
     if (nikInput.isEmpty) {
-      _showSnackBar('NIK wajib diisi', Colors.red);
+      _showSnackBar('NIK wajib diisi.', dangerColor);
       return;
     }
 
     if (nikInput.length != 16) {
       _showSnackBar(
         'NIK harus 16 digit. Saat ini terbaca ${nikInput.length} digit.',
-        Colors.red,
+        dangerColor,
       );
       return;
     }
@@ -51,12 +64,12 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     });
 
     try {
+      Map<String, dynamic>? hasil;
+
       final calonSnapshot = await db
           .ref('calon_anggota')
           .get()
           .timeout(const Duration(seconds: 10));
-
-      Map<String, dynamic>? hasil;
 
       if (calonSnapshot.exists && calonSnapshot.value != null) {
         hasil = cariDataByNik(calonSnapshot.value, nikInput);
@@ -76,15 +89,13 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
       if (!mounted) return;
 
       if (hasil != null) {
-        setState(() {
-          dataAnggota = hasil;
-        });
+        setState(() => dataAnggota = hasil);
       } else {
-        _showSnackBar('Data anggota tidak ditemukan', Colors.red);
+        _showSnackBar('Data anggota tidak ditemukan.', dangerColor);
       }
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Gagal cek status: $e', Colors.red);
+      _showSnackBar('Gagal cek status. Periksa koneksi internet.', dangerColor);
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -115,9 +126,13 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   void _showSnackBar(String pesan, Color color) {
     if (!mounted) return;
 
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(pesan),
+        content: Text(
+          pesan,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
       ),
@@ -126,14 +141,20 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
 
   Color warnaStatus(String status) {
     if (status == 'aktif' || status == 'disetujui') return primaryGreen;
-    if (status == 'ditolak') return Colors.red;
-    return orangeStatus;
+    if (status == 'ditolak') return dangerColor;
+    return warningColor;
   }
 
   Color backgroundStatus(String status) {
-    if (status == 'aktif' || status == 'disetujui') return lightGreen;
-    if (status == 'ditolak') return const Color(0xffFFEBEE);
-    return const Color(0xffFFF3E0);
+    if (status == 'aktif' || status == 'disetujui') {
+      return softGreen;
+    }
+
+    if (status == 'ditolak') {
+      return const Color(0xffFEE2E2);
+    }
+
+    return const Color(0xffFEF3C7);
   }
 
   IconData iconStatus(String status) {
@@ -141,13 +162,15 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
       return Icons.check_circle_rounded;
     }
 
-    if (status == 'ditolak') return Icons.cancel_rounded;
+    if (status == 'ditolak') {
+      return Icons.cancel_rounded;
+    }
 
     return Icons.hourglass_top_rounded;
   }
 
   String teksStatus(String status) {
-    if (status == 'aktif') return 'Disetujui / Aktif';
+    if (status == 'aktif') return 'Aktif';
     if (status == 'disetujui') return 'Disetujui';
     if (status == 'ditolak') return 'Ditolak';
     return 'Menunggu Verifikasi';
@@ -178,16 +201,14 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
 
     try {
       final date = DateTime.parse(text);
-      return '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+      final day = date.day.toString().padLeft(2, '0');
+      final month = date.month.toString().padLeft(2, '0');
+      final year = date.year.toString();
+
+      return '$day-$month-$year';
     } catch (_) {
       return text;
     }
-  }
-
-  @override
-  void dispose() {
-    nikController.dispose();
-    super.dispose();
   }
 
   @override
@@ -196,247 +217,99 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
         (dataAnggota?['status'] ?? 'menunggu').toString().toLowerCase();
 
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _header(context)),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                child: _stepCard(),
-              ),
+      resizeToAvoidBottomInset: true,
+      body: AppBackground(
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: SafeArea(
+            child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+              children: [
+                _header(),
+                const SizedBox(height: 16),
+                _inputCard(),
+                const SizedBox(height: 16),
+                dataAnggota == null ? _emptyInfoCard() : _hasilCard(status),
+              ],
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
-                child: _inputCard(),
-              ),
-            ),
-            if (dataAnggota != null)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
-                  child: _hasilCard(status),
-                ),
-              )
-            else
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
-                  child: _emptyInfoCard(),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _header(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 26),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xff14532D), Color(0xff2E7D32), Color(0xff66BB6A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(36),
-          bottomRight: Radius.circular(36),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: darkGreen.withValues(alpha: 0.24),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -26,
-            bottom: -42,
-            child: Icon(
-              Icons.fact_check_rounded,
-              size: 160,
-              color: Colors.white.withValues(alpha: 0.08),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _backButton(context),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Status Keanggotaan',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Cek Status Pendaftaran',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              const Text(
-                'Masukkan NIK untuk mengetahui apakah pendaftaran sudah disetujui, ditolak, atau masih menunggu verifikasi.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.24),
-                  ),
-                ),
-                child: const Row(
-                  children: [
-                    SizedBox(
-                      height: 42,
-                      width: 42,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Color(0x24FFFFFF),
-                          borderRadius: BorderRadius.all(Radius.circular(14)),
-                        ),
-                        child: Icon(Icons.badge_rounded, color: Colors.white),
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Gunakan NIK yang sama dengan data pendaftaran calon anggota.',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12.5,
-                          height: 1.35,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _backButton(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-      ),
-    );
-  }
-
-  Widget _stepCard() {
+  Widget _header() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Row(
-        children: [
-          Expanded(
-            child: _stepItem(
-              icon: Icons.edit_document,
-              title: 'Daftar',
-              active: true,
-            ),
-          ),
-          _stepLine(),
-          Expanded(
-            child: _stepItem(
-              icon: Icons.admin_panel_settings_rounded,
-              title: 'Verifikasi',
-              active: dataAnggota != null,
-            ),
-          ),
-          _stepLine(),
-          Expanded(
-            child: _stepItem(
-              icon: Icons.verified_rounded,
-              title: 'Keputusan',
-              active: dataAnggota != null,
-            ),
+      decoration: BoxDecoration(
+        color: darkGreen,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withValues(alpha: 0.20),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _stepItem({
-    required IconData icon,
-    required String title,
-    required bool active,
-  }) {
-    return Column(
-      children: [
-        Container(
-          height: 42,
-          width: 42,
-          decoration: BoxDecoration(
-            color: active ? primaryGreen : const Color(0xffE5E7EB),
-            shape: BoxShape.circle,
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () => Navigator.pop(context),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              height: 42,
+              width: 42,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+              ),
+              child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            ),
           ),
-          child: Icon(icon, color: active ? Colors.white : textGrey, size: 21),
-        ),
-        const SizedBox(height: 7),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: active ? primaryGreen : textGrey,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
+          const SizedBox(width: 12),
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.fact_check_rounded,
+              color: Colors.white,
+              size: 27,
+            ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _stepLine() {
-    return Container(
-      width: 24,
-      height: 3,
-      margin: const EdgeInsets.only(bottom: 26),
-      decoration: BoxDecoration(
-        color: const Color(0xffE5E7EB),
-        borderRadius: BorderRadius.circular(30),
+          const SizedBox(width: 13),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Status Keanggotaan',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Cek hasil pendaftaran calon anggota.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12.2,
+                    height: 1.3,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -445,42 +318,48 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(radius: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Nomor Induk Kependudukan',
+            'Masukkan NIK',
             style: TextStyle(
               color: textDark,
-              fontSize: 19,
+              fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 6),
           const Text(
-            'Masukkan 16 digit NIK yang digunakan saat pendaftaran.',
+            'Gunakan NIK yang sama saat melakukan pendaftaran.',
             style: TextStyle(
               color: textGrey,
-              fontSize: 13,
+              fontSize: 12.5,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           TextField(
             controller: nikController,
+            focusNode: nikFocus,
             keyboardType: TextInputType.number,
             maxLength: 16,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) {
+              if (!isLoading) cekStatus();
+            },
             decoration: _inputDecoration(
-              label: 'Masukkan NIK',
+              label: 'NIK',
+              hint: '16 digit NIK',
               icon: Icons.badge_rounded,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            height: 54,
+            height: 52,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryGreen,
@@ -488,7 +367,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
                 disabledBackgroundColor: primaryGreen.withValues(alpha: 0.45),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(17),
                 ),
               ),
               onPressed: isLoading ? null : cekStatus,
@@ -504,10 +383,10 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
                       )
                       : const Icon(Icons.search_rounded),
               label: Text(
-                isLoading ? 'Mengecek Status...' : 'Cek Status',
+                isLoading ? 'Mengecek...' : 'Cek Status',
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
-                  fontSize: 15,
+                  fontSize: 14.5,
                 ),
               ),
             ),
@@ -523,7 +402,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(radius: 26),
       child: Column(
         children: [
           Container(
@@ -541,7 +420,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: color,
-              fontSize: 20,
+              fontSize: 21,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -602,11 +481,11 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
 
   Widget _detailBox() {
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xffF9FAFB),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xffE5E7EB)),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         children: [
@@ -640,23 +519,23 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   Widget _emptyInfoCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xffECFDF5),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
+        color: softGreen.withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.13)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 24),
+          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 23),
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Hasil status akan tampil di sini setelah NIK dicek. Pastikan NIK sesuai dengan data pendaftaran.',
+              'Hasil status akan tampil setelah NIK dicek. Pastikan NIK sesuai dengan data pendaftaran.',
               style: TextStyle(
                 color: textGrey,
-                fontSize: 12.8,
+                fontSize: 12.6,
                 height: 1.45,
                 fontWeight: FontWeight.w600,
               ),
@@ -668,6 +547,8 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   }
 
   Widget _infoRow(IconData icon, String label, dynamic value) {
+    final text = value.toString().trim().isEmpty ? '-' : value.toString();
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
       child: Row(
@@ -682,13 +563,13 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
               style: const TextStyle(
                 color: textGrey,
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
           Expanded(
             child: Text(
-              value.toString().isEmpty ? '-' : value.toString(),
+              text,
               style: const TextStyle(
                 color: textDark,
                 fontSize: 12,
@@ -703,37 +584,43 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
 
   InputDecoration _inputDecoration({
     required String label,
+    required String hint,
     required IconData icon,
   }) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: textGrey),
+      hintText: hint,
       prefixIcon: Icon(icon, color: primaryGreen),
       counterText: '',
       filled: true,
       fillColor: const Color(0xffF9FAFB),
+      labelStyle: const TextStyle(color: textGrey, fontWeight: FontWeight.w700),
+      hintStyle: TextStyle(
+        color: Colors.black.withValues(alpha: 0.35),
+        fontWeight: FontWeight.w600,
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(17)),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xffE5E7EB)),
+        borderRadius: BorderRadius.circular(17),
+        borderSide: const BorderSide(color: borderColor),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(17),
         borderSide: const BorderSide(color: primaryGreen, width: 1.5),
       ),
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  BoxDecoration _cardDecoration({double radius = 20}) {
     return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      color: Colors.white.withValues(alpha: 0.96),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
+          blurRadius: 16,
           offset: const Offset(0, 7),
         ),
       ],

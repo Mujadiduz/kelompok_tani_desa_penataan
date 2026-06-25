@@ -11,30 +11,30 @@ class JadwalAlatAdminPage extends StatefulWidget {
 
 class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
-  static const Color lightGreen = Color(0xffE8F5E9);
-  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color darkGreen = Color(0xff14532D);
+  static const Color bgColor = Color(0xffF4F7F4);
+  static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffFB8C00);
-  static const Color redStatus = Color(0xffE53935);
-  static const Color blueStatus = Color(0xff1976D2);
+  static const Color orangeStatus = Color(0xffF57C00);
+  static const Color redStatus = Color(0xffDC2626);
+  static const Color blueStatus = Color(0xff2563EB);
 
   String idAlatDipilih = '';
   String namaAlatDipilih = '';
 
   final DateTime sekarang = DateTime.now();
 
-  final FirebaseDatabase db = FirebaseDatabase.instanceFor(
+  final FirebaseDatabase _db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 
-  late final DatabaseReference peminjamanRef;
-  late final DatabaseReference alatRef;
+  late final DatabaseReference _peminjamanRef;
+  late final DatabaseReference _alatRef;
 
-  final List<String> namaBulan = const [
+  final List<String> _namaBulan = const [
     'Januari',
     'Februari',
     'Maret',
@@ -52,25 +52,25 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
   @override
   void initState() {
     super.initState();
-    peminjamanRef = db.ref('peminjaman_alat');
-    alatRef = db.ref('alat_pertanian');
+    _peminjamanRef = _db.ref('peminjaman_alat');
+    _alatRef = _db.ref('alat_pertanian');
   }
 
-  int jumlahHariDalamBulan() {
+  int _jumlahHariDalamBulan() {
     return DateTime(sekarang.year, sekarang.month + 1, 0).day;
   }
 
-  String bulanTahun() {
-    return '${namaBulan[sekarang.month - 1]} ${sekarang.year}';
+  String _bulanTahun() {
+    return '${_namaBulan[sekarang.month - 1]} ${sekarang.year}';
   }
 
-  int ambilTanggal(dynamic tanggalText) {
-    final text = tanggalText.toString();
+  int _ambilTanggal(dynamic tanggalText) {
+    final text = (tanggalText ?? '').toString();
     final angka = RegExp(r'\d+').firstMatch(text);
     return angka == null ? 0 : int.tryParse(angka.group(0)!) ?? 0;
   }
 
-  List<MapEntry<String, dynamic>> ambilAlatList(dynamic value) {
+  List<MapEntry<String, dynamic>> _ambilAlatList(dynamic value) {
     if (value == null || value is! Map) return [];
 
     final data = Map<String, dynamic>.from(value);
@@ -93,44 +93,44 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     return list;
   }
 
-  List<MapEntry<String, dynamic>> ambilPeminjamanList(dynamic value) {
+  List<MapEntry<String, dynamic>> _ambilPeminjamanList(dynamic value) {
     if (value == null || value is! Map) return [];
-
     final data = Map<String, dynamic>.from(value);
     return data.entries.toList();
   }
 
-  bool alatSama(Map<String, dynamic> item) {
-    final itemIdAlat = (item['id_alat'] ?? '').toString();
-    final itemAlat = (item['alat'] ?? '').toString().toLowerCase().trim();
+  bool _alatSama(Map<String, dynamic> item) {
+    final itemIdAlat = (item['id_alat'] ?? item['alat_id'] ?? '').toString();
+    final itemAlat =
+        (item['alat'] ?? item['nama_alat'] ?? '').toString().toLowerCase();
 
     if (itemIdAlat.isNotEmpty && idAlatDipilih.isNotEmpty) {
       return itemIdAlat == idAlatDipilih;
     }
 
-    return itemAlat == namaAlatDipilih.toLowerCase().trim();
+    return itemAlat.trim() == namaAlatDipilih.toLowerCase().trim();
   }
 
-  List<MapEntry<String, dynamic>> dataUntukAlat(
+  List<MapEntry<String, dynamic>> _dataUntukAlat(
     List<MapEntry<String, dynamic>> semuaData,
   ) {
     return semuaData.where((entry) {
       final item = Map<String, dynamic>.from(entry.value as Map);
-      return alatSama(item);
+      return _alatSama(item);
     }).toList();
   }
 
-  Map<String, dynamic>? dataPadaTanggal(
+  Map<String, dynamic>? _dataPadaTanggal(
     int tanggal,
     List<MapEntry<String, dynamic>> dataPeminjaman,
   ) {
     for (final entry in dataPeminjaman) {
       final item = Map<String, dynamic>.from(entry.value as Map);
       final status = (item['status'] ?? '').toString().toLowerCase();
-      final tanggalPinjam = ambilTanggal(item['tanggal_pinjam'] ?? '');
-      final tanggalKembali = ambilTanggal(item['tanggal_kembali'] ?? '');
+      final tanggalPinjam = _ambilTanggal(item['tanggal_pinjam'] ?? '');
+      final tanggalKembali = _ambilTanggal(item['tanggal_kembali'] ?? '');
 
-      if (alatSama(item) &&
+      if (_alatSama(item) &&
           tanggal >= tanggalPinjam &&
           tanggal <= tanggalKembali &&
           (status == 'menunggu' ||
@@ -143,12 +143,11 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     return null;
   }
 
-  Color warnaTanggal(
+  Color _warnaTanggal(
     int tanggal,
     List<MapEntry<String, dynamic>> dataPeminjaman,
   ) {
-    final item = dataPadaTanggal(tanggal, dataPeminjaman);
-
+    final item = _dataPadaTanggal(tanggal, dataPeminjaman);
     if (item == null) return primaryGreen;
 
     final status = (item['status'] ?? '').toString().toLowerCase();
@@ -160,12 +159,11 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     return primaryGreen;
   }
 
-  String keteranganTanggal(
+  String _keteranganTanggal(
     int tanggal,
     List<MapEntry<String, dynamic>> dataPeminjaman,
   ) {
-    final item = dataPadaTanggal(tanggal, dataPeminjaman);
-
+    final item = _dataPadaTanggal(tanggal, dataPeminjaman);
     if (item == null) return 'Tersedia';
 
     final status = (item['status'] ?? '').toString().toLowerCase();
@@ -178,7 +176,7 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     return 'Tersedia';
   }
 
-  int hitungStatus(List<MapEntry<String, dynamic>> data, String status) {
+  int _hitungStatus(List<MapEntry<String, dynamic>> data, String status) {
     return data.where((entry) {
       final item = Map<String, dynamic>.from(entry.value as Map);
       final itemStatus = (item['status'] ?? '').toString().toLowerCase();
@@ -186,17 +184,18 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     }).length;
   }
 
-  int hitungSemuaAktif(List<MapEntry<String, dynamic>> data) {
+  int _hitungSemuaAktif(List<MapEntry<String, dynamic>> data) {
     return data.where((entry) {
       final item = Map<String, dynamic>.from(entry.value as Map);
       final status = (item['status'] ?? '').toString().toLowerCase();
+
       return status == 'menunggu' ||
           status == 'disetujui' ||
           status == 'dipinjam';
     }).length;
   }
 
-  IconData iconAlat(String alat) {
+  IconData _iconAlat(String alat) {
     final nama = alat.toLowerCase();
 
     if (nama.contains('sprayer')) return Icons.water_drop_rounded;
@@ -206,40 +205,62 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     return Icons.handyman_rounded;
   }
 
-  Color warnaStatus(String status) {
+  Color _warnaStatus(String status) {
     if (status == 'menunggu') return orangeStatus;
     if (status == 'disetujui') return blueStatus;
     if (status == 'dipinjam') return redStatus;
     if (status == 'dikembalikan') return primaryGreen;
-    if (status == 'ditolak') return Colors.red;
+    if (status == 'selesai') return primaryGreen;
+    if (status == 'ditolak') return redStatus;
+
     return textGrey;
   }
 
-  String teksStatus(String status) {
+  String _teksStatus(String status) {
     if (status == 'menunggu') return 'Menunggu';
     if (status == 'disetujui') return 'Disetujui';
     if (status == 'dipinjam') return 'Dipinjam';
     if (status == 'dikembalikan') return 'Dikembalikan';
+    if (status == 'selesai') return 'Selesai';
     if (status == 'ditolak') return 'Ditolak';
-    return status;
+
+    return status.isEmpty ? '-' : status;
   }
 
-  void tampilkanDetailTanggal(
+  String _formatTanggal(dynamic value) {
+    final raw = (value ?? '').toString().trim();
+    if (raw.isEmpty) return '-';
+
+    try {
+      final date = DateTime.parse(raw);
+      return '${date.day.toString().padLeft(2, '0')}/'
+          '${date.month.toString().padLeft(2, '0')}/'
+          '${date.year}';
+    } catch (_) {
+      return raw;
+    }
+  }
+
+  void _tampilkanDetailTanggal(
     int tanggal,
     List<MapEntry<String, dynamic>> dataPeminjaman,
   ) {
-    final keterangan = keteranganTanggal(tanggal, dataPeminjaman);
+    if (!mounted) return;
+
+    final keterangan = _keteranganTanggal(tanggal, dataPeminjaman);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$tanggal ${bulanTahun()} - $keterangan'),
-        backgroundColor: primaryGreen,
+        content: Text('$tanggal ${_bulanTahun()} - $keterangan'),
+        backgroundColor: darkGreen,
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
-  void pilihAlat(String idAlat, String namaAlat) {
+  void _pilihAlat(String idAlat, String namaAlat) {
+    if (!mounted) return;
+
     setState(() {
       idAlatDipilih = idAlat;
       namaAlatDipilih = namaAlat;
@@ -249,81 +270,104 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: bgColor,
       body: SafeArea(
         child: StreamBuilder<DatabaseEvent>(
-          stream: alatRef.onValue,
+          stream: _alatRef.onValue,
           builder: (context, alatSnapshot) {
-            final alatList = ambilAlatList(alatSnapshot.data?.snapshot.value);
+            final alatList = _ambilAlatList(alatSnapshot.data?.snapshot.value);
 
             if (idAlatDipilih.isEmpty && alatList.isNotEmpty) {
               final firstId = alatList.first.key.toString();
               final firstData = Map<String, dynamic>.from(
                 alatList.first.value as Map,
               );
+
               idAlatDipilih = firstId;
               namaAlatDipilih = (firstData['nama_alat'] ?? '-').toString();
             }
 
             return StreamBuilder<DatabaseEvent>(
-              stream: peminjamanRef.onValue,
+              stream: _peminjamanRef.onValue,
               builder: (context, pinjamSnapshot) {
-                final dataPeminjaman = ambilPeminjamanList(
+                final dataPeminjaman = _ambilPeminjamanList(
                   pinjamSnapshot.data?.snapshot.value,
                 );
 
-                final dataAlat = dataUntukAlat(dataPeminjaman);
-                final totalAktif = hitungSemuaAktif(dataAlat);
-                final menunggu = hitungStatus(dataAlat, 'menunggu');
-                final disetujui = hitungStatus(dataAlat, 'disetujui');
-                final dipinjam = hitungStatus(dataAlat, 'dipinjam');
+                final dataAlat = _dataUntukAlat(dataPeminjaman);
+                final totalAktif = _hitungSemuaAktif(dataAlat);
+                final menunggu = _hitungStatus(dataAlat, 'menunggu');
+                final disetujui = _hitungStatus(dataAlat, 'disetujui');
+                final dipinjam = _hitungStatus(dataAlat, 'dipinjam');
 
-                return CustomScrollView(
-                  slivers: [
-                    SliverToBoxAdapter(child: _headerPage()),
+                if (alatSnapshot.connectionState == ConnectionState.waiting ||
+                    pinjamSnapshot.connectionState == ConnectionState.waiting) {
+                  return Column(
+                    children: [
+                      _headerPage(0),
+                      const Expanded(
+                        child: Center(
+                          child: CircularProgressIndicator(color: primaryGreen),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                return ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    _headerPage(alatList.length),
                     if (alatList.isEmpty)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(18),
-                          child: _emptySchedule(),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: _emptySchedule(
+                          title: 'Belum Ada Alat',
+                          message:
+                              'Data alat pertanian aktif belum tersedia. Tambahkan data alat terlebih dahulu.',
                         ),
                       )
                     else ...[
-                      SliverToBoxAdapter(child: _pilihAlat(alatList)),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
-                          child: _ringkasanAlat(
-                            totalAktif: totalAktif,
-                            menunggu: menunggu,
-                            disetujui: disetujui,
-                            dipinjam: dipinjam,
-                          ),
+                      const SizedBox(height: 16),
+                      _sectionTitle(
+                        title: 'Pilih Alat',
+                        subtitle: 'Pilih alat untuk melihat jadwal penggunaan',
+                        horizontalPadding: 16,
+                      ),
+                      const SizedBox(height: 12),
+                      _pilihAlatList(alatList),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _ringkasanAlat(
+                          totalAktif: totalAktif,
+                          menunggu: menunggu,
+                          disetujui: disetujui,
+                          dipinjam: dipinjam,
                         ),
                       ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
-                          child: _sectionTitle('Kalender Ketersediaan'),
-                        ),
+                      const SizedBox(height: 18),
+                      _sectionTitle(
+                        title: 'Kalender Ketersediaan',
+                        subtitle:
+                            'Hijau tersedia, warna lain berarti terjadwal',
+                        horizontalPadding: 16,
                       ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-                          child: _kalenderCard(dataPeminjaman),
-                        ),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _kalenderCard(dataPeminjaman),
                       ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
-                          child: _sectionTitle('Urutan Jadwal Peminjam'),
-                        ),
+                      const SizedBox(height: 18),
+                      _sectionTitle(
+                        title: 'Urutan Jadwal Peminjam',
+                        subtitle: 'Daftar antrean peminjaman alat terpilih',
+                        horizontalPadding: 16,
                       ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
-                          child: _daftarJadwal(dataAlat),
-                        ),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+                        child: _daftarJadwal(dataAlat),
                       ),
                     ],
                   ],
@@ -336,96 +380,102 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     );
   }
 
-  Widget _headerPage() {
+  Widget _headerPage(int totalAlat) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 22),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: darkGreen,
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+          bottomLeft: Radius.circular(26),
+          bottomRight: Radius.circular(26),
         ),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+            color: darkGreen.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Stack(
+      child: Row(
         children: [
-          Positioned(
-            right: -20,
-            bottom: -40,
-            child: Icon(
-              Icons.calendar_month_rounded,
-              size: 145,
-              color: Colors.white.withValues(alpha: 0.08),
+          _backButton(),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Jadwal Alat',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Pantau ketersediaan dan urutan peminjaman alat',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.74),
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _backButton(),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Jadwal Alat Pertanian',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Pantau ketersediaan dan urutan peminjam alat berdasarkan data peminjaman.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.4,
-                ),
-              ),
-            ],
+          _headerCounter(totalAlat),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerCounter(int totalAlat) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 52, minHeight: 48),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            totalAlat.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              height: 1,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'alat',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.82),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _backButton() {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-      ),
-    );
-  }
-
-  Widget _pilihAlat(List<MapEntry<String, dynamic>> daftarAlat) {
-    return Container(
-      height: 80,
-      padding: const EdgeInsets.symmetric(vertical: 14),
+  Widget _pilihAlatList(List<MapEntry<String, dynamic>> daftarAlat) {
+    return SizedBox(
+      height: 56,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         itemCount: daftarAlat.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
@@ -438,31 +488,29 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
           final aktif = idAlatDipilih == idAlat;
 
           return InkWell(
-            onTap: () => pilihAlat(idAlat, namaAlat),
-            borderRadius: BorderRadius.circular(22),
+            onTap: () => _pilihAlat(idAlat, namaAlat),
+            borderRadius: BorderRadius.circular(15),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
                 color: aktif ? primaryGreen : Colors.white,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: aktif ? primaryGreen : const Color(0xffE5E7EB),
-                ),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: aktif ? primaryGreen : cardBorder),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: aktif ? 0.08 : 0.03),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
+                    color: Colors.black.withValues(alpha: aktif ? 0.07 : 0.03),
+                    blurRadius: 9,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
               child: Row(
                 children: [
                   Icon(
-                    iconAlat(namaAlat),
+                    _iconAlat(namaAlat),
                     color: aktif ? Colors.white : primaryGreen,
-                    size: 22,
+                    size: 21,
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -470,7 +518,7 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
                     style: TextStyle(
                       color: aktif ? Colors.white : textDark,
                       fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
@@ -488,53 +536,60 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     required int disetujui,
     required int dipinjam,
   }) {
+    final tersedia = dipinjam == 0;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(),
       child: Row(
         children: [
           Container(
-            height: 58,
-            width: 58,
+            height: 48,
+            width: 48,
             decoration: BoxDecoration(
-              color: lightGreen,
-              borderRadius: BorderRadius.circular(18),
+              color: primaryGreen.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(13),
             ),
             child: Icon(
-              iconAlat(namaAlatDipilih),
+              _iconAlat(namaAlatDipilih),
               color: primaryGreen,
-              size: 31,
+              size: 27,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   namaAlatDipilih,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '$totalAktif jadwal aktif • $menunggu menunggu • $disetujui disetujui • $dipinjam dipinjam',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11.5,
                     height: 1.35,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
           _statusMini(
-            label: dipinjam > 0 ? 'Terpakai' : 'Siap',
-            color: dipinjam > 0 ? redStatus : primaryGreen,
+            label: tersedia ? 'Siap' : 'Terpakai',
+            color: tersedia ? primaryGreen : redStatus,
           ),
         ],
       ),
@@ -543,69 +598,70 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
 
   Widget _kalenderCard(List<MapEntry<String, dynamic>> dataPeminjaman) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              const Icon(Icons.calendar_month_rounded, color: primaryGreen),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  bulanTahun(),
+                  _bulanTahun(),
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
-              _statusColor(primaryGreen, 'Tersedia'),
-              const SizedBox(width: 10),
-              _statusColor(orangeStatus, 'Menunggu'),
-              const SizedBox(width: 10),
-              _statusColor(blueStatus, 'Disetujui'),
-              const SizedBox(width: 10),
-              _statusColor(redStatus, 'Dipinjam'),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              _legend(primaryGreen, 'Tersedia'),
+              _legend(orangeStatus, 'Menunggu'),
+              _legend(blueStatus, 'Disetujui'),
+              _legend(redStatus, 'Dipinjam'),
             ],
           ),
           const SizedBox(height: 16),
           _namaHari(),
           const SizedBox(height: 10),
           GridView.builder(
-            itemCount: jumlahHariDalamBulan(),
+            itemCount: _jumlahHariDalamBulan(),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
+              crossAxisSpacing: 7,
+              mainAxisSpacing: 7,
             ),
             itemBuilder: (context, index) {
               final tanggal = index + 1;
-              final warna = warnaTanggal(tanggal, dataPeminjaman);
+              final warna = _warnaTanggal(tanggal, dataPeminjaman);
 
               return InkWell(
-                onTap: () => tampilkanDetailTanggal(tanggal, dataPeminjaman),
-                borderRadius: BorderRadius.circular(12),
+                onTap: () => _tampilkanDetailTanggal(tanggal, dataPeminjaman),
+                borderRadius: BorderRadius.circular(11),
                 child: Container(
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: warna,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: warna.withValues(alpha: 0.18),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    color: warna.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(color: warna.withValues(alpha: 0.26)),
                   ),
                   child: Text(
                     '$tanggal',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: warna,
                       fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),
@@ -644,6 +700,7 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
         dataAlat.where((entry) {
           final item = Map<String, dynamic>.from(entry.value as Map);
           final status = (item['status'] ?? '').toString().toLowerCase();
+
           return status == 'menunggu' ||
               status == 'disetujui' ||
               status == 'dipinjam';
@@ -652,13 +709,16 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     jadwalAktif.sort((a, b) {
       final itemA = Map<String, dynamic>.from(a.value as Map);
       final itemB = Map<String, dynamic>.from(b.value as Map);
-      final tanggalA = ambilTanggal(itemA['tanggal_pinjam'] ?? '');
-      final tanggalB = ambilTanggal(itemB['tanggal_pinjam'] ?? '');
+      final tanggalA = _ambilTanggal(itemA['tanggal_pinjam'] ?? '');
+      final tanggalB = _ambilTanggal(itemB['tanggal_pinjam'] ?? '');
       return tanggalA.compareTo(tanggalB);
     });
 
     if (jadwalAktif.isEmpty) {
-      return _emptySchedule();
+      return _emptySchedule(
+        title: 'Belum Ada Jadwal',
+        message: 'Belum ada data peminjaman aktif untuk alat ini.',
+      );
     }
 
     return Column(
@@ -669,63 +729,84 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
         final nama = (item['nama'] ?? '-').toString();
         final nik = (item['nik'] ?? '-').toString();
         final status = (item['status'] ?? 'menunggu').toString().toLowerCase();
-        final tanggalPinjam = (item['tanggal_pinjam'] ?? '-').toString();
-        final tanggalKembali = (item['tanggal_kembali'] ?? '-').toString();
+        final tanggalPinjam = _formatTanggal(item['tanggal_pinjam']);
+        final tanggalKembali = _formatTanggal(item['tanggal_kembali']);
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(15),
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(13),
           decoration: _cardDecoration(),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: warnaStatus(status).withValues(alpha: 0.12),
-                child: Text(
-                  '$nomorUrut',
-                  style: TextStyle(
-                    color: warnaStatus(status),
-                    fontWeight: FontWeight.w900,
+              Container(
+                height: 38,
+                width: 38,
+                decoration: BoxDecoration(
+                  color: _warnaStatus(status).withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    nomorUrut.toString(),
+                    style: TextStyle(
+                      color: _warnaStatus(status),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 13),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       nama,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: textDark,
-                        fontSize: 14,
+                        fontSize: 14.5,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text(
-                      'NIK: $nik',
+                      'NIK $nik',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: textGrey,
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      '$tanggalPinjam - $tanggalKembali',
-                      style: const TextStyle(
-                        color: textGrey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _miniTag(
+                          Icons.event_rounded,
+                          tanggalPinjam,
+                          blueStatus,
+                        ),
+                        _miniTag(
+                          Icons.event_available_rounded,
+                          tanggalKembali,
+                          orangeStatus,
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               _statusMini(
-                label: teksStatus(status),
-                color: warnaStatus(status),
+                label: _teksStatus(status),
+                color: _warnaStatus(status),
               ),
             ],
           ),
@@ -734,59 +815,127 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
     );
   }
 
-  Widget _emptySchedule() {
+  Widget _miniTag(IconData icon, String text, Color color) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration(),
-      child: Column(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            height: 72,
-            width: 72,
-            decoration: const BoxDecoration(
-              color: lightGreen,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.event_available_rounded,
-              color: primaryGreen,
-              size: 36,
-            ),
-          ),
-          const SizedBox(height: 14),
-          const Text(
-            'Belum Ada Jadwal',
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
             style: TextStyle(
-              color: textDark,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
             ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Belum ada data peminjaman aktif untuk alat ini.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: textGrey, fontSize: 12, height: 1.4),
           ),
         ],
       ),
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: textDark,
-        fontSize: 18,
-        fontWeight: FontWeight.w800,
+  Widget _emptySchedule({required String title, required String message}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 26),
+      decoration: _cardDecoration(),
+      child: Column(
+        children: [
+          Container(
+            height: 78,
+            width: 78,
+            decoration: BoxDecoration(
+              color: primaryGreen.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.event_available_rounded,
+              color: primaryGreen,
+              size: 38,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 12,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _statusColor(Color color, String label) {
+  Widget _sectionTitle({
+    required String title,
+    required String subtitle,
+    required double horizontalPadding,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+      child: Row(
+        children: [
+          Container(
+            height: 34,
+            width: 5,
+            decoration: BoxDecoration(
+              color: primaryGreen,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legend(Color color, String label) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 9,
@@ -798,7 +947,7 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
           label,
           style: const TextStyle(
             color: textGrey,
-            fontSize: 10,
+            fontSize: 10.5,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -808,18 +957,38 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
 
   Widget _statusMini({required String label, required Color color}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(30),
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label.toUpperCase(),
         style: TextStyle(
           color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
+          fontSize: 9.5,
+          fontWeight: FontWeight.w900,
         ),
+      ),
+    );
+  }
+
+  Widget _backButton() {
+    return InkWell(
+      onTap: () {
+        if (!mounted) return;
+        Navigator.pop(context);
+      },
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        height: 44,
+        width: 44,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
     );
   }
@@ -827,13 +996,13 @@ class _JadwalAlatAdminPageState extends State<JadwalAlatAdminPage> {
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      borderRadius: BorderRadius.circular(13),
+      border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 9,
+          offset: const Offset(0, 3),
         ),
       ],
     );

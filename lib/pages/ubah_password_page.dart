@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -13,21 +15,18 @@ class UbahPasswordPage extends StatefulWidget {
 
 class _UbahPasswordPageState extends State<UbahPasswordPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
-  static const Color lightGreen = Color(0xffE8F5E9);
-  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color bgColor = Color(0xffF3F7F3);
+  static const Color softGreen = Color(0xffEAF7EC);
+  static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color orangeStatus = Color(0xffF57C00);
+  static const Color redColor = Color(0xffDC2626);
 
-  final passwordLamaController = TextEditingController();
-  final passwordBaruController = TextEditingController();
-  final konfirmasiPasswordController = TextEditingController();
-
-  bool isLoading = false;
-  bool hidePasswordLama = true;
-  bool hidePasswordBaru = true;
-  bool hideKonfirmasiPassword = true;
+  final TextEditingController oldPasswordController = TextEditingController();
+  final TextEditingController newPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   final DatabaseReference anggotaRef = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -35,457 +34,479 @@ class _UbahPasswordPageState extends State<UbahPasswordPage> {
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   ).ref('anggota');
 
-  Future<void> ubahPassword() async {
-    final passwordLama = passwordLamaController.text.trim();
-    final passwordBaru = passwordBaruController.text.trim();
-    final konfirmasiPassword = konfirmasiPasswordController.text.trim();
+  bool isLoading = false;
+  bool hideOldPassword = true;
+  bool hideNewPassword = true;
+  bool hideConfirmPassword = true;
 
-    if (passwordLama.isEmpty ||
-        passwordBaru.isEmpty ||
-        konfirmasiPassword.isEmpty) {
-      _showSnackBar('Semua kolom wajib diisi', Colors.red);
+  String? oldPasswordError;
+
+  @override
+  void dispose() {
+    oldPasswordController.dispose();
+    newPasswordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  String generatePassword() {
+    final random = Random();
+    final angka = List.generate(6, (_) => random.nextInt(10)).join();
+    return 'TG$angka';
+  }
+
+  Future<void> changePassword() async {
+    if (isLoading) return;
+
+    FocusScope.of(context).unfocus();
+
+    final oldPassword = oldPasswordController.text.trim();
+    final newPassword = newPasswordController.text.trim();
+    final confirmPassword = confirmPasswordController.text.trim();
+
+    setState(() => oldPasswordError = null);
+
+    if (oldPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+      showSnack('Semua kolom wajib diisi.', redColor);
       return;
     }
 
-    if (passwordBaru.length < 6) {
-      _showSnackBar('Password baru minimal 6 karakter', Colors.red);
+    if (newPassword.length < 6) {
+      showSnack('Password baru minimal 6 karakter.', redColor);
       return;
     }
 
-    if (passwordBaru != konfirmasiPassword) {
-      _showSnackBar('Konfirmasi password tidak sama', Colors.red);
+    if (newPassword != confirmPassword) {
+      showSnack('Konfirmasi password tidak sama.', redColor);
       return;
     }
 
     setState(() => isLoading = true);
 
     try {
-      final snapshot = await anggotaRef.get().timeout(
-        const Duration(seconds: 10),
-      );
-
-      String? idAnggota;
-      String passwordLamaFirebase = '';
-
-      if (snapshot.exists && snapshot.value != null) {
-        final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
-
-        for (final entry in data.entries) {
-          final value = entry.value;
-
-          if (value is Map) {
-            final anggota = Map<dynamic, dynamic>.from(value);
-            final nikFirebase = (anggota['nik'] ?? '').toString().trim();
-
-            if (nikFirebase == widget.nik.trim()) {
-              idAnggota = entry.key.toString();
-              passwordLamaFirebase =
-                  (anggota['password'] ?? '').toString().trim();
-              break;
-            }
-          }
-        }
-      }
+      final snapshot = await anggotaRef
+          .orderByChild('nik')
+          .equalTo(widget.nik.trim())
+          .get()
+          .timeout(const Duration(seconds: 12));
 
       if (!mounted) return;
 
-      if (idAnggota == null) {
-        _showSnackBar('Data anggota tidak ditemukan', Colors.red);
+      if (!snapshot.exists || snapshot.value == null) {
+        showSnack('Data anggota tidak ditemukan.', redColor);
         return;
       }
 
-      if (passwordLama != passwordLamaFirebase) {
-        _showSnackBar('Password lama salah', Colors.red);
+      final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
+      final memberId = data.keys.first.toString();
+      final member = Map<dynamic, dynamic>.from(data.values.first as Map);
+
+      final currentPassword = (member['password'] ?? '').toString().trim();
+
+      if (oldPassword != currentPassword) {
+        setState(() {
+          oldPasswordError = 'Password lama tidak sesuai.';
+        });
+        showSnack('Password lama salah.', redColor);
         return;
       }
 
       await anggotaRef
-          .child(idAnggota)
+          .child(memberId)
           .update({
-            'password': passwordBaru,
+            'password': newPassword,
             'tanggal_ubah_password': DateTime.now().toIso8601String(),
           })
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 12));
 
       if (!mounted) return;
 
-      _showSnackBar('Password berhasil diubah', primaryGreen);
+      await showSuccessDialog();
+
+      if (!mounted) return;
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Gagal mengubah password: $e', Colors.red);
+      debugPrint('ERROR UBAH PASSWORD: $e');
+      showSnack('Gagal mengubah password. Periksa koneksi internet.', redColor);
     } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
-  double kekuatanPassword() {
-    final password = passwordBaruController.text.trim();
-
+  double passwordStrength() {
+    final password = newPasswordController.text.trim();
     double score = 0;
 
-    if (password.length >= 6) score += 0.30;
+    if (password.length >= 6) score += 0.35;
     if (password.length >= 8) score += 0.20;
     if (RegExp(r'[A-Z]').hasMatch(password)) score += 0.15;
     if (RegExp(r'[0-9]').hasMatch(password)) score += 0.15;
-    if (RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(password)) score += 0.20;
+    if (RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(password)) score += 0.15;
 
-    if (score > 1) return 1;
-    return score;
+    return score > 1 ? 1 : score;
   }
 
-  String teksKekuatanPassword() {
-    final score = kekuatanPassword();
+  String strengthText() {
+    final password = newPasswordController.text.trim();
+    final score = passwordStrength();
 
-    if (passwordBaruController.text.trim().isEmpty) return 'Belum diisi';
-    if (score < 0.35) return 'Lemah';
-    if (score < 0.70) return 'Cukup';
+    if (password.isEmpty) return 'Belum diisi';
+    if (score < 0.45) return 'Lemah';
+    if (score < 0.75) return 'Cukup';
     return 'Kuat';
   }
 
-  Color warnaKekuatanPassword() {
-    final score = kekuatanPassword();
+  Color strengthColor() {
+    final password = newPasswordController.text.trim();
+    final score = passwordStrength();
 
-    if (passwordBaruController.text.trim().isEmpty) return textGrey;
-    if (score < 0.35) return Colors.red;
-    if (score < 0.70) return orangeStatus;
+    if (password.isEmpty) return textGrey;
+    if (score < 0.45) return redColor;
+    if (score < 0.75) return orangeStatus;
     return primaryGreen;
   }
 
-  bool passwordSama() {
-    if (konfirmasiPasswordController.text.trim().isEmpty) return false;
-    return passwordBaruController.text.trim() ==
-        konfirmasiPasswordController.text.trim();
+  bool hasMinLength() => newPasswordController.text.trim().length >= 6;
+
+  bool hasNumber() {
+    return RegExp(r'[0-9]').hasMatch(newPasswordController.text.trim());
   }
 
-  void _showSnackBar(String pesan, Color color) {
+  bool hasLetter() {
+    return RegExp(r'[A-Za-z]').hasMatch(newPasswordController.text.trim());
+  }
+
+  bool isPasswordMatch() {
+    final confirm = confirmPasswordController.text.trim();
+    if (confirm.isEmpty) return false;
+    return newPasswordController.text.trim() == confirm;
+  }
+
+  void showSnack(String message, Color color) {
     if (!mounted) return;
 
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(pesan),
+        content: Text(
+          message,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
-  @override
-  void dispose() {
-    passwordLamaController.dispose();
-    passwordBaruController.dispose();
-    konfirmasiPasswordController.dispose();
-    super.dispose();
+  Future<void> showSuccessDialog() async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          title: const Text(
+            'Password Berhasil Diubah',
+            style: TextStyle(color: textDark, fontWeight: FontWeight.w900),
+          ),
+          content: const Text(
+            'Silakan gunakan password baru saat login berikutnya.',
+            style: TextStyle(
+              color: textGrey,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(
+                'Mengerti',
+                style: TextStyle(
+                  color: primaryGreen,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final strength = kekuatanPassword();
-    final strengthColor = warnaKekuatanPassword();
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final strength = passwordStrength();
+    final color = strengthColor();
 
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _header(context)),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                child: _securityCard(),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 110),
-                child: _formCard(strength, strengthColor),
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: _submitBar(),
-    );
-  }
-
-  Widget _header(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 26),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xff14532D), Color(0xff2E7D32), Color(0xff66BB6A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(36),
-          bottomRight: Radius.circular(36),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: darkGreen.withValues(alpha: 0.24),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -26,
-            bottom: -42,
-            child: Icon(
-              Icons.lock_reset_rounded,
-              size: 160,
-              color: Colors.white.withValues(alpha: 0.08),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      resizeToAvoidBottomInset: true,
+      backgroundColor: bgColor,
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          child: ListView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+            padding: EdgeInsets.fromLTRB(16, 10, 16, bottomInset + 92),
             children: [
-              Row(
-                children: [
-                  _backButton(context),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Ubah Password',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Keamanan Akun',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              const Text(
-                'Gunakan password yang mudah diingat tetapi tetap aman untuk menjaga akun anggota.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.24),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      height: 42,
-                      width: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.security_rounded,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'NIK: ${widget.nik}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12.5,
-                          height: 1.35,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              topBar(),
+              const SizedBox(height: 14),
+              headerCard(),
+              const SizedBox(height: 14),
+              stepCard(),
+              const SizedBox(height: 14),
+              formCard(strength, color),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _backButton(BuildContext context) {
-    return InkWell(
-      onTap: isLoading ? null : () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
         ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
+      bottomNavigationBar: submitBar(),
     );
   }
 
-  Widget _securityCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Row(
-        children: [
-          Container(
-            height: 58,
-            width: 58,
-            decoration: BoxDecoration(
-              color: lightGreen,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(
-              Icons.verified_user_rounded,
-              color: primaryGreen,
-              size: 32,
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Validasi Password Lama',
-                  style: TextStyle(
-                    color: textDark,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  'Sistem akan mencocokkan password lama sebelum menyimpan password baru.',
-                  style: TextStyle(
-                    color: textGrey,
-                    fontSize: 12,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _formCard(double strength, Color strengthColor) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Ganti Password',
+  Widget topBar() {
+    return Row(
+      children: [
+        topButton(
+          icon: Icons.arrow_back_rounded,
+          onTap: () {
+            if (!isLoading && mounted) Navigator.pop(context);
+          },
+        ),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text(
+            'Ubah Password',
             style: TextStyle(
               color: textDark,
               fontSize: 21,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Masukkan password lama dan buat password baru untuk akun Anda.',
-            style: TextStyle(
-              color: textGrey,
-              fontSize: 13,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
+        ),
+      ],
+    );
+  }
+
+  Widget headerCard() {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: primaryGreen,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: primaryGreen.withValues(alpha: 0.22),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+            ),
+            child: const Icon(
+              Icons.security_rounded,
+              color: Colors.white,
+              size: 28,
             ),
           ),
-          const SizedBox(height: 20),
-          _passwordField(
-            label: 'Password Lama',
-            controller: passwordLamaController,
-            hidden: hidePasswordLama,
-            icon: Icons.lock_outline_rounded,
-            onTap: () {
-              setState(() {
-                hidePasswordLama = !hidePasswordLama;
-              });
-            },
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Kelola password akun agar tetap aman.',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                height: 1.4,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
-          const SizedBox(height: 14),
-          _passwordField(
-            label: 'Password Baru',
-            controller: passwordBaruController,
-            hidden: hidePasswordBaru,
-            icon: Icons.lock_reset_rounded,
-            onChanged: (_) => setState(() {}),
-            onTap: () {
-              setState(() {
-                hidePasswordBaru = !hidePasswordBaru;
-              });
-            },
-          ),
-          const SizedBox(height: 12),
-          _strengthIndicator(strength, strengthColor),
-          const SizedBox(height: 14),
-          _passwordField(
-            label: 'Konfirmasi Password Baru',
-            controller: konfirmasiPasswordController,
-            hidden: hideKonfirmasiPassword,
-            icon: Icons.verified_rounded,
-            onChanged: (_) => setState(() {}),
-            onTap: () {
-              setState(() {
-                hideKonfirmasiPassword = !hideKonfirmasiPassword;
-              });
-            },
-          ),
-          if (konfirmasiPasswordController.text.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _matchPasswordInfo(),
-          ],
-          const SizedBox(height: 16),
-          _noteBox(),
         ],
       ),
     );
   }
 
-  Widget _passwordField({
+  Widget stepCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: cardDecoration(),
+      child: Row(
+        children: [
+          stepItem('1', 'Lama', true),
+          Expanded(child: stepLine()),
+          stepItem('2', 'Baru', newPasswordController.text.trim().isNotEmpty),
+          Expanded(child: stepLine()),
+          stepItem(
+            '3',
+            'Konfirmasi',
+            confirmPasswordController.text.trim().isNotEmpty,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget stepItem(String number, String label, bool active) {
+    return Column(
+      children: [
+        Container(
+          height: 30,
+          width: 30,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: active ? primaryGreen : softGreen,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            number,
+            style: TextStyle(
+              color: active ? Colors.white : primaryGreen,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          label,
+          style: TextStyle(
+            color: active ? textDark : textGrey,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget stepLine() {
+    return Container(
+      height: 2,
+      margin: const EdgeInsets.only(bottom: 19),
+      color: primaryGreen.withValues(alpha: 0.18),
+    );
+  }
+
+  Widget formCard(double strength, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Form Password',
+            style: TextStyle(
+              color: textDark,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 5),
+          const Text(
+            'Gunakan password minimal 6 karakter.',
+            style: TextStyle(
+              color: textGrey,
+              fontSize: 12.5,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          passwordField(
+            label: 'Password Lama',
+            controller: oldPasswordController,
+            hidden: hideOldPassword,
+            icon: Icons.lock_outline_rounded,
+            errorText: oldPasswordError,
+            textInputAction: TextInputAction.next,
+            onChanged: (_) {
+              if (oldPasswordError != null) {
+                setState(() => oldPasswordError = null);
+              }
+            },
+            onTap: () => setState(() => hideOldPassword = !hideOldPassword),
+          ),
+          const SizedBox(height: 12),
+          passwordField(
+            label: 'Password Baru',
+            controller: newPasswordController,
+            hidden: hideNewPassword,
+            icon: Icons.lock_reset_rounded,
+            textInputAction: TextInputAction.next,
+            onChanged: (_) => setState(() {}),
+            onTap: () => setState(() => hideNewPassword = !hideNewPassword),
+          ),
+          const SizedBox(height: 10),
+          generateButton(),
+          const SizedBox(height: 12),
+          strengthIndicator(strength, color),
+          const SizedBox(height: 10),
+          passwordRules(),
+          const SizedBox(height: 12),
+          passwordField(
+            label: 'Konfirmasi Password Baru',
+            controller: confirmPasswordController,
+            hidden: hideConfirmPassword,
+            icon: Icons.verified_rounded,
+            textInputAction: TextInputAction.done,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) {
+              if (!isLoading) changePassword();
+            },
+            onTap: () {
+              setState(() => hideConfirmPassword = !hideConfirmPassword);
+            },
+          ),
+          if (confirmPasswordController.text.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            matchInfo(),
+          ],
+          const SizedBox(height: 14),
+          noteBox(),
+        ],
+      ),
+    );
+  }
+
+  Widget passwordField({
     required String label,
     required TextEditingController controller,
     required bool hidden,
     required IconData icon,
     required VoidCallback onTap,
+    TextInputAction textInputAction = TextInputAction.next,
     ValueChanged<String>? onChanged,
+    ValueChanged<String>? onSubmitted,
+    String? errorText,
   }) {
     return TextField(
       controller: controller,
       obscureText: hidden,
-      textInputAction: TextInputAction.next,
       onChanged: onChanged,
-      decoration: _inputDecoration(label, icon).copyWith(
+      onSubmitted: onSubmitted,
+      textInputAction: textInputAction,
+      style: const TextStyle(color: textDark, fontWeight: FontWeight.w800),
+      decoration: InputDecoration(
+        labelText: label,
+        errorText: errorText,
+        labelStyle: const TextStyle(color: textGrey),
+        prefixIcon: Icon(icon, color: primaryGreen),
         suffixIcon: IconButton(
           onPressed: onTap,
           icon: Icon(
@@ -493,16 +514,63 @@ class _UbahPasswordPageState extends State<UbahPasswordPage> {
             color: textGrey,
           ),
         ),
+        filled: true,
+        fillColor: const Color(0xffFAFAFA),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 15,
+        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: cardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: primaryGreen, width: 1.4),
+        ),
       ),
     );
   }
 
-  Widget _strengthIndicator(double strength, Color color) {
+  Widget generateButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 45,
+      child: OutlinedButton.icon(
+        onPressed:
+            isLoading
+                ? null
+                : () {
+                  setState(() {
+                    newPasswordController.text = generatePassword();
+                    confirmPasswordController.text = newPasswordController.text;
+                    hideNewPassword = false;
+                    hideConfirmPassword = false;
+                  });
+                },
+        icon: const Icon(Icons.auto_fix_high_rounded),
+        label: const Text(
+          'Generate Password Aman',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primaryGreen,
+          side: const BorderSide(color: primaryGreen),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget strengthIndicator(double strength, Color color) {
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withValues(alpha: 0.16)),
       ),
       child: Column(
@@ -520,7 +588,7 @@ class _UbahPasswordPageState extends State<UbahPasswordPage> {
                 ),
               ),
               Text(
-                teksKekuatanPassword(),
+                strengthText(),
                 style: TextStyle(
                   color: color,
                   fontSize: 12,
@@ -544,35 +612,80 @@ class _UbahPasswordPageState extends State<UbahPasswordPage> {
     );
   }
 
-  Widget _matchPasswordInfo() {
-    final cocok = passwordSama();
-    final color = cocok ? primaryGreen : Colors.red;
+  Widget passwordRules() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: softGreen.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.10)),
+      ),
+      child: Column(
+        children: [
+          ruleItem('Minimal 6 karakter', hasMinLength()),
+          const SizedBox(height: 7),
+          ruleItem('Mengandung huruf', hasLetter()),
+          const SizedBox(height: 7),
+          ruleItem('Mengandung angka', hasNumber()),
+        ],
+      ),
+    );
+  }
+
+  Widget ruleItem(String text, bool active) {
+    final color = active ? primaryGreen : textGrey;
+
+    return Row(
+      children: [
+        Icon(
+          active ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+          size: 18,
+          color: color,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget matchInfo() {
+    final match = isPasswordMatch();
+    final color = match ? primaryGreen : redColor;
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withValues(alpha: 0.16)),
       ),
       child: Row(
         children: [
           Icon(
-            cocok ? Icons.check_circle_rounded : Icons.cancel_rounded,
+            match ? Icons.check_circle_rounded : Icons.cancel_rounded,
             color: color,
             size: 20,
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              cocok
+              match
                   ? 'Konfirmasi password sudah sesuai.'
                   : 'Konfirmasi password belum sama.',
-              style: const TextStyle(
-                color: textGrey,
+              style: TextStyle(
+                color: color,
                 fontSize: 12,
                 height: 1.35,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -581,116 +694,105 @@ class _UbahPasswordPageState extends State<UbahPasswordPage> {
     );
   }
 
-  Widget _noteBox() {
+  Widget noteBox() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: lightGreen,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
+        color: primaryGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
       ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 22),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Password baru minimal 6 karakter. Gunakan kombinasi huruf dan angka agar lebih aman.',
-              style: TextStyle(
-                color: textGrey,
-                fontSize: 12,
-                height: 1.45,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+      child: const Text(
+        'Setelah password berhasil diubah, gunakan password baru saat login berikutnya.',
+        style: TextStyle(
+          color: primaryGreen,
+          fontSize: 12.5,
+          height: 1.4,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
 
-  Widget _submitBar() {
+  Widget submitBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: bgColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, -6),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
+          height: 52,
           width: double.infinity,
-          height: 56,
-          child: ElevatedButton.icon(
+          child: ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryGreen,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.45),
+              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.38),
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(19),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
-            onPressed: isLoading ? null : ubahPassword,
-            icon:
+            onPressed: isLoading ? null : changePassword,
+            child:
                 isLoading
                     ? const SizedBox(
-                      width: 19,
-                      height: 19,
+                      height: 22,
+                      width: 22,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2.3,
+                        strokeWidth: 2.4,
                         color: Colors.white,
                       ),
                     )
-                    : const Icon(Icons.save_rounded),
-            label: Text(
-              isLoading ? 'Menyimpan Password...' : 'Simpan Password',
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
-            ),
+                    : const Text(
+                      'Simpan Password',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                      ),
+                    ),
           ),
         ),
       ),
     );
   }
 
-  InputDecoration _inputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: textGrey),
-      prefixIcon: Icon(icon, color: primaryGreen),
-      filled: true,
-      fillColor: const Color(0xffF9FAFB),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xffE5E7EB)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: primaryGreen, width: 1.5),
+  Widget topButton({required IconData icon, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 40,
+        width: 40,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: cardBorder),
+        ),
+        child: Icon(icon, color: textDark),
       ),
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  BoxDecoration cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(28),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.055),
-          blurRadius: 18,
-          offset: const Offset(0, 8),
+          color: Colors.black.withValues(alpha: 0.03),
+          blurRadius: 8,
+          offset: const Offset(0, 3),
         ),
       ],
     );

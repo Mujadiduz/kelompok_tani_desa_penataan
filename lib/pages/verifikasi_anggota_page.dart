@@ -7,6 +7,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
 import '../services/notification_helper.dart';
+import '../widgets/app_background.dart';
 
 class VerifikasiAnggotaPage extends StatefulWidget {
   const VerifikasiAnggotaPage({super.key});
@@ -17,13 +18,14 @@ class VerifikasiAnggotaPage extends StatefulWidget {
 
 class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
-  static const Color lightGreen = Color(0xffE8F5E9);
-  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color darkGreen = Color(0xff14532D);
+  static const Color softGreen = Color(0xffEAF7EC);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color borderColor = Color(0xffE5E7EB);
+  static const Color orangeStatus = Color(0xffF59E0B);
   static const Color redStatus = Color(0xffDC2626);
+  static const Color blueStatus = Color(0xff2563EB);
 
   String selectedFilter = 'semua';
   bool isProcessing = false;
@@ -65,6 +67,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
   Future<void> setujuiAnggota(String id, Map<String, dynamic> anggota) async {
     if (isProcessing) return;
+
     setState(() => isProcessing = true);
 
     try {
@@ -90,17 +93,20 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
       unawaited(NotificationHelper.anggotaDisetujui(nik: nik, nama: nama));
 
       if (!mounted) return;
-      _showSnackBar('Anggota berhasil disetujui', primaryGreen);
+      _showSnackBar('Anggota berhasil disetujui.', primaryGreen);
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Gagal menyetujui anggota: $e', redStatus);
+      _showSnackBar('Gagal menyetujui anggota.', redStatus);
     } finally {
-      if (mounted) setState(() => isProcessing = false);
+      if (mounted) {
+        setState(() => isProcessing = false);
+      }
     }
   }
 
   Future<void> tolakAnggota(String id, Map<String, dynamic> anggota) async {
     if (isProcessing) return;
+
     setState(() => isProcessing = true);
 
     try {
@@ -115,12 +121,14 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
       unawaited(NotificationHelper.anggotaDitolak(nik: nik, nama: nama));
 
       if (!mounted) return;
-      _showSnackBar('Anggota berhasil ditolak', redStatus);
+      _showSnackBar('Anggota berhasil ditolak.', redStatus);
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Gagal menolak anggota: $e', redStatus);
+      _showSnackBar('Gagal menolak anggota.', redStatus);
     } finally {
-      if (mounted) setState(() => isProcessing = false);
+      if (mounted) {
+        setState(() => isProcessing = false);
+      }
     }
   }
 
@@ -136,8 +144,9 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
+          backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(22),
           ),
           title: Text(
             isSetuju ? 'Setujui Anggota?' : 'Tolak Anggota?',
@@ -150,24 +159,38 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
             isSetuju
                 ? 'Data $nama akan disetujui dan masuk sebagai anggota aktif.'
                 : 'Pengajuan anggota dari $nama akan ditolak.',
-            style: const TextStyle(color: textGrey),
+            style: const TextStyle(
+              color: textGrey,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Batal'),
+              child: const Text(
+                'Batal',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
             ),
-            ElevatedButton(
+            ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: isSetuju ? primaryGreen : redStatus,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(isSetuju ? 'Setujui' : 'Tolak'),
+              icon: Icon(
+                isSetuju ? Icons.check_rounded : Icons.close_rounded,
+                size: 18,
+              ),
+              label: Text(
+                isSetuju ? 'Setujui' : 'Tolak',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
             ),
           ],
         );
@@ -197,7 +220,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     final fotoBytes = decodeFoto(base64Text);
 
     if (fotoBytes == null) {
-      _showSnackBar('Foto KTP tidak tersedia', redStatus);
+      _showSnackBar('Foto KTP tidak tersedia.', redStatus);
       return;
     }
 
@@ -217,7 +240,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(16),
-                  color: primaryGreen,
+                  color: darkGreen,
                   child: Row(
                     children: [
                       const Expanded(
@@ -231,6 +254,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                       ),
                       InkWell(
                         onTap: () => Navigator.pop(dialogContext),
+                        borderRadius: BorderRadius.circular(99),
                         child: const Icon(Icons.close, color: Colors.white),
                       ),
                     ],
@@ -253,6 +277,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     if (status == 'semua') return data.length;
 
     return data.where((entry) {
+      if (entry.value is! Map) return false;
       final item = Map<String, dynamic>.from(entry.value as Map);
       return normalStatus(item) == status;
     }).length;
@@ -264,32 +289,50 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     if (selectedFilter == 'semua') return data;
 
     return data.where((entry) {
+      if (entry.value is! Map) return false;
       final item = Map<String, dynamic>.from(entry.value as Map);
       return normalStatus(item) == selectedFilter;
     }).toList();
   }
 
   Color warnaStatus(String status) {
-    if (status == 'disetujui') return primaryGreen;
+    if (status == 'disetujui' || status == 'aktif') return primaryGreen;
     if (status == 'ditolak') return redStatus;
     return orangeStatus;
   }
 
   Color backgroundStatus(String status) {
-    if (status == 'disetujui') return lightGreen;
+    if (status == 'disetujui' || status == 'aktif') return softGreen;
     if (status == 'ditolak') return const Color(0xffFEE2E2);
-    return const Color(0xffFFF3E0);
+    return const Color(0xffFEF3C7);
   }
 
   String teksStatus(String status) {
-    if (status == 'disetujui') return 'Disetujui';
+    if (status == 'disetujui' || status == 'aktif') return 'Disetujui';
     if (status == 'ditolak') return 'Ditolak';
     return 'Menunggu';
+  }
+
+  String formatTanggal(dynamic value) {
+    final text = value?.toString() ?? '';
+    if (text.isEmpty || text == '-') return '-';
+
+    try {
+      final date = DateTime.parse(text).toLocal();
+      final day = date.day.toString().padLeft(2, '0');
+      final month = date.month.toString().padLeft(2, '0');
+      final year = date.year.toString();
+
+      return '$day-$month-$year';
+    } catch (_) {
+      return text;
+    }
   }
 
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
 
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -298,7 +341,6 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
         ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -306,139 +348,162 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: StreamBuilder<DatabaseEvent>(
-              stream: calonAnggotaRef.onValue,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Column(
-                    children: [
-                      _header(0),
-                      Expanded(
-                        child: _messageState(
+      body: AppBackground(
+        child: Stack(
+          children: [
+            SafeArea(
+              child: StreamBuilder<DatabaseEvent>(
+                stream: calonAnggotaRef.onValue,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                      children: [
+                        _header(0),
+                        const SizedBox(height: 16),
+                        _messageState(
                           icon: Icons.error_outline_rounded,
                           title: 'Terjadi Kesalahan',
                           message: snapshot.error.toString(),
                         ),
-                      ),
-                    ],
-                  );
-                }
+                      ],
+                    );
+                  }
 
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Column(
-                    children: [
-                      _header(0),
-                      const Expanded(
-                        child: Center(
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                      children: [
+                        _header(0),
+                        const SizedBox(height: 120),
+                        const Center(
                           child: CircularProgressIndicator(color: primaryGreen),
                         ),
-                      ),
-                    ],
-                  );
-                }
+                      ],
+                    );
+                  }
 
-                final rawData = snapshot.data?.snapshot.value;
-                List<MapEntry<String, dynamic>> semuaData = [];
+                  final rawData = snapshot.data?.snapshot.value;
+                  List<MapEntry<String, dynamic>> semuaData = [];
 
-                if (rawData is Map) {
-                  final data = Map<String, dynamic>.from(rawData);
-                  semuaData = data.entries.toList().reversed.toList();
-                }
+                  if (rawData is Map) {
+                    final data = Map<String, dynamic>.from(rawData);
+                    semuaData = data.entries.toList().reversed.toList();
+                  }
 
-                final totalSemua = countStatus(semuaData, 'semua');
-                final totalMenunggu = countStatus(semuaData, 'menunggu');
-                final totalDisetujui = countStatus(semuaData, 'disetujui');
-                final totalDitolak = countStatus(semuaData, 'ditolak');
-                final anggotaList = filterData(semuaData);
+                  final totalSemua = countStatus(semuaData, 'semua');
+                  final totalMenunggu = countStatus(semuaData, 'menunggu');
+                  final totalDisetujui = countStatus(semuaData, 'disetujui');
+                  final totalDitolak = countStatus(semuaData, 'ditolak');
+                  final anggotaList = filterData(semuaData);
 
-                return Column(
-                  children: [
-                    _header(totalMenunggu),
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
-                        children: [
-                          _statusControlPanel(
-                            totalSemua: totalSemua,
-                            totalMenunggu: totalMenunggu,
-                            totalDisetujui: totalDisetujui,
-                            totalDitolak: totalDitolak,
-                          ),
-                          const SizedBox(height: 14),
-                          if (semuaData.isEmpty)
-                            _messageState(
-                              icon: Icons.inbox_outlined,
-                              title: 'Belum Ada Data',
-                              message:
-                                  'Belum ada data calon anggota yang masuk.',
-                            )
-                          else if (anggotaList.isEmpty)
-                            _messageState(
-                              icon: Icons.search_off_rounded,
-                              title: 'Data Tidak Ditemukan',
-                              message:
-                                  'Tidak ada calon anggota dengan status ini.',
-                            )
-                          else
-                            ...anggotaList.map((entry) {
-                              final id = entry.key.toString();
-                              final anggota = Map<String, dynamic>.from(
-                                entry.value as Map,
-                              );
+                  return RefreshIndicator(
+                    color: primaryGreen,
+                    onRefresh: () async => calonAnggotaRef.get(),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                      children: [
+                        _header(totalMenunggu),
+                        const SizedBox(height: 16),
+                        _statusControlPanel(
+                          totalSemua: totalSemua,
+                          totalMenunggu: totalMenunggu,
+                          totalDisetujui: totalDisetujui,
+                          totalDitolak: totalDitolak,
+                        ),
+                        const SizedBox(height: 14),
+                        if (semuaData.isEmpty)
+                          _messageState(
+                            icon: Icons.inbox_outlined,
+                            title: 'Belum Ada Data',
+                            message: 'Belum ada data calon anggota yang masuk.',
+                          )
+                        else if (anggotaList.isEmpty)
+                          _messageState(
+                            icon: Icons.search_off_rounded,
+                            title: 'Data Tidak Ditemukan',
+                            message:
+                                'Tidak ada calon anggota dengan status ini.',
+                          )
+                        else
+                          ...anggotaList.map((entry) {
+                            final id = entry.key.toString();
+                            final anggota = Map<String, dynamic>.from(
+                              entry.value as Map,
+                            );
 
-                              return _anggotaCard(id, anggota);
-                            }),
-                        ],
-                      ),
+                            return _anggotaCard(id, anggota);
+                          }),
+                      ],
                     ),
-                  ],
-                );
-              },
-            ),
-          ),
-          if (isProcessing)
-            Container(
-              color: Colors.black.withValues(alpha: 0.20),
-              child: const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+                  );
+                },
               ),
             ),
-        ],
+            if (isProcessing)
+              Container(
+                color: Colors.black.withValues(alpha: 0.22),
+                child: const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _header(int totalMenunggu) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: primaryGreen,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(26),
-          bottomRight: Radius.circular(26),
-        ),
+        color: darkGreen,
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.16),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: darkGreen.withValues(alpha: 0.20),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              _backButton(),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
+          InkWell(
+            onTap: isProcessing ? null : () => Navigator.pop(context),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              height: 42,
+              width: 42,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+              ),
+              child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.person_add_alt_1_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
                   'Verifikasi Anggota',
                   style: TextStyle(
                     color: Colors.white,
@@ -446,19 +511,54 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  totalMenunggu == 0
+                      ? 'Semua calon anggota sudah diproses.'
+                      : '$totalMenunggu calon anggota menunggu verifikasi.',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12.2,
+                    height: 1.3,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
+          _headerCounter(totalMenunggu),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerCounter(int total) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 52, minHeight: 48),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        children: [
           Text(
-            totalMenunggu == 0
-                ? 'Semua calon anggota sudah diproses.'
-                : '$totalMenunggu calon anggota menunggu verifikasi.',
+            total.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              height: 1,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'cek',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.84),
-              fontSize: 13,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
+              color: Colors.white.withValues(alpha: 0.82),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -478,7 +578,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
         'semua',
         totalSemua,
         Icons.list_alt_rounded,
-        primaryGreen,
+        blueStatus,
       ),
       _FilterItem(
         'Menunggu',
@@ -504,15 +604,15 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(radius: 24),
       child: GridView.builder(
         itemCount: filters.length,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          mainAxisExtent: 68,
+          mainAxisExtent: 72,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
         ),
@@ -522,19 +622,18 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
           return InkWell(
             onTap: () {
-              setState(() {
-                selectedFilter = item.value;
-              });
+              setState(() => selectedFilter = item.value);
             },
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
+            borderRadius: BorderRadius.circular(17),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: aktif ? item.color : item.color.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(17),
                 border: Border.all(
                   color:
-                      aktif ? item.color : item.color.withValues(alpha: 0.20),
+                      aktif ? item.color : item.color.withValues(alpha: 0.18),
                 ),
               ),
               child: Row(
@@ -587,7 +686,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(radius: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -615,20 +714,20 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
               _infoRow(
                 Icons.calendar_month_rounded,
                 'Tanggal Daftar',
-                anggota['tanggal_daftar'] ?? '-',
+                formatTanggal(anggota['tanggal_daftar']),
               ),
             ],
           ),
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
+            height: 48,
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: primaryGreen,
-                side: const BorderSide(color: primaryGreen),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                side: BorderSide(color: primaryGreen.withValues(alpha: 0.55)),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(17),
                 ),
               ),
               onPressed: () => lihatFotoKtp(fotoKtpBase64),
@@ -683,13 +782,9 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   Widget _cardTop(Map<String, dynamic> anggota, String status) {
     return Row(
       children: [
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: lightGreen,
-            borderRadius: BorderRadius.circular(16),
-          ),
+        CircleAvatar(
+          radius: 25,
+          backgroundColor: softGreen,
           child: const Icon(
             Icons.person_rounded,
             color: primaryGreen,
@@ -717,7 +812,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                 style: const TextStyle(
                   color: textGrey,
                   fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -733,8 +828,8 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
       padding: const EdgeInsets.fromLTRB(13, 13, 13, 4),
       decoration: BoxDecoration(
         color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xffE5E7EB)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor),
       ),
       child: Column(children: children),
     );
@@ -755,7 +850,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
               style: const TextStyle(
                 color: textGrey,
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -780,6 +875,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
       decoration: BoxDecoration(
         color: backgroundStatus(status),
         borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: warnaStatus(status).withValues(alpha: 0.12)),
       ),
       child: Text(
         teksStatus(status).toUpperCase(),
@@ -798,33 +894,21 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     required Color color,
     required VoidCallback onPressed,
   }) {
-    return ElevatedButton.icon(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-      onPressed: isProcessing ? null : onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-    );
-  }
-
-  Widget _backButton() {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+    return SizedBox(
+      height: 48,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: color.withValues(alpha: 0.40),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(17),
+          ),
         ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+        onPressed: isProcessing ? null : onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
       ),
     );
   }
@@ -834,58 +918,57 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     required String title,
     required String message,
   }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 28),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              height: 84,
-              width: 84,
-              decoration: const BoxDecoration(
-                color: lightGreen,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: primaryGreen, size: 40),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: _cardDecoration(radius: 24),
+      child: Column(
+        children: [
+          Container(
+            height: 78,
+            width: 78,
+            decoration: const BoxDecoration(
+              color: softGreen,
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 18),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: textDark,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
+            child: Icon(icon, color: primaryGreen, size: 38),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
             ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: textGrey,
-                fontSize: 13,
-                height: 1.4,
-                fontWeight: FontWeight.w600,
-              ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 13,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  BoxDecoration _cardDecoration({double radius = 20}) {
     return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      color: Colors.white.withValues(alpha: 0.96),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.035),
-          blurRadius: 10,
-          offset: const Offset(0, 5),
+          color: Colors.black.withValues(alpha: 0.045),
+          blurRadius: 16,
+          offset: const Offset(0, 7),
         ),
       ],
     );

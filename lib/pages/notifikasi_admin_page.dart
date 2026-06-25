@@ -13,106 +13,162 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
   static const Color softGreen = Color(0xffEAF7EC);
-  static const Color backgroundColor = Color(0xffF7FAF7);
+  static const Color bgColor = Color(0xffF3F7F3);
   static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffF59E0B);
+  static const Color orangeStatus = Color(0xffF57C00);
   static const Color blueStatus = Color(0xff2563EB);
   static const Color redStatus = Color(0xffDC2626);
 
-  final DatabaseReference _notifRef = FirebaseDatabase.instanceFor(
+  final DatabaseReference notifRef = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   ).ref('notifikasi_admin');
 
-  String _filter = 'semua';
-  bool _isProcessing = false;
+  String filter = 'semua';
+  bool isProcessing = false;
 
-  List<MapEntry<String, dynamic>> _getNotifications(dynamic value) {
+  List<Map<String, dynamic>> getNotifications(dynamic value) {
     if (value == null || value is! Map) return [];
 
     final data = Map<dynamic, dynamic>.from(value);
-    final list = data.entries.where((entry) => entry.value is Map).toList();
 
-    list.sort((a, b) {
-      final itemA = Map<dynamic, dynamic>.from(a.value as Map);
-      final itemB = Map<dynamic, dynamic>.from(b.value as Map);
-      return _timeValue(itemB).compareTo(_timeValue(itemA));
-    });
+    final list =
+        data.entries.where((entry) => entry.value is Map).map((entry) {
+          final item = Map<String, dynamic>.from(entry.value as Map);
+          item['id_notifikasi'] = entry.key.toString();
+          return item;
+        }).toList();
 
-    return list.map((e) => MapEntry(e.key.toString(), e.value)).toList();
+    list.sort((a, b) => timeValue(b).compareTo(timeValue(a)));
+    return list;
   }
 
-  int _timeValue(Map<dynamic, dynamic> item) {
+  int timeValue(Map<String, dynamic> item) {
     final raw = item['tanggal'] ?? item['created_at'] ?? item['createdAt'];
     final parsed = DateTime.tryParse((raw ?? '').toString().trim());
     return parsed?.millisecondsSinceEpoch ?? 0;
   }
 
-  bool _isUnread(Map<String, dynamic> data) {
+  bool isUnread(Map<String, dynamic> data) {
     final status = (data['status'] ?? '').toString().toLowerCase().trim();
     final dibaca = data['dibaca'];
     return status == 'belum_dibaca' || dibaca == false;
   }
 
-  List<MapEntry<String, dynamic>> _filteredList(
-    List<MapEntry<String, dynamic>> list,
-  ) {
-    if (_filter == 'belum') {
-      return list.where((entry) {
-        final data = Map<String, dynamic>.from(entry.value as Map);
-        return _isUnread(data);
-      }).toList();
+  List<Map<String, dynamic>> filteredList(List<Map<String, dynamic>> list) {
+    if (filter == 'belum') {
+      return list.where((item) => isUnread(item)).toList();
     }
-
     return list;
   }
 
-  Future<void> _markAsRead(String id) async {
+  Map<String, List<Map<String, dynamic>>> groupedByDate(
+    List<Map<String, dynamic>> list,
+  ) {
+    final result = <String, List<Map<String, dynamic>>>{};
+
+    for (final item in list) {
+      final label = groupDateLabel((item['tanggal'] ?? '').toString());
+      result.putIfAbsent(label, () => []);
+      result[label]!.add(item);
+    }
+
+    return result;
+  }
+
+  String groupDateLabel(String value) {
+    final date = DateTime.tryParse(value.trim());
+    if (date == null) return 'Tanggal Tidak Diketahui';
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final notifDate = DateTime(date.year, date.month, date.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    if (notifDate == today) return 'Hari Ini';
+    if (notifDate == yesterday) return 'Kemarin';
+
+    return '${date.day} ${namaBulan(date.month)} ${date.year}';
+  }
+
+  String namaBulan(int month) {
+    const bulan = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+
+    if (month < 1 || month > 12) return '';
+    return bulan[month - 1];
+  }
+
+  String formatJam(String value) {
+    final date = DateTime.tryParse(value.trim());
+    if (date == null) return '-';
+
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+
+    return '$hour:$minute';
+  }
+
+  Future<void> markAsRead(String id) async {
     try {
-      await _notifRef
+      await notifRef
           .child(id)
           .update({'status': 'dibaca', 'dibaca': true})
           .timeout(const Duration(seconds: 10));
     } catch (_) {
       if (!mounted) return;
-      _showSnack('Gagal menandai notifikasi.');
+      showSnack('Gagal menandai notifikasi.');
     }
   }
 
-  Future<void> _markAllAsRead(List<MapEntry<String, dynamic>> list) async {
-    if (_isProcessing) return;
+  Future<void> markAllAsRead(List<Map<String, dynamic>> list) async {
+    if (isProcessing) return;
 
-    setState(() => _isProcessing = true);
+    setState(() => isProcessing = true);
 
     try {
       final updates = <String, Object?>{};
 
-      for (final entry in list) {
-        final data = Map<String, dynamic>.from(entry.value as Map);
-        if (!_isUnread(data)) continue;
+      for (final item in list) {
+        if (!isUnread(item)) continue;
 
-        updates['${entry.key}/status'] = 'dibaca';
-        updates['${entry.key}/dibaca'] = true;
+        final id = (item['id_notifikasi'] ?? '').toString();
+        if (id.isEmpty) continue;
+
+        updates['$id/status'] = 'dibaca';
+        updates['$id/dibaca'] = true;
       }
 
       if (updates.isNotEmpty) {
-        await _notifRef.update(updates).timeout(const Duration(seconds: 10));
+        await notifRef.update(updates).timeout(const Duration(seconds: 10));
       }
 
       if (!mounted) return;
-      _showSnack('Semua notifikasi sudah dibaca.');
+      showSnack('Semua notifikasi sudah dibaca.');
     } catch (_) {
       if (!mounted) return;
-      _showSnack('Gagal membaca semua notifikasi.');
+      showSnack('Gagal membaca semua notifikasi.');
     } finally {
-      if (mounted) setState(() => _isProcessing = false);
+      if (mounted) setState(() => isProcessing = false);
     }
   }
 
-  IconData _icon(String type) {
+  IconData notifIcon(String type) {
     final clean = type.toLowerCase().trim();
 
     if (clean == 'anggota' || clean == 'verifikasi_anggota') {
@@ -127,10 +183,18 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
       return Icons.agriculture_rounded;
     }
 
+    if (clean == 'reset_password') {
+      return Icons.lock_reset_rounded;
+    }
+
+    if (clean == 'pengumuman') {
+      return Icons.campaign_rounded;
+    }
+
     return Icons.notifications_rounded;
   }
 
-  Color _color(String type) {
+  Color notifColor(String type) {
     final clean = type.toLowerCase().trim();
 
     if (clean == 'anggota' || clean == 'verifikasi_anggota') {
@@ -145,32 +209,27 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
       return orangeStatus;
     }
 
+    if (clean == 'reset_password') {
+      return redStatus;
+    }
+
+    if (clean == 'pengumuman') {
+      return primaryGreen;
+    }
+
     return primaryGreen;
   }
 
-  String _formatDate(String value) {
-    final raw = value.trim();
-    if (raw.isEmpty) return 'Tanggal tidak tersedia';
-
-    final date = DateTime.tryParse(raw);
-    if (date == null) return raw;
-
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final year = date.year;
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
-
-    return '$day/$month/$year • $hour:$minute';
-  }
-
-  void _showSnack(String message) {
+  void showSnack(String message) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         behavior: SnackBarBehavior.floating,
         backgroundColor: darkGreen,
       ),
@@ -180,38 +239,36 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: bgColor,
       body: SafeArea(
         child: StreamBuilder<DatabaseEvent>(
-          stream: _notifRef.onValue,
+          stream: notifRef.onValue,
           builder: (context, snapshot) {
-            final allNotifications = _getNotifications(
+            final allNotifications = getNotifications(
               snapshot.data?.snapshot.value,
             );
 
             final unreadCount =
-                allNotifications.where((entry) {
-                  final data = Map<String, dynamic>.from(entry.value as Map);
-                  return _isUnread(data);
-                }).length;
+                allNotifications.where((item) => isUnread(item)).length;
 
-            final shownNotifications = _filteredList(allNotifications);
+            final shownNotifications = filteredList(allNotifications);
+            final grouped = groupedByDate(shownNotifications);
 
             return Column(
               children: [
-                _appHeader(
+                appHeader(
                   allNotifications: allNotifications,
                   unreadCount: unreadCount,
                 ),
-                _filterBar(
+                filterBar(
                   totalCount: allNotifications.length,
                   unreadCount: unreadCount,
                 ),
                 Expanded(
-                  child: _content(
+                  child: content(
                     hasError: snapshot.hasError,
                     errorMessage: snapshot.error?.toString(),
-                    notifications: shownNotifications,
+                    grouped: grouped,
                   ),
                 ),
               ],
@@ -222,27 +279,26 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
     );
   }
 
-  Widget _appHeader({
-    required List<MapEntry<String, dynamic>> allNotifications,
+  Widget appHeader({
+    required List<Map<String, dynamic>> allNotifications,
     required int unreadCount,
   }) {
     return Container(
+      width: double.infinity,
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
       child: Column(
         children: [
           Row(
             children: [
-              _iconButton(
+              iconButton(
                 icon: Icons.arrow_back_rounded,
-                onTap: () {
-                  if (mounted) Navigator.pop(context);
-                },
+                onTap: () => Navigator.pop(context),
               ),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
-                  'Notifikasi',
+                  'Notifikasi Admin',
                   style: TextStyle(
                     color: textDark,
                     fontSize: 21,
@@ -253,95 +309,104 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
               if (allNotifications.isNotEmpty)
                 TextButton(
                   onPressed:
-                      unreadCount == 0 || _isProcessing
+                      unreadCount == 0 || isProcessing
                           ? null
-                          : () => _markAllAsRead(allNotifications),
+                          : () => markAllAsRead(allNotifications),
                   style: TextButton.styleFrom(
                     foregroundColor: primaryGreen,
                     disabledForegroundColor: textGrey.withValues(alpha: 0.45),
                   ),
                   child: Text(
-                    _isProcessing ? 'Memproses' : 'Baca Semua',
+                    isProcessing ? 'Memproses' : 'Baca Semua',
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
             ],
           ),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Container(
-                height: 46,
-                width: 46,
-                decoration: BoxDecoration(
-                  color:
-                      unreadCount == 0
-                          ? softGreen
-                          : redStatus.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
+          Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color:
                   unreadCount == 0
-                      ? Icons.done_all_rounded
-                      : Icons.notifications_active_rounded,
-                  color: unreadCount == 0 ? primaryGreen : redStatus,
-                ),
+                      ? primaryGreen.withValues(alpha: 0.08)
+                      : redStatus.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color:
+                    unreadCount == 0
+                        ? primaryGreen.withValues(alpha: 0.16)
+                        : redStatus.withValues(alpha: 0.16),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  unreadCount == 0
-                      ? 'Semua pemberitahuan sudah dibaca.'
-                      : '$unreadCount notifikasi belum dibaca.',
-                  style: const TextStyle(
-                    color: textGrey,
-                    fontSize: 13,
-                    height: 1.4,
-                    fontWeight: FontWeight.w700,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  height: 42,
+                  width: 42,
+                  decoration: BoxDecoration(
+                    color: unreadCount == 0 ? softGreen : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    unreadCount == 0
+                        ? Icons.done_all_rounded
+                        : Icons.notifications_active_rounded,
+                    color: unreadCount == 0 ? primaryGreen : redStatus,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    unreadCount == 0
+                        ? 'Semua pemberitahuan admin sudah dibaca.'
+                        : '$unreadCount notifikasi admin belum dibaca.',
+                    style: TextStyle(
+                      color: unreadCount == 0 ? primaryGreen : redStatus,
+                      fontSize: 13,
+                      height: 1.4,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _filterBar({required int totalCount, required int unreadCount}) {
+  Widget filterBar({required int totalCount, required int unreadCount}) {
     return Container(
       width: double.infinity,
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       child: Row(
         children: [
-          _filterChip(label: 'Semua', value: 'semua', count: totalCount),
+          filterChip(label: 'Semua', value: 'semua', count: totalCount),
           const SizedBox(width: 10),
-          _filterChip(
-            label: 'Belum Dibaca',
-            value: 'belum',
-            count: unreadCount,
-          ),
+          filterChip(label: 'Belum Dibaca', value: 'belum', count: unreadCount),
         ],
       ),
     );
   }
 
-  Widget _filterChip({
+  Widget filterChip({
     required String label,
     required String value,
     required int count,
   }) {
-    final selected = _filter == value;
+    final selected = filter == value;
 
     return InkWell(
-      onTap: () => setState(() => _filter = value),
+      onTap: () => setState(() => filter = value),
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? primaryGreen : backgroundColor,
+          color: selected ? primaryGreen : bgColor,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: selected ? primaryGreen : cardBorder),
         ),
@@ -351,7 +416,7 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
               label,
               style: TextStyle(
                 color: selected ? Colors.white : textGrey,
-                fontSize: 12.5,
+                fontSize: 12.3,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -380,75 +445,108 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
     );
   }
 
-  Widget _content({
+  Widget content({
     required bool hasError,
     required String? errorMessage,
-    required List<MapEntry<String, dynamic>> notifications,
+    required Map<String, List<Map<String, dynamic>>> grouped,
   }) {
     if (hasError) {
-      return _emptyState(
+      return emptyState(
         icon: Icons.error_outline_rounded,
         title: 'Notifikasi Gagal Dimuat',
         message: errorMessage ?? 'Terjadi kesalahan saat mengambil data.',
       );
     }
 
-    if (notifications.isEmpty) {
-      return _emptyState(
+    if (grouped.isEmpty) {
+      return emptyState(
         icon:
-            _filter == 'belum'
+            filter == 'belum'
                 ? Icons.mark_email_read_rounded
                 : Icons.notifications_none_rounded,
         title:
-            _filter == 'belum'
+            filter == 'belum'
                 ? 'Tidak Ada Notifikasi Baru'
                 : 'Belum Ada Notifikasi',
         message:
-            _filter == 'belum'
+            filter == 'belum'
                 ? 'Semua notifikasi admin sudah dibaca.'
                 : 'Notifikasi akan muncul saat ada pengajuan baru dari anggota.',
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-      itemCount: notifications.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final entry = notifications[index];
-        final data = Map<String, dynamic>.from(entry.value as Map);
+    final groupKeys = grouped.keys.toList();
 
-        return _notificationTile(id: entry.key, data: data);
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+      itemCount: groupKeys.length,
+      itemBuilder: (context, groupIndex) {
+        final groupTitle = groupKeys[groupIndex];
+        final items = grouped[groupTitle] ?? [];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            dateHeader(groupTitle),
+            const SizedBox(height: 8),
+            ...items.map((item) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: notificationTile(data: item),
+              );
+            }),
+            const SizedBox(height: 4),
+          ],
+        );
       },
     );
   }
 
-  Widget _notificationTile({
-    required String id,
-    required Map<String, dynamic> data,
-  }) {
+  Widget dateHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 6, 2, 2),
+      child: Text(
+        title,
+        style: const TextStyle(
+          color: textDark,
+          fontSize: 13,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget notificationTile({required Map<String, dynamic> data}) {
+    final id = (data['id_notifikasi'] ?? '').toString();
     final title = (data['judul'] ?? 'Notifikasi').toString();
     final message = (data['pesan'] ?? '-').toString();
     final type = (data['tipe'] ?? '').toString();
     final date = (data['tanggal'] ?? '').toString();
 
-    final unread = _isUnread(data);
-    final color = _color(type);
+    final unread = isUnread(data);
+    final color = notifColor(type);
 
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        onTap: unread ? () => _markAsRead(id) : null,
-        borderRadius: BorderRadius.circular(18),
+        onTap: unread && id.isNotEmpty ? () => markAsRead(id) : null,
+        borderRadius: BorderRadius.circular(12),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: unread ? color.withValues(alpha: 0.30) : cardBorder,
+              color: unread ? color.withValues(alpha: 0.28) : cardBorder,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.025),
+                blurRadius: 7,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,9 +559,9 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
                     width: 44,
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: unread ? 0.14 : 0.09),
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(_icon(type), color: color, size: 23),
+                    child: Icon(notifIcon(type), color: color, size: 23),
                   ),
                   if (unread)
                     Positioned(
@@ -492,7 +590,7 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: textDark,
-                        fontSize: 14.5,
+                        fontSize: 14.3,
                         height: 1.25,
                         fontWeight: unread ? FontWeight.w900 : FontWeight.w700,
                       ),
@@ -500,11 +598,11 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
                     const SizedBox(height: 5),
                     Text(
                       message,
-                      maxLines: 3,
+                      maxLines: 4,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: textGrey,
-                        fontSize: 12.3,
+                        fontSize: 12.2,
                         height: 1.45,
                         fontWeight: FontWeight.w600,
                       ),
@@ -520,15 +618,15 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            _formatDate(date),
+                            formatJam(date),
                             style: const TextStyle(
                               color: textGrey,
                               fontSize: 11,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        _statusPill(unread),
+                        statusPill(unread),
                       ],
                     ),
                   ],
@@ -541,7 +639,7 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
     );
   }
 
-  Widget _statusPill(bool unread) {
+  Widget statusPill(bool unread) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
@@ -559,16 +657,16 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
     );
   }
 
-  Widget _iconButton({required IconData icon, required VoidCallback onTap}) {
+  Widget iconButton({required IconData icon, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        height: 42,
-        width: 42,
+        height: 40,
+        width: 40,
         decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(14),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: cardBorder),
         ),
         child: Icon(icon, color: textDark),
@@ -576,7 +674,7 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
     );
   }
 
-  Widget _emptyState({
+  Widget emptyState({
     required IconData icon,
     required String title,
     required String message,
@@ -588,13 +686,13 @@ class _NotifikasiAdminPageState extends State<NotifikasiAdminPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              height: 86,
-              width: 86,
+              height: 82,
+              width: 82,
               decoration: BoxDecoration(
                 color: softGreen,
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(24),
               ),
-              child: Icon(icon, color: primaryGreen, size: 42),
+              child: Icon(icon, color: primaryGreen, size: 40),
             ),
             const SizedBox(height: 18),
             Text(

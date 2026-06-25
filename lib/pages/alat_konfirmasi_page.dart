@@ -2,6 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
+import '../widgets/app_background.dart';
+
 class AlatKonfirmasiPage extends StatefulWidget {
   final String idAlat;
   final String namaAlat;
@@ -28,12 +30,13 @@ class AlatKonfirmasiPage extends StatefulWidget {
 
 class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff1B5E20);
-  static const Color lightGreen = Color(0xffE8F5E9);
-  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color darkGreen = Color(0xff14532D);
+  static const Color bgColor = Color(0xffF3F7F3);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color borderColor = Color(0xffE5E7EB);
+  static const Color orangeStatus = Color(0xffF57C00);
+  static const Color redStatus = Color(0xffDC2626);
   static const Color blueStatus = Color(0xff1976D2);
 
   bool isLoading = false;
@@ -55,24 +58,34 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
   }
 
   Future<void> simpanNotifikasiAdmin() async {
-    await notifikasiAdminRef.push().set({
-      'judul': 'Pengajuan Peminjaman Baru',
-      'pesan':
-          '${widget.nama} mengajukan peminjaman ${widget.namaAlat} pada tanggal ${widget.tanggalPinjam}.',
-      'tipe': 'peminjaman_alat',
-      'status': 'belum_dibaca',
-      'dibaca': false,
-      'tanggal': DateTime.now().toIso8601String(),
-    });
+    await notifikasiAdminRef
+        .push()
+        .set({
+          'judul': 'Pengajuan Peminjaman Baru',
+          'pesan':
+              '${widget.nama} mengajukan peminjaman ${widget.namaAlat} pada tanggal ${widget.tanggalPinjam}.',
+          'tipe': 'peminjaman_alat',
+          'status': 'belum_dibaca',
+          'dibaca': false,
+          'tanggal': DateTime.now().toIso8601String(),
+        })
+        .timeout(const Duration(seconds: 10));
   }
 
   Future<void> ajukanPeminjaman() async {
     if (isLoading) return;
 
+    FocusScope.of(context).unfocus();
+
     if (widget.idAlat.trim().isEmpty) {
-      _showSnackBar('ID alat tidak ditemukan', Colors.red);
+      _showSnackBar('Data alat tidak valid', redStatus);
       return;
     }
+
+    final lanjut = await _showConfirmDialog();
+
+    if (!mounted) return;
+    if (lanjut != true) return;
 
     setState(() => isLoading = true);
 
@@ -104,12 +117,113 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
       Navigator.pop(context);
       Navigator.pop(context);
       Navigator.pop(context);
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-      _showSnackBar('Gagal mengirim peminjaman: $e', Colors.red);
+      _showSnackBar(
+        'Gagal mengirim pengajuan. Periksa koneksi internet.',
+        redStatus,
+      );
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  Future<bool?> _showConfirmDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 64,
+                  width: 64,
+                  decoration: BoxDecoration(
+                    color: primaryGreen.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.send_rounded,
+                    color: primaryGreen,
+                    size: 34,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Ajukan Peminjaman?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: textDark,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Pastikan seluruh data peminjaman sudah benar sebelum dikirim ke admin.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: textGrey,
+                    fontSize: 13,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: textDark,
+                          side: const BorderSide(color: borderColor),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: const Text(
+                          'Batal',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryGreen,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        icon: const Icon(Icons.send_rounded, size: 18),
+                        label: const Text(
+                          'Kirim',
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _showSnackBar(String pesan, Color color) {
@@ -117,9 +231,13 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(pesan),
+        content: Text(
+          pesan,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -150,6 +268,7 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
 
       if (clean.contains('-')) {
         final parts = clean.split('-');
+        if (parts.length != 3) return null;
 
         if (parts[0].length == 4) {
           return DateTime(
@@ -168,6 +287,8 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
 
       if (clean.contains('/')) {
         final parts = clean.split('/');
+        if (parts.length != 3) return null;
+
         return DateTime(
           int.parse(parts[2]),
           int.parse(parts[1]),
@@ -194,40 +315,46 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
     return selisih < 0 ? 0 : selisih + 1;
   }
 
+  String sensorNik(String nik) {
+    final cleanNik = nik.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanNik.length <= 4) return nik;
+    return '•••• •••• •••• ${cleanNik.substring(cleanNik.length - 4)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final durasi = durasiHari();
 
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _header(context)),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                child: _stepIndicator(),
+      backgroundColor: bgColor,
+      body: AppBackground(
+        child: Stack(
+          children: [
+            SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 96),
+                children: [
+                  _headerPage(),
+                  const SizedBox(height: 16),
+                  _userInfoCard(),
+                  const SizedBox(height: 14),
+                  _stepCard(),
+                  const SizedBox(height: 14),
+                  _statusCard(durasi),
+                  const SizedBox(height: 14),
+                  _detailCard(durasi),
+                  const SizedBox(height: 14),
+                  _noteBox(),
+                ],
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
-                child: _mainCard(durasi),
+            if (isLoading)
+              Container(
+                color: Colors.black.withValues(alpha: 0.20),
+                child: const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
-                child: _detailCard(durasi),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 110),
-                child: _noteBox(),
-              ),
-            ),
           ],
         ),
       ),
@@ -235,253 +362,203 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
     );
   }
 
-  Widget _header(BuildContext context) {
+  Widget _headerPage() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xff14532D), Color(0xff2E7D32), Color(0xff66BB6A)],
+          colors: [darkGreen, primaryGreen],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(34),
-          bottomRight: Radius.circular(34),
-        ),
+        borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.24),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            color: darkGreen.withValues(alpha: 0.20),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Stack(
+      child: Row(
         children: [
-          Positioned(
-            right: -26,
-            bottom: -42,
-            child: Icon(
-              Icons.task_alt_rounded,
-              size: 160,
-              color: Colors.white.withValues(alpha: 0.08),
+          _backButton(),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Konfirmasi Peminjaman',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  'Periksa kembali data sebelum dikirim',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _backButton(context),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Konfirmasi Peminjaman',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 22),
-              const Text(
-                'Periksa Data',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              const Text(
-                'Pastikan data peminjaman alat sudah benar sebelum dikirim ke admin.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.24),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      height: 42,
-                      width: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '${widget.nama}\nNIK: ${widget.nik}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12.5,
-                          height: 1.35,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+            ),
+            child: const Icon(Icons.fact_check_rounded, color: Colors.white),
           ),
         ],
       ),
     );
   }
 
-  Widget _backButton(BuildContext context) {
-    return InkWell(
-      onTap: isLoading ? null : () => Navigator.pop(context),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-      ),
-    );
-  }
-
-  Widget _stepIndicator() {
+  Widget _userInfoCard() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(15),
       decoration: _cardDecoration(),
       child: Row(
         children: [
-          _stepCircle('1', 'Pilih', true, completed: true),
-          _stepLine(true),
-          _stepCircle('2', 'Jadwal', true, completed: true),
-          _stepLine(true),
-          _stepCircle('3', 'Data', true, completed: true),
-          _stepLine(true),
-          _stepCircle('4', 'Kirim', true),
+          Container(
+            height: 50,
+            width: 50,
+            decoration: BoxDecoration(
+              color: primaryGreen.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: primaryGreen,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Pemohon',
+                  style: TextStyle(
+                    color: textGrey,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.nama,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'NIK ${sensorNik(widget.nik)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            height: 38,
+            width: 38,
+            decoration: BoxDecoration(
+              color: primaryGreen.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(
+              Icons.verified_user_rounded,
+              color: primaryGreen,
+              size: 21,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _stepCircle(
-    String number,
-    String label,
-    bool active, {
-    bool completed = false,
-  }) {
-    return Column(
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          height: 34,
-          width: 34,
-          decoration: BoxDecoration(
-            color: active ? primaryGreen : const Color(0xffE5E7EB),
-            shape: BoxShape.circle,
-            boxShadow:
-                active
-                    ? [
-                      BoxShadow(
-                        color: primaryGreen.withValues(alpha: 0.24),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ]
-                    : [],
+  Widget _stepCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Tahap 4 dari 4',
+            style: TextStyle(
+              color: primaryGreen,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-          child: Center(
-            child:
-                completed
-                    ? const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    )
-                    : Text(
-                      number,
-                      style: TextStyle(
-                        color: active ? Colors.white : textGrey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+          const SizedBox(height: 5),
+          const Text(
+            'Periksa kembali data sebelum pengajuan dikirim ke admin.',
+            style: TextStyle(
+              color: textGrey,
+              fontSize: 12,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: active ? primaryGreen : textGrey,
-            fontWeight: active ? FontWeight.w900 : FontWeight.w600,
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: LinearProgressIndicator(
+              value: 1,
+              minHeight: 7,
+              backgroundColor: primaryGreen.withValues(alpha: 0.12),
+              valueColor: const AlwaysStoppedAnimation<Color>(primaryGreen),
+            ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _stepLine(bool active) {
-    return Expanded(
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        height: 3,
-        margin: const EdgeInsets.only(bottom: 24),
-        decoration: BoxDecoration(
-          color: active ? primaryGreen : const Color(0xffE5E7EB),
-          borderRadius: BorderRadius.circular(30),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _mainCard(int durasi) {
+  Widget _statusCard(int durasi) {
     final color = warnaAlat(widget.namaAlat);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: _cardDecoration(),
       child: Column(
         children: [
           Container(
-            width: 78,
-            height: 78,
+            height: 64,
+            width: 64,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [color, color.withValues(alpha: 0.70)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(26),
+              color: color,
+              borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: color.withValues(alpha: 0.20),
-                  blurRadius: 14,
+                  color: color.withValues(alpha: 0.22),
+                  blurRadius: 16,
                   offset: const Offset(0, 7),
                 ),
               ],
@@ -489,36 +566,37 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
             child: Icon(
               iconAlat(widget.namaAlat),
               color: Colors.white,
-              size: 42,
+              size: 34,
             ),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 14),
           Text(
             widget.namaAlat,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textDark,
-              fontSize: 21,
+              fontSize: 19,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 5),
-          Text(
-            'ID Alat: ${widget.idAlat}',
+          const SizedBox(height: 6),
+          const Text(
+            'Status awal pengajuan akan masuk sebagai menunggu verifikasi.',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: textGrey,
-              fontSize: 11.5,
+              fontSize: 12.5,
+              height: 1.4,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 13),
+          const SizedBox(height: 12),
           Wrap(
             alignment: WrapAlignment.center,
             spacing: 8,
             runSpacing: 8,
             children: [
-              _badge('Menunggu Admin', orangeStatus),
+              _badge('Menunggu Verifikasi', orangeStatus),
               _badge(durasi > 0 ? '$durasi Hari' : 'Durasi -', primaryGreen),
             ],
           ),
@@ -530,96 +608,144 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
   Widget _detailCard(int durasi) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Detail Pengajuan',
-            style: TextStyle(
-              color: textDark,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
+          _sectionTitle(
+            icon: Icons.receipt_long_rounded,
+            title: 'Detail Pengajuan',
+            subtitle: 'Ringkasan data peminjaman alat',
           ),
           const SizedBox(height: 14),
-          _detailItem(Icons.person_rounded, 'Nama Peminjam', widget.nama),
-          _detailItem(Icons.badge_rounded, 'NIK', widget.nik),
-          _detailItem(Icons.qr_code_rounded, 'ID Alat', widget.idAlat),
-          _detailItem(Icons.handyman_rounded, 'Nama Alat', widget.namaAlat),
-          _detailItem(
-            Icons.calendar_month_rounded,
-            'Tanggal Pinjam',
-            widget.tanggalPinjam,
-          ),
-          _detailItem(
-            Icons.event_available_rounded,
-            'Tanggal Kembali',
-            widget.tanggalKembali,
-          ),
-          _detailItem(
-            Icons.timer_rounded,
-            'Durasi',
-            durasi > 0 ? '$durasi hari' : '-',
-            valueColor: primaryGreen,
-          ),
-          _detailItem(
-            Icons.notes_rounded,
-            'Catatan',
-            widget.catatan.trim().isEmpty ? '-' : widget.catatan,
+          _infoBox(
+            children: [
+              _detailRow(
+                Icons.person_outline_rounded,
+                'Nama Peminjam',
+                widget.nama,
+              ),
+              _detailRow(Icons.badge_outlined, 'NIK', widget.nik),
+              _detailRow(Icons.handyman_rounded, 'Nama Alat', widget.namaAlat),
+              _detailRow(
+                Icons.calendar_today_rounded,
+                'Tanggal Pinjam',
+                widget.tanggalPinjam,
+              ),
+              _detailRow(
+                Icons.event_available_rounded,
+                'Tanggal Kembali',
+                widget.tanggalKembali,
+              ),
+              _detailRow(
+                Icons.timelapse_rounded,
+                'Durasi',
+                durasi > 0 ? '$durasi hari' : '-',
+                valueColor: primaryGreen,
+              ),
+              _detailRow(
+                Icons.notes_rounded,
+                'Catatan',
+                widget.catatan.trim().isEmpty ? '-' : widget.catatan.trim(),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _detailItem(
+  Widget _sectionTitle({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      children: [
+        Container(
+          height: 38,
+          width: 38,
+          decoration: BoxDecoration(
+            color: primaryGreen.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(icon, color: primaryGreen, size: 21),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _infoBox({required List<Widget> children}) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(13, 13, 13, 4),
+      decoration: BoxDecoration(
+        color: const Color(0xffF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _detailRow(
     IconData icon,
-    String title,
+    String label,
     String value, {
     Color? valueColor,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 11),
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: const Color(0xffE5E7EB)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 42,
-            width: 42,
-            decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: primaryGreen, size: 21),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
+          Icon(icon, color: primaryGreen, size: 17),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 112,
             child: Text(
-              title,
+              label,
               style: const TextStyle(
                 color: textGrey,
-                fontSize: 12.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          const SizedBox(width: 10),
-          Flexible(
+          Expanded(
             child: Text(
               value.trim().isEmpty ? '-' : value,
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: valueColor ?? textDark,
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
+                fontSize: 12,
+                height: 1.35,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -631,25 +757,25 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
   Widget _noteBox() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: lightGreen,
-        borderRadius: BorderRadius.circular(20),
+        color: primaryGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 22),
-          SizedBox(width: 10),
+          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 20),
+          SizedBox(width: 9),
           Expanded(
             child: Text(
-              'Pengajuan akan masuk ke admin untuk diverifikasi. Stok alat belum berkurang sampai admin menandai alat benar-benar dipinjam.',
+              'Pengajuan akan masuk ke admin untuk diverifikasi. Alat belum tercatat dipinjam sampai admin menyetujui pengajuan.',
               style: TextStyle(
-                color: textGrey,
-                fontSize: 12.8,
+                color: primaryGreen,
+                fontSize: 12.5,
                 height: 1.4,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -660,14 +786,14 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
 
   Widget _bottomSubmitBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: bgColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, -6),
+            blurRadius: 14,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
@@ -675,31 +801,32 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
         top: false,
         child: SizedBox(
           width: double.infinity,
-          height: 56,
+          height: 54,
           child: ElevatedButton.icon(
+            onPressed: isLoading ? null : ajukanPeminjaman,
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryGreen,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.45),
+              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.40),
+              disabledForegroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(19),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
-            onPressed: isLoading ? null : ajukanPeminjaman,
             icon:
                 isLoading
                     ? const SizedBox(
-                      width: 19,
-                      height: 19,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.4,
                         color: Colors.white,
                       ),
                     )
-                    : const Icon(Icons.send_rounded),
+                    : const Icon(Icons.send_rounded, size: 20),
             label: Text(
-              isLoading ? 'Mengirim Pengajuan...' : 'Ajukan Peminjaman',
+              isLoading ? 'Mengirim...' : 'Ajukan Peminjaman',
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
             ),
           ),
@@ -710,19 +837,42 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
 
   Widget _badge(String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
+        color: color.withValues(alpha: 0.11),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: color.withValues(alpha: 0.20)),
       ),
       child: Text(
         text,
         style: TextStyle(
           color: color,
-          fontSize: 12,
+          fontSize: 11.5,
           fontWeight: FontWeight.w900,
         ),
+      ),
+    );
+  }
+
+  Widget _backButton() {
+    return InkWell(
+      onTap:
+          isLoading
+              ? null
+              : () {
+                if (!mounted) return;
+                Navigator.pop(context);
+              },
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        height: 44,
+        width: 44,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
     );
   }
@@ -730,13 +880,13 @@ class _AlatKonfirmasiPageState extends State<AlatKonfirmasiPage> {
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 13,
+          offset: const Offset(0, 6),
         ),
       ],
     );

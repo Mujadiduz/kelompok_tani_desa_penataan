@@ -16,13 +16,12 @@ class KelolaPengumumanPage extends StatefulWidget {
 class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
-  static const Color softGreen = Color(0xffEAF7EC);
-  static const Color backgroundColor = Color(0xffF7FAF7);
+  static const Color bgColor = Color(0xffF4F7F4);
   static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color redColor = Color(0xffDC2626);
-  static const Color orangeColor = Color(0xffF59E0B);
+  static const Color orangeColor = Color(0xffF57C00);
   static const Color blueColor = Color(0xff2563EB);
   static const Color purpleColor = Color(0xff7C3AED);
 
@@ -33,7 +32,6 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
   );
 
   late final DatabaseReference _pengumumanRef;
-
   bool _isProcessing = false;
 
   @override
@@ -74,6 +72,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
 
   String _todayText() {
     final now = DateTime.now();
+
     const months = [
       'Jan',
       'Feb',
@@ -90,6 +89,12 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     ];
 
     return '${now.day} ${months[now.month - 1]} ${now.year}';
+  }
+
+  int _countStatus(List<Map<String, dynamic>> data, String status) {
+    return data.where((item) {
+      return (item['status'] ?? '').toString().toLowerCase().trim() == status;
+    }).length;
   }
 
   Future<void> _saveAnnouncement({
@@ -137,11 +142,13 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
               'isi': cleanBody,
               'kategori': cleanCategory,
               'status': status,
+              'tanggal_update': DateTime.now().toIso8601String(),
             })
             .timeout(const Duration(seconds: 10));
       }
 
       if (!mounted) return;
+
       _showSnack(
         id == null
             ? 'Pengumuman berhasil ditambahkan.'
@@ -161,7 +168,10 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
 
       await _pengumumanRef
           .child(id)
-          .update({'status': newStatus})
+          .update({
+            'status': newStatus,
+            'tanggal_update': DateTime.now().toIso8601String(),
+          })
           .timeout(const Duration(seconds: 10));
 
       if (!mounted) return;
@@ -195,7 +205,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
       SnackBar(
         backgroundColor: darkGreen,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
         content: Text(message),
       ),
     );
@@ -257,15 +267,23 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
           builder: (context, setModalState) {
             return Padding(
               padding: EdgeInsets.only(
-                left: 14,
-                right: 14,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 14,
+                left: 16,
+                right: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
               ),
               child: Container(
-                padding: const EdgeInsets.all(18),
-                decoration: const BoxDecoration(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: cardBorder),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: SingleChildScrollView(
                   child: Column(
@@ -282,26 +300,48 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 18),
-                      Text(
-                        item == null ? 'Tambah Pengumuman' : 'Edit Pengumuman',
-                        style: const TextStyle(
-                          color: textDark,
-                          fontSize: 21,
-                          fontWeight: FontWeight.w900,
-                        ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Container(
+                            height: 48,
+                            width: 48,
+                            decoration: BoxDecoration(
+                              color: primaryGreen.withValues(alpha: 0.11),
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            child: const Icon(
+                              Icons.campaign_rounded,
+                              color: primaryGreen,
+                              size: 27,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              item == null
+                                  ? 'Tambah Pengumuman'
+                                  : 'Edit Pengumuman',
+                              style: const TextStyle(
+                                color: textDark,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Pilih kategori agar pengumuman tampil seperti banner info di halaman anggota.',
+                        'Buat informasi yang akan tampil pada halaman anggota.',
                         style: TextStyle(
                           color: textGrey,
-                          fontSize: 13,
+                          fontSize: 12.5,
                           height: 1.4,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 16),
                       _promoPreview(
                         title:
                             titleController.text.trim().isEmpty
@@ -314,7 +354,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                         category: category,
                         compact: true,
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 16),
                       _inputField(
                         controller: titleController,
                         label: 'Judul Pengumuman',
@@ -322,7 +362,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                         icon: Icons.title_rounded,
                         onChanged: (_) => setModalState(() {}),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       _inputField(
                         controller: bodyController,
                         label: 'Isi Pengumuman',
@@ -345,15 +385,47 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          _categoryOption('umum', category, setModalState),
-                          _categoryOption('pupuk', category, setModalState),
-                          _categoryOption('alat', category, setModalState),
-                          _categoryOption('rapat', category, setModalState),
-                          _categoryOption('panen', category, setModalState),
                           _categoryOption(
-                            'gotong_royong',
-                            category,
-                            setModalState,
+                            value: 'umum',
+                            selected: category,
+                            onTap: () {
+                              setModalState(() => category = 'umum');
+                            },
+                          ),
+                          _categoryOption(
+                            value: 'pupuk',
+                            selected: category,
+                            onTap: () {
+                              setModalState(() => category = 'pupuk');
+                            },
+                          ),
+                          _categoryOption(
+                            value: 'alat',
+                            selected: category,
+                            onTap: () {
+                              setModalState(() => category = 'alat');
+                            },
+                          ),
+                          _categoryOption(
+                            value: 'rapat',
+                            selected: category,
+                            onTap: () {
+                              setModalState(() => category = 'rapat');
+                            },
+                          ),
+                          _categoryOption(
+                            value: 'panen',
+                            selected: category,
+                            onTap: () {
+                              setModalState(() => category = 'panen');
+                            },
+                          ),
+                          _categoryOption(
+                            value: 'gotong_royong',
+                            selected: category,
+                            onTap: () {
+                              setModalState(() => category = 'gotong_royong');
+                            },
                           ),
                         ],
                       ),
@@ -383,17 +455,17 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
-                        height: 54,
+                        height: 52,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryGreen,
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
+                              borderRadius: BorderRadius.circular(13),
                             ),
                           ),
                           onPressed:
@@ -446,21 +518,21 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     });
   }
 
-  Widget _categoryOption(
-    String value,
-    String selected,
-    StateSetter setModalState,
-  ) {
+  Widget _categoryOption({
+    required String value,
+    required String selected,
+    required VoidCallback onTap,
+  }) {
     final isSelected = value == selected;
     final color = _categoryColor(value);
 
     return InkWell(
-      onTap: () => setModalState(() => selected = value),
+      onTap: onTap,
       borderRadius: BorderRadius.circular(999),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.12) : backgroundColor,
+          color: isSelected ? color.withValues(alpha: 0.12) : bgColor,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: isSelected ? color : cardBorder),
         ),
@@ -511,23 +583,23 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
             hintText: hint,
             prefixIcon: Icon(icon, color: primaryGreen),
             filled: true,
-            fillColor: backgroundColor,
+            fillColor: const Color(0xffF9FAFB),
             hintStyle: const TextStyle(color: textGrey, fontSize: 13),
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 15,
+              horizontal: 14,
+              vertical: 16,
             ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(13),
               borderSide: const BorderSide(color: cardBorder),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(13),
               borderSide: const BorderSide(color: cardBorder),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: const BorderSide(color: primaryGreen, width: 1.4),
+              borderRadius: BorderRadius.circular(13),
+              borderSide: const BorderSide(color: primaryGreen, width: 1.5),
             ),
           ),
         ),
@@ -543,12 +615,12 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(13),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.12) : backgroundColor,
-          borderRadius: BorderRadius.circular(18),
+          color: selected ? color.withValues(alpha: 0.12) : bgColor,
+          borderRadius: BorderRadius.circular(13),
           border: Border.all(color: selected ? color : cardBorder),
         ),
         child: Center(
@@ -572,7 +644,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
         return AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(18),
           ),
           title: const Text(
             'Hapus Pengumuman?',
@@ -591,17 +663,21 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Batal'),
             ),
-            ElevatedButton(
+            ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: redColor,
                 foregroundColor: Colors.white,
                 elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
               ),
               onPressed: () async {
                 Navigator.pop(dialogContext);
                 await _deleteAnnouncement(id);
               },
-              child: const Text('Hapus'),
+              icon: const Icon(Icons.delete_rounded, size: 18),
+              label: const Text('Hapus'),
             ),
           ],
         );
@@ -612,11 +688,11 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: bgColor,
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: primaryGreen,
         foregroundColor: Colors.white,
-        elevation: 0,
+        elevation: 3,
         onPressed: () => _openForm(),
         icon: const Icon(Icons.add_rounded),
         label: const Text(
@@ -625,98 +701,259 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            _header(),
-            Expanded(
-              child: StreamBuilder<DatabaseEvent>(
-                stream: _pengumumanRef.onValue,
-                builder: (context, snapshot) {
-                  final list = _getAnnouncements(snapshot.data?.snapshot.value);
+        child: StreamBuilder<DatabaseEvent>(
+          stream: _pengumumanRef.onValue,
+          builder: (context, snapshot) {
+            final list = _getAnnouncements(snapshot.data?.snapshot.value);
+            final aktif = _countStatus(list, 'aktif');
+            final nonaktif = _countStatus(list, 'nonaktif');
 
-                  if (snapshot.hasError) {
-                    return _emptyState(
-                      title: 'Gagal Memuat Pengumuman',
-                      message: 'Periksa koneksi internet atau Firebase.',
-                      icon: Icons.error_outline_rounded,
-                    );
-                  }
-
-                  if (list.isEmpty) {
-                    return _emptyState(
-                      title: 'Belum Ada Pengumuman',
-                      message:
-                          'Tambahkan pengumuman agar informasi penting tampil di halaman anggota.',
-                      icon: Icons.campaign_rounded,
-                    );
-                  }
-
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 100),
-                    itemCount: list.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 14),
-                    itemBuilder: (context, index) {
-                      return _announcementCard(list[index]);
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
+            return ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _header(list.length),
+                const SizedBox(height: 16),
+                _sectionTitle(
+                  title: 'Ringkasan Pengumuman',
+                  subtitle: 'Pantauan informasi yang tampil untuk anggota',
+                  horizontalPadding: 16,
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _summaryGrid(
+                    total: list.length,
+                    aktif: aktif,
+                    nonaktif: nonaktif,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _infoPanel(),
+                ),
+                const SizedBox(height: 18),
+                _sectionTitle(
+                  title: 'Daftar Pengumuman',
+                  subtitle: 'Kelola informasi yang dibaca anggota',
+                  horizontalPadding: 16,
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                  child: _buildContent(snapshot, list),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _header() {
+  Widget _buildContent(
+    AsyncSnapshot<DatabaseEvent> snapshot,
+    List<Map<String, dynamic>> list,
+  ) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return Column(children: List.generate(3, (_) => _loadingCard()));
+    }
+
+    if (snapshot.hasError) {
+      return _emptyState(
+        title: 'Gagal Memuat Pengumuman',
+        message: 'Periksa koneksi internet atau Firebase.',
+        icon: Icons.error_outline_rounded,
+      );
+    }
+
+    if (list.isEmpty) {
+      return _emptyState(
+        title: 'Belum Ada Pengumuman',
+        message:
+            'Tambahkan pengumuman agar informasi penting tampil di halaman anggota.',
+        icon: Icons.campaign_rounded,
+      );
+    }
+
+    return Column(
+      children:
+          list.map((item) {
+            return _announcementCard(item);
+          }).toList(),
+    );
+  }
+
+  Widget _header(int total) {
     return Container(
       width: double.infinity,
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-      child: Column(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+      decoration: BoxDecoration(
+        color: darkGreen,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(26),
+          bottomRight: Radius.circular(26),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
         children: [
-          Row(
-            children: [
-              _topButton(
-                icon: Icons.arrow_back_rounded,
-                onTap: () {
-                  if (mounted) Navigator.pop(context);
-                },
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
+          _backButton(),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
                   'Kelola Pengumuman',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: textDark,
-                    fontSize: 21,
+                    color: Colors.white,
+                    fontSize: 20,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: softGreen,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: primaryGreen.withValues(alpha: 0.10)),
+                const SizedBox(height: 4),
+                Text(
+                  'Atur informasi yang tampil di halaman anggota',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.74),
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            child: const Row(
+          ),
+          _headerCounter(total),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerCounter(int total) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 52, minHeight: 48),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            total.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              height: 1,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'info',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.82),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryGrid({
+    required int total,
+    required int aktif,
+    required int nonaktif,
+  }) {
+    final items = [
+      _SummaryItem(
+        title: 'Total Info',
+        value: total,
+        icon: Icons.campaign_rounded,
+        color: primaryGreen,
+      ),
+      _SummaryItem(
+        title: 'Aktif',
+        value: aktif,
+        icon: Icons.visibility_rounded,
+        color: blueColor,
+      ),
+      _SummaryItem(
+        title: 'Nonaktif',
+        value: nonaktif,
+        icon: Icons.visibility_off_rounded,
+        color: orangeColor,
+      ),
+    ];
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: _summaryCard(items[0])),
+            const SizedBox(width: 10),
+            Expanded(child: _summaryCard(items[1])),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _summaryCard(items[2]),
+      ],
+    );
+  }
+
+  Widget _summaryCard(_SummaryItem item) {
+    return Container(
+      height: 92,
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          Container(
+            height: 40,
+            width: 40,
+            decoration: BoxDecoration(
+              color: item.color.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(item.icon, color: item.color, size: 22),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.campaign_rounded, color: primaryGreen),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Buat info seperti banner promo agar mudah dibaca anggota.',
-                    style: TextStyle(
-                      color: textDark,
-                      fontSize: 12.5,
-                      height: 1.35,
-                      fontWeight: FontWeight.w700,
-                    ),
+                Text(
+                  item.value.toString(),
+                  style: TextStyle(
+                    color: item.color,
+                    fontSize: 22,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  item.title,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
@@ -727,19 +964,31 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     );
   }
 
-  Widget _topButton({required IconData icon, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: cardBorder),
-        ),
-        child: Icon(icon, color: textDark),
+  Widget _infoPanel() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: primaryGreen.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 22),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Pengumuman aktif akan tampil di halaman anggota. Saat membuat pengumuman aktif, anggota akan mendapatkan notifikasi.',
+              style: TextStyle(
+                color: textGrey,
+                fontSize: 12.5,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -754,6 +1003,8 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     final active = status == 'aktif';
 
     return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(13),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -764,67 +1015,61 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
             category: category,
             compact: false,
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_month_rounded,
-                      size: 16,
-                      color: textGrey.withValues(alpha: 0.8),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        date,
-                        style: const TextStyle(
-                          color: textGrey,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    _statusBadge(active),
-                  ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                Icons.calendar_month_rounded,
+                size: 16,
+                color: textGrey.withValues(alpha: 0.8),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  date,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _actionButton(
-                        title: active ? 'Nonaktifkan' : 'Aktifkan',
-                        icon:
-                            active
-                                ? Icons.visibility_off_rounded
-                                : Icons.visibility_rounded,
-                        color: active ? orangeColor : primaryGreen,
-                        onTap: () => _toggleStatus(id, status),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _actionButton(
-                        title: 'Edit',
-                        icon: Icons.edit_rounded,
-                        color: blueColor,
-                        onTap: () => _openForm(item: item),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _actionButton(
-                        title: 'Hapus',
-                        icon: Icons.delete_rounded,
-                        color: redColor,
-                        onTap: () => _confirmDelete(id),
-                      ),
-                    ),
-                  ],
+              ),
+              _statusBadge(active),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _actionButton(
+                  title: active ? 'Nonaktif' : 'Aktifkan',
+                  icon:
+                      active
+                          ? Icons.visibility_off_rounded
+                          : Icons.visibility_rounded,
+                  color: active ? orangeColor : primaryGreen,
+                  onTap: () => _toggleStatus(id, status),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _actionButton(
+                  title: 'Edit',
+                  icon: Icons.edit_rounded,
+                  color: blueColor,
+                  onTap: () => _openForm(item: item),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _actionButton(
+                  title: 'Hapus',
+                  icon: Icons.delete_rounded,
+                  color: redColor,
+                  onTap: () => _confirmDelete(id),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -841,13 +1086,10 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(compact ? 14 : 16),
+      padding: EdgeInsets.all(compact ? 14 : 15),
       decoration: BoxDecoration(
         color: color,
-        borderRadius:
-            compact
-                ? BorderRadius.circular(22)
-                : const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.circular(13),
       ),
       child: Stack(
         children: [
@@ -856,7 +1098,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
             bottom: -26,
             child: Icon(
               _categoryIcon(category),
-              size: compact ? 96 : 120,
+              size: compact ? 90 : 112,
               color: Colors.white.withValues(alpha: 0.10),
             ),
           ),
@@ -864,10 +1106,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(999),
@@ -892,14 +1131,14 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                   ],
                 ),
               ),
-              SizedBox(height: compact ? 12 : 16),
+              SizedBox(height: compact ? 12 : 14),
               Text(
                 title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: compact ? 17 : 19,
+                  fontSize: compact ? 17 : 18,
                   height: 1.2,
                   fontWeight: FontWeight.w900,
                 ),
@@ -916,27 +1155,6 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (!compact) ...[
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'Lihat Info',
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ],
@@ -946,19 +1164,16 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
 
   Widget _statusBadge(bool active) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color:
-            active
-                ? primaryGreen.withValues(alpha: 0.12)
-                : orangeColor.withValues(alpha: 0.12),
+        color: (active ? primaryGreen : orangeColor).withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        active ? 'Aktif' : 'Nonaktif',
+        active ? 'AKTIF' : 'NONAKTIF',
         style: TextStyle(
           color: active ? primaryGreen : orangeColor,
-          fontSize: 10,
+          fontSize: 9.5,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -973,13 +1188,13 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(13),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.16)),
+          color: color.withValues(alpha: 0.09),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: color.withValues(alpha: 0.13)),
         ),
         child: Column(
           children: [
@@ -1004,69 +1219,172 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     required String title,
     required String message,
   }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: _cardDecoration(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: softGreen,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Icon(icon, color: primaryGreen, size: 38),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: textDark,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: textGrey,
-                  fontSize: 13,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                height: 48,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryGreen,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: () => _openForm(),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text(
-                    'Tambah Pengumuman',
-                    style: TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                ),
-              ),
-            ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 26),
+      decoration: _cardDecoration(),
+      child: Column(
+        children: [
+          Container(
+            height: 78,
+            width: 78,
+            decoration: BoxDecoration(
+              color: primaryGreen.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: primaryGreen, size: 38),
           ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 12,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            height: 48,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryGreen,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+              onPressed: () => _openForm(),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text(
+                'Tambah Pengumuman',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loadingCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              color: cardBorder,
+              borderRadius: BorderRadius.circular(13),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              children: [
+                Container(
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: cardBorder,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: cardBorder,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle({
+    required String title,
+    required String subtitle,
+    required double horizontalPadding,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+      child: Row(
+        children: [
+          Container(
+            height: 34,
+            width: 5,
+            decoration: BoxDecoration(
+              color: primaryGreen,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _backButton() {
+    return InkWell(
+      onTap: () {
+        if (!mounted) return;
+        Navigator.pop(context);
+      },
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        height: 44,
+        width: 44,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
         ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
     );
   }
@@ -1074,15 +1392,29 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(13),
       border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 9,
+          offset: const Offset(0, 3),
         ),
       ],
     );
   }
+}
+
+class _SummaryItem {
+  final String title;
+  final int value;
+  final IconData icon;
+  final Color color;
+
+  const _SummaryItem({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 }

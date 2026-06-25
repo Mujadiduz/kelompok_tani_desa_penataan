@@ -40,6 +40,7 @@ dependencies:
   firebase_messaging: ^15.2.10
   flutter_local_notifications: ^19.4.1
   image_picker: ^1.1.2
+  shared_preferences: ^2.3.2
 
   pdf: ^3.11.0
   printing: ^5.13.4

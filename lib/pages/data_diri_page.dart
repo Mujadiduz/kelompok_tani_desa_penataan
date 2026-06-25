@@ -14,71 +14,75 @@ class DataDiriPage extends StatefulWidget {
 class _DataDiriPageState extends State<DataDiriPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
-  static const Color lightGreen = Color(0xffE8F5E9);
-  static const Color backgroundColor = Color(0xffF6FAF7);
+  static const Color softGreen = Color(0xffEAF7EC);
+  static const Color backgroundColor = Color(0xffF7FAF7);
+  static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color blueStatus = Color(0xff1976D2);
-  static const Color orangeStatus = Color(0xffFB8C00);
+  static const Color orangeStatus = Color(0xffF59E0B);
+  static const Color blueStatus = Color(0xff2563EB);
 
-  final DatabaseReference anggotaRef = FirebaseDatabase.instanceFor(
+  final DatabaseReference _anggotaRef = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   ).ref('anggota');
 
-  Map<String, dynamic>? cariDataDiri(dynamic value) {
+  Map<String, dynamic>? _findMember(dynamic value) {
     if (value == null || value is! Map) return null;
 
     final data = Map<dynamic, dynamic>.from(value);
-    final nikLogin = widget.nik.replaceAll(RegExp(r'[^0-9]'), '');
+    final loginNik = widget.nik.replaceAll(RegExp(r'[^0-9]'), '');
 
     for (final item in data.values) {
-      if (item is Map) {
-        final anggota = Map<String, dynamic>.from(item);
-        final nikData = (anggota['nik'] ?? '').toString().replaceAll(
-          RegExp(r'[^0-9]'),
-          '',
-        );
+      if (item is! Map) continue;
 
-        if (nikData == nikLogin) return anggota;
-      }
+      final member = Map<String, dynamic>.from(item);
+      final dataNik = (member['nik'] ?? '').toString().replaceAll(
+        RegExp(r'[^0-9]'),
+        '',
+      );
+
+      if (dataNik == loginNik) return member;
     }
 
     return null;
   }
 
-  String ambilLuasSawah(Map<String, dynamic> data) {
-    return (data['luas_sawah'] ??
-            data['jumlah_petak_sawah'] ??
-            data['luasSawah'] ??
-            '-')
-        .toString();
+  String _text(dynamic value, {String fallback = '-'}) {
+    final result = (value ?? '').toString().trim();
+    return result.isEmpty ? fallback : result;
   }
 
-  String ambilTanggal(Map<String, dynamic> data, List<String> keys) {
+  String _landSize(Map<String, dynamic> data) {
+    return _text(
+      data['luas_sawah'] ?? data['jumlah_petak_sawah'] ?? data['luasSawah'],
+    );
+  }
+
+  String _dateFrom(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = (data[key] ?? '').toString().trim();
-      if (value.isNotEmpty) return formatTanggal(value);
+      if (value.isNotEmpty) return _formatDate(value);
     }
     return '-';
   }
 
-  String formatTanggal(String value) {
-    try {
-      final date = DateTime.parse(value);
-      return '${date.day.toString().padLeft(2, '0')}-'
-          '${date.month.toString().padLeft(2, '0')}-'
-          '${date.year}';
-    } catch (_) {
-      return value;
-    }
+  String _formatDate(String value) {
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) return value;
+
+    final day = parsed.day.toString().padLeft(2, '0');
+    final month = parsed.month.toString().padLeft(2, '0');
+    final year = parsed.year.toString();
+
+    return '$day-$month-$year';
   }
 
-  String statusText(Map<String, dynamic> data) {
+  String _statusText(Map<String, dynamic> data) {
     final status = (data['status'] ?? 'aktif').toString().toLowerCase().trim();
 
-    if (status == 'aktif' || status == 'disetujui' || status.isEmpty) {
+    if (status.isEmpty || status == 'aktif' || status == 'disetujui') {
       return 'Anggota Aktif';
     }
 
@@ -87,8 +91,8 @@ class _DataDiriPageState extends State<DataDiriPage> {
     return status;
   }
 
-  String inisialNama(String nama) {
-    final clean = nama.trim();
+  String _initialName(String name) {
+    final clean = name.trim();
     if (clean.isEmpty || clean == '-') return 'A';
 
     final parts = clean.split(' ').where((e) => e.isNotEmpty).toList();
@@ -99,20 +103,20 @@ class _DataDiriPageState extends State<DataDiriPage> {
     return clean[0].toUpperCase();
   }
 
-  double parseDouble(dynamic value) {
+  double _parseDouble(dynamic value) {
     return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0;
   }
 
-  double hitungJatahPupuk(String luasSawah) {
-    return parseDouble(luasSawah) / 2;
+  double _fertilizerQuota(String landSize) {
+    return _parseDouble(landSize) / 2;
   }
 
-  String formatAngka(double value) {
+  String _formatNumber(double value) {
     if (value % 1 == 0) return value.toInt().toString();
     return value.toStringAsFixed(1);
   }
 
-  Future<void> refreshData() async {
+  Future<void> _refreshData() async {
     setState(() {});
   }
 
@@ -122,23 +126,23 @@ class _DataDiriPageState extends State<DataDiriPage> {
       backgroundColor: backgroundColor,
       body: SafeArea(
         child: FutureBuilder<DataSnapshot>(
-          future: anggotaRef.get(),
+          future: _anggotaRef.get().timeout(const Duration(seconds: 10)),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return _messageState(
                 icon: Icons.error_outline_rounded,
                 title: 'Terjadi Kesalahan',
-                message: snapshot.error.toString(),
+                message: 'Data diri gagal dimuat.',
               );
             }
 
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return _loadingPage();
+              return _loadingState();
             }
 
-            final dataDiri = cariDataDiri(snapshot.data?.value);
+            final member = _findMember(snapshot.data?.value);
 
-            if (dataDiri == null) {
+            if (member == null) {
               return _messageState(
                 icon: Icons.person_off_rounded,
                 title: 'Data Tidak Ditemukan',
@@ -146,156 +150,22 @@ class _DataDiriPageState extends State<DataDiriPage> {
               );
             }
 
-            final nama = (dataDiri['nama'] ?? '-').toString();
-            final luasSawah = ambilLuasSawah(dataDiri);
-            final jatahPupuk = hitungJatahPupuk(luasSawah);
-            final tanggalDaftar = ambilTanggal(dataDiri, [
-              'tanggal_daftar',
-              'created_at',
-              'tanggal',
-            ]);
-            final tanggalVerifikasi = ambilTanggal(dataDiri, [
-              'tanggal_verifikasi',
-              'verified_at',
-            ]);
-
             return RefreshIndicator(
               color: primaryGreen,
-              onRefresh: refreshData,
-              child: CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: _header(
-                      context: context,
-                      nama: nama,
-                      dataDiri: dataDiri,
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
-                      child: _summaryCard(
-                        luasSawah: luasSawah,
-                        jatahPupuk: jatahPupuk,
-                        status: statusText(dataDiri),
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
-                      child: _sectionTitle(
-                        title: 'Informasi Pribadi',
-                        icon: Icons.person_rounded,
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-                      child: _infoCard(
-                        children: [
-                          _infoItem(
-                            icon: Icons.person_rounded,
-                            title: 'Nama',
-                            value: dataDiri['nama'] ?? '-',
-                            color: primaryGreen,
-                          ),
-                          const Divider(height: 24),
-                          _infoItem(
-                            icon: Icons.badge_rounded,
-                            title: 'NIK',
-                            value: dataDiri['nik'] ?? '-',
-                            color: blueStatus,
-                          ),
-                          const Divider(height: 24),
-                          _infoItem(
-                            icon: Icons.phone_rounded,
-                            title: 'Telepon',
-                            value: dataDiri['telepon'] ?? '-',
-                            color: primaryGreen,
-                          ),
-                          const Divider(height: 24),
-                          _infoItem(
-                            icon: Icons.wc_rounded,
-                            title: 'Jenis Kelamin',
-                            value: dataDiri['jenis_kelamin'] ?? '-',
-                            color: orangeStatus,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
-                      child: _sectionTitle(
-                        title: 'Informasi Lahan',
-                        icon: Icons.landscape_rounded,
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-                      child: _infoCard(
-                        children: [
-                          _infoItem(
-                            icon: Icons.home_rounded,
-                            title: 'Alamat',
-                            value: dataDiri['alamat'] ?? '-',
-                            color: blueStatus,
-                          ),
-                          const Divider(height: 24),
-                          _infoItem(
-                            icon: Icons.map_rounded,
-                            title: 'Keterangan',
-                            value:
-                                'Data lahan digunakan sebagai dasar pengajuan bantuan pupuk.',
-                            color: primaryGreen,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
-                      child: _sectionTitle(
-                        title: 'Informasi Keanggotaan',
-                        icon: Icons.verified_user_rounded,
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 30),
-                      child: _infoCard(
-                        children: [
-                          _infoItem(
-                            icon: Icons.calendar_month_rounded,
-                            title: 'Tanggal Daftar',
-                            value: tanggalDaftar,
-                            color: primaryGreen,
-                          ),
-                          const Divider(height: 24),
-                          _infoItem(
-                            icon: Icons.event_available_rounded,
-                            title: 'Tanggal Verifikasi',
-                            value: tanggalVerifikasi,
-                            color: blueStatus,
-                          ),
-                          const Divider(height: 24),
-                          _infoItem(
-                            icon: Icons.verified_rounded,
-                            title: 'Status',
-                            value: statusText(dataDiri),
-                            color: primaryGreen,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+              onRefresh: _refreshData,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
+                children: [
+                  _topBar(),
+                  const SizedBox(height: 16),
+                  _profileHeader(member),
+                  const SizedBox(height: 16),
+                  _summaryCard(member),
+                  const SizedBox(height: 22),
+                  _sectionTitle('Data Anggota'),
+                  const SizedBox(height: 12),
+                  _dataCard(member),
                 ],
               ),
             );
@@ -305,95 +175,177 @@ class _DataDiriPageState extends State<DataDiriPage> {
     );
   }
 
-  Widget _header({
-    required BuildContext context,
-    required String nama,
-    required Map<String, dynamic> dataDiri,
-  }) {
+  Widget _topBar() {
+    return Row(
+      children: [
+        _topButton(
+          icon: Icons.arrow_back_rounded,
+          onTap: () {
+            if (mounted) Navigator.pop(context);
+          },
+        ),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text(
+            'Data Diri',
+            style: TextStyle(
+              color: textDark,
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _profileHeader(Map<String, dynamic> data) {
+    final name = _text(data['nama']);
+    final status = _statusText(data);
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 26),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xff14532D), Color(0xff2E7D32), Color(0xff66BB6A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(36),
-          bottomRight: Radius.circular(36),
-        ),
+        color: darkGreen,
+        borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.24),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            color: darkGreen.withValues(alpha: 0.20),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Column(
+      child: Stack(
         children: [
-          Row(
+          Positioned(
+            right: -24,
+            bottom: -30,
+            child: Icon(
+              Icons.person_rounded,
+              size: 135,
+              color: Colors.white.withValues(alpha: 0.06),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _backButton(context),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Data Diri',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
+              Row(
+                children: [
+                  Container(
+                    height: 68,
+                    width: 68,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.16),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.28),
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        _initialName(name),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
                   ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            height: 1.2,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          'NIK ${_text(data['nik'])}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.72),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.verified_user_rounded,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Status keanggotaan terdaftar sebagai $status.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          fontSize: 12.5,
+                          height: 1.35,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        status.replaceAll('Anggota ', '').toUpperCase(),
+                        style: const TextStyle(
+                          color: primaryGreen,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 26),
-          Container(
-            height: 96,
-            width: 96,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.38),
-                width: 2,
-              ),
-            ),
-            child: Center(
-              child: Text(
-                inisialNama(nama),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 34,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 15),
-          Text(
-            nama,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 23,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          _whiteBadge(statusText(dataDiri)),
         ],
       ),
     );
   }
 
-  Widget _summaryCard({
-    required String luasSawah,
-    required double jatahPupuk,
-    required String status,
-  }) {
+  Widget _summaryCard(Map<String, dynamic> data) {
+    final landSize = _landSize(data);
+    final quota = _fertilizerQuota(landSize);
+    final status = _statusText(data).replaceAll('Anggota ', '');
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
@@ -403,7 +355,7 @@ class _DataDiriPageState extends State<DataDiriPage> {
             child: _summaryMini(
               icon: Icons.landscape_rounded,
               title: 'Luas Sawah',
-              value: '$luasSawah Ha',
+              value: '$landSize Ha',
               color: primaryGreen,
             ),
           ),
@@ -412,7 +364,7 @@ class _DataDiriPageState extends State<DataDiriPage> {
             child: _summaryMini(
               icon: Icons.inventory_2_rounded,
               title: 'Jatah Pupuk',
-              value: '${formatAngka(jatahPupuk)} Kg',
+              value: '${_formatNumber(quota)} Kg',
               color: orangeStatus,
             ),
           ),
@@ -421,7 +373,7 @@ class _DataDiriPageState extends State<DataDiriPage> {
             child: _summaryMini(
               icon: Icons.verified_rounded,
               title: 'Status',
-              value: status.replaceAll('Anggota ', ''),
+              value: status,
               color: blueStatus,
             ),
           ),
@@ -442,7 +394,7 @@ class _DataDiriPageState extends State<DataDiriPage> {
           height: 44,
           width: 44,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
+            color: color.withValues(alpha: 0.11),
             borderRadius: BorderRadius.circular(15),
           ),
           child: Icon(icon, color: color, size: 23),
@@ -473,74 +425,97 @@ class _DataDiriPageState extends State<DataDiriPage> {
     );
   }
 
-  Widget _whiteBadge(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
+  Widget _dataCard(Map<String, dynamic> data) {
+    final dateRegistered = _dateFrom(data, [
+      'tanggal_daftar',
+      'created_at',
+      'tanggal',
+    ]);
 
-  Widget _sectionTitle({required String title, required IconData icon}) {
-    return Row(
-      children: [
-        Container(
-          height: 36,
-          width: 36,
-          decoration: BoxDecoration(
-            color: lightGreen,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: primaryGreen, size: 20),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+    final dateVerified = _dateFrom(data, ['tanggal_verifikasi', 'verified_at']);
 
-  Widget _infoCard({required List<Widget> children}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
-      child: Column(children: children),
+      child: Column(
+        children: [
+          _dataItem(
+            icon: Icons.person_rounded,
+            title: 'Nama',
+            value: _text(data['nama']),
+            color: primaryGreen,
+          ),
+          const Divider(height: 24),
+          _dataItem(
+            icon: Icons.badge_rounded,
+            title: 'NIK',
+            value: _text(data['nik']),
+            color: blueStatus,
+          ),
+          const Divider(height: 24),
+          _dataItem(
+            icon: Icons.phone_rounded,
+            title: 'Telepon',
+            value: _text(data['telepon']),
+            color: primaryGreen,
+          ),
+          const Divider(height: 24),
+          _dataItem(
+            icon: Icons.wc_rounded,
+            title: 'Jenis Kelamin',
+            value: _text(data['jenis_kelamin']),
+            color: orangeStatus,
+          ),
+          const Divider(height: 24),
+          _dataItem(
+            icon: Icons.home_rounded,
+            title: 'Alamat',
+            value: _text(data['alamat']),
+            color: blueStatus,
+            multiline: true,
+          ),
+          const Divider(height: 24),
+          _dataItem(
+            icon: Icons.landscape_rounded,
+            title: 'Luas Sawah',
+            value: '${_landSize(data)} Ha',
+            color: primaryGreen,
+          ),
+          const Divider(height: 24),
+          _dataItem(
+            icon: Icons.calendar_month_rounded,
+            title: 'Tanggal Daftar',
+            value: dateRegistered,
+            color: primaryGreen,
+          ),
+          const Divider(height: 24),
+          _dataItem(
+            icon: Icons.event_available_rounded,
+            title: 'Tanggal Verifikasi',
+            value: dateVerified,
+            color: blueStatus,
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _infoItem({
+  Widget _dataItem({
     required IconData icon,
     required String title,
-    required dynamic value,
+    required String value,
     required Color color,
+    bool multiline = false,
   }) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
         Container(
           height: 44,
           width: 44,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
+            color: color.withValues(alpha: 0.11),
             borderRadius: BorderRadius.circular(15),
           ),
           child: Icon(icon, color: color, size: 23),
@@ -560,11 +535,14 @@ class _DataDiriPageState extends State<DataDiriPage> {
         Flexible(
           flex: 2,
           child: Text(
-            value.toString().isEmpty ? '-' : value.toString(),
+            value.isEmpty ? '-' : value,
             textAlign: TextAlign.right,
+            maxLines: multiline ? 3 : 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: textDark,
               fontSize: 13,
+              height: 1.35,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -573,23 +551,35 @@ class _DataDiriPageState extends State<DataDiriPage> {
     );
   }
 
-  Widget _backButton(BuildContext context) {
+  Widget _sectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: textDark,
+        fontSize: 18,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+  }
+
+  Widget _topButton({required IconData icon, required VoidCallback onTap}) {
     return InkWell(
-      onTap: () => Navigator.pop(context),
+      onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         height: 42,
         width: 42,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: cardBorder),
         ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+        child: Icon(icon, color: textDark),
       ),
     );
   }
 
-  Widget _loadingPage() {
+  Widget _loadingState() {
     return const Center(child: CircularProgressIndicator(color: primaryGreen));
   }
 
@@ -602,6 +592,7 @@ class _DataDiriPageState extends State<DataDiriPage> {
       child: Padding(
         padding: const EdgeInsets.all(28),
         child: Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(24),
           decoration: _cardDecoration(),
           child: Column(
@@ -610,9 +601,9 @@ class _DataDiriPageState extends State<DataDiriPage> {
               Container(
                 height: 86,
                 width: 86,
-                decoration: const BoxDecoration(
-                  color: lightGreen,
-                  shape: BoxShape.circle,
+                decoration: BoxDecoration(
+                  color: softGreen,
+                  borderRadius: BorderRadius.circular(30),
                 ),
                 child: Icon(icon, color: primaryGreen, size: 42),
               ),
@@ -633,7 +624,7 @@ class _DataDiriPageState extends State<DataDiriPage> {
                 style: const TextStyle(
                   color: textGrey,
                   fontSize: 13,
-                  height: 1.4,
+                  height: 1.45,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -647,13 +638,13 @@ class _DataDiriPageState extends State<DataDiriPage> {
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xffE5E7EB)),
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 12,
+          offset: const Offset(0, 6),
         ),
       ],
     );
