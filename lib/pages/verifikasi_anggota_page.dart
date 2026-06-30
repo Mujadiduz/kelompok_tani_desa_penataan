@@ -20,6 +20,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
   static const Color softGreen = Color(0xffEAF7EC);
+  static const Color bgColor = Color(0xffF6FAF7);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color borderColor = Color(0xffE5E7EB);
@@ -94,13 +95,11 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
       if (!mounted) return;
       _showSnackBar('Anggota berhasil disetujui.', primaryGreen);
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       _showSnackBar('Gagal menyetujui anggota.', redStatus);
     } finally {
-      if (mounted) {
-        setState(() => isProcessing = false);
-      }
+      if (mounted) setState(() => isProcessing = false);
     }
   }
 
@@ -122,13 +121,11 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
       if (!mounted) return;
       _showSnackBar('Anggota berhasil ditolak.', redStatus);
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       _showSnackBar('Gagal menolak anggota.', redStatus);
     } finally {
-      if (mounted) {
-        setState(() => isProcessing = false);
-      }
+      if (mounted) setState(() => isProcessing = false);
     }
   }
 
@@ -139,60 +136,107 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   }) async {
     final nama = ambilNama(anggota);
     final isSetuju = status == 'disetujui';
+    final color = isSetuju ? primaryGreen : redStatus;
 
     final hasil = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(22),
           ),
-          title: Text(
-            isSetuju ? 'Setujui Anggota?' : 'Tolak Anggota?',
-            style: const TextStyle(
-              color: textDark,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          content: Text(
-            isSetuju
-                ? 'Data $nama akan disetujui dan masuk sebagai anggota aktif.'
-                : 'Pengajuan anggota dari $nama akan ditolak.',
-            style: const TextStyle(
-              color: textGrey,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text(
-                'Batal',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isSetuju ? primaryGreen : redStatus,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 62,
+                  width: 62,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: color.withValues(alpha: 0.16)),
+                  ),
+                  child: Icon(
+                    isSetuju ? Icons.verified_rounded : Icons.block_rounded,
+                    color: color,
+                    size: 32,
+                  ),
                 ),
-              ),
-              onPressed: () => Navigator.pop(dialogContext, true),
-              icon: Icon(
-                isSetuju ? Icons.check_rounded : Icons.close_rounded,
-                size: 18,
-              ),
-              label: Text(
-                isSetuju ? 'Setujui' : 'Tolak',
-                style: const TextStyle(fontWeight: FontWeight.w900),
-              ),
+                const SizedBox(height: 15),
+                Text(
+                  isSetuju ? 'Setujui Anggota?' : 'Tolak Anggota?',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  isSetuju
+                      ? 'Data $nama akan dipindahkan menjadi anggota aktif.'
+                      : 'Pengajuan anggota dari $nama akan ditolak.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 12.7,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 21),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: textDark,
+                          side: const BorderSide(color: borderColor),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: const Text(
+                          'Batal',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: color,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        icon: Icon(
+                          isSetuju ? Icons.check_rounded : Icons.close_rounded,
+                          size: 18,
+                        ),
+                        label: Text(
+                          isSetuju ? 'Setujui' : 'Tolak',
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -239,13 +283,19 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
                   color: darkGreen,
                   child: Row(
                     children: [
+                      const Icon(
+                        Icons.badge_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
-                          'Foto KTP',
+                          'Foto KTP Calon Anggota',
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w900,
@@ -255,7 +305,10 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                       InkWell(
                         onTap: () => Navigator.pop(dialogContext),
                         borderRadius: BorderRadius.circular(99),
-                        child: const Icon(Icons.close, color: Colors.white),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(Icons.close, color: Colors.white),
+                        ),
                       ),
                     ],
                   ),
@@ -304,7 +357,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   Color backgroundStatus(String status) {
     if (status == 'disetujui' || status == 'aktif') return softGreen;
     if (status == 'ditolak') return const Color(0xffFEE2E2);
-    return const Color(0xffFEF3C7);
+    return const Color(0xffFFF7ED);
   }
 
   String teksStatus(String status) {
@@ -329,6 +382,12 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     }
   }
 
+  String sensorNik(String nik) {
+    final cleanNik = nik.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanNik.length <= 4) return nik;
+    return '•••• •••• •••• ${cleanNik.substring(cleanNik.length - 4)}';
+  }
+
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
 
@@ -341,6 +400,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
         ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -348,7 +408,9 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: bgColor,
       body: AppBackground(
+        showPattern: false,
         child: Stack(
           children: [
             SafeArea(
@@ -357,7 +419,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return ListView(
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
                       children: [
                         _header(0),
                         const SizedBox(height: 16),
@@ -372,7 +434,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return ListView(
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
                       children: [
                         _header(0),
                         const SizedBox(height: 120),
@@ -402,16 +464,18 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                     onRefresh: () async => calonAnggotaRef.get(),
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
                       children: [
                         _header(totalMenunggu),
-                        const SizedBox(height: 16),
-                        _statusControlPanel(
+                        const SizedBox(height: 12),
+                        _filterPanel(
                           totalSemua: totalSemua,
                           totalMenunggu: totalMenunggu,
                           totalDisetujui: totalDisetujui,
                           totalDitolak: totalDitolak,
                         ),
+                        const SizedBox(height: 12),
+                        _infoBox(totalMenunggu),
                         const SizedBox(height: 14),
                         if (semuaData.isEmpty)
                           _messageState(
@@ -443,7 +507,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
             ),
             if (isProcessing)
               Container(
-                color: Colors.black.withValues(alpha: 0.22),
+                color: Colors.black.withValues(alpha: 0.18),
                 child: const Center(
                   child: CircularProgressIndicator(color: Colors.white),
                 ),
@@ -456,15 +520,15 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
   Widget _header(int totalMenunggu) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
       decoration: BoxDecoration(
         color: darkGreen,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.20),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: darkGreen.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 7),
           ),
         ],
       ),
@@ -477,33 +541,19 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
               height: 42,
               width: 42,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
+                color: Colors.white.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
               ),
               child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
             ),
           ),
           const SizedBox(width: 12),
-          Container(
-            height: 48,
-            width: 48,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: const Icon(
-              Icons.person_add_alt_1_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Verifikasi Anggota',
                   style: TextStyle(
                     color: Colors.white,
@@ -511,16 +561,14 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
-                  totalMenunggu == 0
-                      ? 'Semua calon anggota sudah diproses.'
-                      : '$totalMenunggu calon anggota menunggu verifikasi.',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12.2,
+                  'Kelola calon anggota baru',
+                  style: TextStyle(
+                    color: Color(0xffD1FAE5),
+                    fontSize: 12,
                     height: 1.3,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -534,27 +582,27 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
   Widget _headerCounter(int total) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 52, minHeight: 48),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
       ),
       child: Column(
         children: [
           Text(
-            total.toString(),
+            total > 99 ? '99+' : total.toString(),
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 17,
               height: 1,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'cek',
+            'baru',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.82),
               fontSize: 10,
@@ -566,7 +614,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     );
   }
 
-  Widget _statusControlPanel({
+  Widget _filterPanel({
     required int totalSemua,
     required int totalMenunggu,
     required int totalDisetujui,
@@ -577,104 +625,139 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
         'Semua',
         'semua',
         totalSemua,
-        Icons.list_alt_rounded,
+        Icons.dashboard_customize_rounded,
         blueStatus,
       ),
       _FilterItem(
         'Menunggu',
         'menunggu',
         totalMenunggu,
-        Icons.schedule_rounded,
+        Icons.pending_actions_rounded,
         orangeStatus,
       ),
       _FilterItem(
-        'Setuju',
+        'Disetujui',
         'disetujui',
         totalDisetujui,
-        Icons.check_circle_rounded,
+        Icons.verified_rounded,
         primaryGreen,
       ),
       _FilterItem(
         'Ditolak',
         'ditolak',
         totalDitolak,
-        Icons.cancel_rounded,
+        Icons.block_rounded,
         redStatus,
       ),
     ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(radius: 24),
+      padding: const EdgeInsets.all(10),
+      decoration: _cardDecoration(radius: 18),
       child: GridView.builder(
         itemCount: filters.length,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisExtent: 72,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
+          crossAxisCount: 4,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childAspectRatio: 0.78,
         ),
         itemBuilder: (context, index) {
           final item = filters[index];
           final aktif = selectedFilter == item.value;
 
           return InkWell(
-            onTap: () {
-              setState(() => selectedFilter = item.value);
-            },
-            borderRadius: BorderRadius.circular(17),
+            onTap: () => setState(() => selectedFilter = item.value),
+            borderRadius: BorderRadius.circular(15),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              duration: const Duration(milliseconds: 170),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
               decoration: BoxDecoration(
-                color: aktif ? item.color : item.color.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(17),
+                color: aktif ? item.color : item.color.withValues(alpha: 0.075),
+                borderRadius: BorderRadius.circular(15),
                 border: Border.all(
                   color:
-                      aktif ? item.color : item.color.withValues(alpha: 0.18),
+                      aktif ? item.color : item.color.withValues(alpha: 0.13),
                 ),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    item.icon,
-                    color: aktif ? Colors.white : item.color,
-                    size: 23,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.total.toString(),
-                          style: TextStyle(
-                            color: aktif ? Colors.white : item.color,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        Text(
-                          item.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: aktif ? Colors.white : textGrey,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      item.icon,
+                      color: aktif ? Colors.white : item.color,
+                      size: 20,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 5),
+                    Text(
+                      item.total > 99 ? '99+' : item.total.toString(),
+                      style: TextStyle(
+                        color: aktif ? Colors.white : item.color,
+                        fontSize: 17,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      item.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: aktif ? Colors.white : textDark,
+                        fontSize: 10.2,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _infoBox(int totalMenunggu) {
+    final clear = totalMenunggu == 0;
+
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: (clear ? primaryGreen : orangeStatus).withValues(alpha: 0.075),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: (clear ? primaryGreen : orangeStatus).withValues(alpha: 0.16),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            clear ? Icons.task_alt_rounded : Icons.info_outline_rounded,
+            color: clear ? primaryGreen : orangeStatus,
+            size: 19,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              clear
+                  ? 'Semua data calon anggota sudah diproses.'
+                  : '$totalMenunggu calon anggota masih menunggu verifikasi.',
+              style: TextStyle(
+                color: clear ? primaryGreen : orangeStatus,
+                fontSize: 12.2,
+                height: 1.4,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -684,62 +767,19 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     final fotoKtpBase64 = _text(anggota['foto_ktp_base64']);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(radius: 24),
+      margin: const EdgeInsets.only(bottom: 11),
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _cardTop(anggota, status),
-          const SizedBox(height: 14),
-          _infoBox(
-            children: [
-              _infoRow(Icons.badge_outlined, 'NIK', anggota['nik'] ?? '-'),
-              _infoRow(
-                Icons.phone_rounded,
-                'Telepon',
-                anggota['telepon'] ?? '-',
-              ),
-              _infoRow(Icons.home_rounded, 'Alamat', anggota['alamat'] ?? '-'),
-              _infoRow(
-                Icons.wc_rounded,
-                'Jenis Kelamin',
-                anggota['jenis_kelamin'] ?? '-',
-              ),
-              _infoRow(
-                Icons.landscape_rounded,
-                'Luas Sawah',
-                '${anggota['luas_sawah'] ?? '-'} Ha',
-              ),
-              _infoRow(
-                Icons.calendar_month_rounded,
-                'Tanggal Daftar',
-                formatTanggal(anggota['tanggal_daftar']),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: primaryGreen,
-                side: BorderSide(color: primaryGreen.withValues(alpha: 0.55)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(17),
-                ),
-              ),
-              onPressed: () => lihatFotoKtp(fotoKtpBase64),
-              icon: const Icon(Icons.credit_card_rounded),
-              label: const Text(
-                'Lihat Foto KTP',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-            ),
-          ),
+          const SizedBox(height: 12),
+          _dataCalonBox(anggota),
+          const SizedBox(height: 12),
+          _ktpButton(fotoKtpBase64),
           if (status == 'menunggu') ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -782,16 +822,20 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   Widget _cardTop(Map<String, dynamic> anggota, String status) {
     return Row(
       children: [
-        CircleAvatar(
-          radius: 25,
-          backgroundColor: softGreen,
+        Container(
+          height: 48,
+          width: 48,
+          decoration: BoxDecoration(
+            color: primaryGreen.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(15),
+          ),
           child: const Icon(
-            Icons.person_rounded,
+            Icons.person_search_rounded,
             color: primaryGreen,
-            size: 27,
+            size: 25,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 11),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -802,40 +846,63 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: textDark,
-                  fontSize: 16,
+                  fontSize: 15.2,
                   fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                ambilNik(anggota),
+                'NIK ${sensorNik(ambilNik(anggota))}',
                 style: const TextStyle(
                   color: textGrey,
-                  fontSize: 12.5,
+                  fontSize: 11.7,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
         ),
+        const SizedBox(width: 8),
         _statusBadge(status),
       ],
     );
   }
 
-  Widget _infoBox({required List<Widget> children}) {
+  Widget _dataCalonBox(Map<String, dynamic> anggota) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(13, 13, 13, 4),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 3),
       decoration: BoxDecoration(
         color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(15),
         border: Border.all(color: borderColor),
       ),
-      child: Column(children: children),
+      child: Column(
+        children: [
+          _infoRow(Icons.phone_rounded, 'Telepon', anggota['telepon']),
+          _infoRow(Icons.home_rounded, 'Alamat', anggota['alamat']),
+          _infoRow(Icons.wc_rounded, 'Kelamin', anggota['jenis_kelamin']),
+          _infoRow(
+            Icons.landscape_rounded,
+            'Luas Sawah',
+            '${_text(anggota['luas_sawah'])} Ha',
+            valueColor: primaryGreen,
+          ),
+          _infoRow(
+            Icons.calendar_month_rounded,
+            'Daftar',
+            formatTanggal(anggota['tanggal_daftar']),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _infoRow(IconData icon, String label, dynamic value) {
+  Widget _infoRow(
+    IconData icon,
+    String label,
+    dynamic value, {
+    Color? valueColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
       child: Row(
@@ -844,23 +911,25 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
           Icon(icon, color: primaryGreen, size: 17),
           const SizedBox(width: 8),
           SizedBox(
-            width: 105,
+            width: 86,
             child: Text(
               label,
               style: const TextStyle(
                 color: textGrey,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontSize: 11.8,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
           Expanded(
             child: Text(
               _text(value),
-              style: const TextStyle(
-                color: textDark,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: valueColor ?? textDark,
+                fontSize: 11.8,
+                height: 1.35,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
@@ -869,19 +938,45 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     );
   }
 
+  Widget _ktpButton(String fotoKtpBase64) {
+    return SizedBox(
+      width: double.infinity,
+      height: 44,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primaryGreen,
+          side: BorderSide(color: primaryGreen.withValues(alpha: 0.35)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        ),
+        onPressed: () => lihatFotoKtp(fotoKtpBase64),
+        icon: const Icon(Icons.badge_rounded, size: 18),
+        label: const Text(
+          'Lihat Foto KTP',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+      ),
+    );
+  }
+
   Widget _statusBadge(String status) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      constraints: const BoxConstraints(maxWidth: 92),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: backgroundStatus(status),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: warnaStatus(status).withValues(alpha: 0.12)),
+        border: Border.all(color: warnaStatus(status).withValues(alpha: 0.15)),
       ),
       child: Text(
-        teksStatus(status).toUpperCase(),
+        teksStatus(status),
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: warnaStatus(status),
-          fontSize: 10,
+          fontSize: 9.8,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -895,7 +990,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     required VoidCallback onPressed,
   }) {
     return SizedBox(
-      height: 48,
+      height: 46,
       child: ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
@@ -903,7 +998,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
           disabledBackgroundColor: color.withValues(alpha: 0.40),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(17),
+            borderRadius: BorderRadius.circular(15),
           ),
         ),
         onPressed: isProcessing ? null : onPressed,
@@ -921,35 +1016,36 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration(radius: 24),
+      decoration: _cardDecoration(radius: 20),
       child: Column(
         children: [
           Container(
-            height: 78,
-            width: 78,
-            decoration: const BoxDecoration(
+            height: 72,
+            width: 72,
+            decoration: BoxDecoration(
               color: softGreen,
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
             ),
-            child: Icon(icon, color: primaryGreen, size: 38),
+            child: Icon(icon, color: primaryGreen, size: 36),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Text(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textDark,
-              fontSize: 18,
+              fontSize: 15.8,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             message,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 13,
+              fontSize: 12.4,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -959,16 +1055,16 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     );
   }
 
-  BoxDecoration _cardDecoration({double radius = 20}) {
+  BoxDecoration _cardDecoration({double radius = 18}) {
     return BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.96),
+      color: Colors.white,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 16,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.032),
+          blurRadius: 12,
+          offset: const Offset(0, 5),
         ),
       ],
     );

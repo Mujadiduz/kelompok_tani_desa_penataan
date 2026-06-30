@@ -15,10 +15,13 @@ class ResetPasswordAdminPage extends StatefulWidget {
 class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
+  static const Color bgColor = Color(0xffF6FAF7);
+  static const Color softGreen = Color(0xffEAF7EC);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color borderColor = Color(0xffE5E7EB);
+  static const Color borderColor = Color(0xffE6ECE8);
   static const Color orangeStatus = Color(0xffF59E0B);
+  static const Color blueStatus = Color(0xff2563EB);
 
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -127,6 +130,7 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: bgColor,
       body: AppBackground(
         child: SafeArea(
           child: StreamBuilder<DatabaseEvent>(
@@ -134,22 +138,34 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
             builder: (context, snapshot) {
               final resetList = ambilResetList(snapshot.data?.snapshot.value);
 
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return _loadingView();
-              }
-
               return RefreshIndicator(
                 color: primaryGreen,
+                backgroundColor: Colors.white,
                 onRefresh: refreshData,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
                   children: [
-                    _header(),
+                    _header(resetList.length),
                     const SizedBox(height: 16),
-                    _summaryCard(resetList.length),
+                    _summaryRow(resetList.length),
                     const SizedBox(height: 16),
-                    if (resetList.isEmpty)
+                    _statusPanel(resetList.length),
+                    const SizedBox(height: 18),
+                    _sectionTitle(
+                      title: 'Daftar Permintaan',
+                      subtitle: '${resetList.length} permintaan menunggu',
+                    ),
+                    const SizedBox(height: 12),
+                    if (snapshot.connectionState == ConnectionState.waiting)
+                      Column(children: List.generate(3, (_) => _loadingCard()))
+                    else if (snapshot.hasError)
+                      _messageState(
+                        icon: Icons.fact_check_rounded,
+                        title: 'Terjadi Kesalahan',
+                        message: snapshot.error.toString(),
+                      )
+                    else if (resetList.isEmpty)
                       _emptyCard()
                     else
                       ...resetList.map((item) => _resetCard(item)),
@@ -163,19 +179,20 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
     );
   }
 
-  Widget _loadingView() {
-    return const Center(child: CircularProgressIndicator(color: primaryGreen));
-  }
-
-  Widget _header() {
+  Widget _header(int total) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
       decoration: BoxDecoration(
-        color: darkGreen,
-        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          colors: [darkGreen, primaryGreen],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.20),
+            color: darkGreen.withValues(alpha: 0.18),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -183,41 +200,31 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
       ),
       child: Row(
         children: [
-          InkWell(
-            onTap: () => Navigator.pop(context),
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              height: 42,
-              width: 42,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
-              ),
-              child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-            ),
-          ),
+          _backButton(),
           const SizedBox(width: 12),
           Container(
-            height: 48,
-            width: 48,
+            height: 42,
+            width: 42,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
             ),
             child: const Icon(
               Icons.lock_reset_rounded,
               color: Colors.white,
-              size: 28,
+              size: 22,
             ),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(width: 12),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Reset Password',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 19,
@@ -226,15 +233,45 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Kelola permintaan reset anggota.',
+                  'Kelola permintaan reset password anggota',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12.2,
+                    color: Color(0xffDDEFE3),
+                    fontSize: 11.8,
                     height: 1.3,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          _headerBadge(total),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerBadge(int total) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.fact_check_rounded, color: Colors.white, size: 14),
+          const SizedBox(width: 5),
+          Text(
+            total > 99 ? '99+' : total.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -242,44 +279,126 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
     );
   }
 
-  Widget _summaryCard(int total) {
+  Widget _summaryRow(int total) {
+    return Row(
+      children: [
+        Expanded(
+          child: _summaryItem(
+            title: 'Menunggu',
+            value: total.toString(),
+            icon: Icons.pending_actions_rounded,
+            color: orangeStatus,
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: _summaryItem(
+            title: 'Verifikasi',
+            value: total > 0 ? 'Perlu' : 'Aman',
+            icon: Icons.verified_user_rounded,
+            color: total > 0 ? orangeStatus : primaryGreen,
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: _summaryItem(
+            title: 'Prioritas',
+            value: total > 0 ? 'Tinggi' : 'Normal',
+            icon: Icons.fact_check_rounded,
+            color: total > 0 ? blueStatus : primaryGreen,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _summaryItem({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: _cardDecoration(radius: 24),
-      child: Row(
+      height: 74,
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.022),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 58,
-            width: 58,
-            decoration: BoxDecoration(
-              color: orangeStatus.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: const Icon(
-              Icons.pending_actions_rounded,
-              color: orangeStatus,
-              size: 31,
+          Icon(icon, size: 15, color: color),
+          const Spacer(),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: value.length > 5 ? 13.5 : 18,
+              height: 1,
+              fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(height: 3),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 9.2,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusPanel(int total) {
+    final aman = total == 0;
+    final color = aman ? primaryGreen : orangeStatus;
+
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(radius: 18),
+      child: Row(
+        children: [
+          _iconBox(
+            aman ? Icons.task_alt_rounded : Icons.schedule_rounded,
+            color,
+          ),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$total Permintaan Menunggu',
+                  aman ? 'Semua permintaan selesai' : 'Perlu diproses admin',
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 17,
+                    fontSize: 13.8,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 5),
-                const Text(
-                  'Permintaan reset password akan muncul otomatis di halaman ini.',
-                  style: TextStyle(
+                const SizedBox(height: 3),
+                Text(
+                  aman
+                      ? 'Belum ada permintaan reset password yang menunggu.'
+                      : '$total anggota menunggu password baru dari admin.',
+                  style: const TextStyle(
                     color: textGrey,
-                    fontSize: 12.4,
+                    fontSize: 11.5,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -298,145 +417,177 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
     final tanggal = formatTanggal(item['tanggal_pengajuan']);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 13),
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(radius: 24),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: _cardDecoration(radius: 20),
       child: Column(
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 25,
-                backgroundColor: orangeStatus.withValues(alpha: 0.13),
-                child: const Icon(
-                  Icons.person_search_rounded,
-                  color: orangeStatus,
-                ),
-              ),
-              const SizedBox(width: 12),
+              _avatarBox(),
+              const SizedBox(width: 11),
               Expanded(
-                child: Text(
-                  nama,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nama,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textDark,
+                        fontSize: 14.2,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.badge_rounded,
+                          size: 13,
+                          color: textGrey,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            sensorNik(nik),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: textGrey,
+                              fontSize: 11.4,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 8),
               _statusBadge(),
             ],
           ),
-          const SizedBox(height: 14),
-          _detailBox(
+          const SizedBox(height: 10),
+          Row(
             children: [
-              _detailRow(
-                icon: Icons.badge_rounded,
-                label: 'NIK',
-                value: sensorNik(nik),
+              _miniInfo(
+                icon: Icons.calendar_month_rounded,
+                text: tanggal,
+                color: blueStatus,
               ),
-              _detailRow(
-                icon: Icons.calendar_today_rounded,
-                label: 'Tanggal',
-                value: tanggal,
-              ),
+              const Spacer(),
+              _processButton(item),
             ],
           ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: () => bukaProsesReset(item),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryGreen,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(17),
-                ),
-              ),
-              icon: const Icon(Icons.password_rounded),
-              label: const Text(
-                'Proses Reset Password',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-              ),
-            ),
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _avatarBox() {
+    return Container(
+      height: 42,
+      width: 42,
+      decoration: BoxDecoration(
+        color: orangeStatus.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: orangeStatus.withValues(alpha: 0.11)),
+      ),
+      child: const Icon(
+        Icons.assignment_ind_rounded,
+        color: orangeStatus,
+        size: 21,
       ),
     );
   }
 
   Widget _statusBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
       decoration: BoxDecoration(
-        color: orangeStatus.withValues(alpha: 0.11),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: orangeStatus.withValues(alpha: 0.18)),
+        color: orangeStatus.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: orangeStatus.withValues(alpha: 0.12)),
       ),
       child: const Text(
-        'Menunggu',
+        'MENUNGGU',
         style: TextStyle(
           color: orangeStatus,
-          fontSize: 10.5,
+          fontSize: 8.8,
           fontWeight: FontWeight.w900,
+          letterSpacing: 0.25,
         ),
       ),
     );
   }
 
-  Widget _detailBox({required List<Widget> children}) {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: borderColor),
+  Widget _miniInfo({
+    required IconData icon,
+    required String text,
+    required Color color,
+  }) {
+    return Flexible(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11.5, color: color),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 9.8,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-      child: Column(children: children),
     );
   }
 
-  Widget _detailRow({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: primaryGreen, size: 17),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 78,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: textGrey,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+  Widget _processButton(Map<String, dynamic> item) {
+    return InkWell(
+      onTap: () => bukaProsesReset(item),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 31,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: primaryGreen.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: primaryGreen.withValues(alpha: 0.11)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_reset_rounded, color: primaryGreen, size: 15),
+            SizedBox(width: 5),
+            Text(
+              'Proses',
+              style: TextStyle(
+                color: primaryGreen,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
               ),
             ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: textDark,
-                fontSize: 12,
-                height: 1.35,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -444,33 +595,42 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
   Widget _emptyCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration(radius: 24),
-      child: const Column(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 34),
+      decoration: _cardDecoration(radius: 22),
+      child: Column(
         children: [
-          Icon(
-            Icons.check_circle_outline_rounded,
-            color: primaryGreen,
-            size: 54,
+          Container(
+            height: 76,
+            width: 76,
+            decoration: BoxDecoration(
+              color: softGreen,
+              shape: BoxShape.circle,
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
+            ),
+            child: const Icon(
+              Icons.task_alt_rounded,
+              color: primaryGreen,
+              size: 34,
+            ),
           ),
-          SizedBox(height: 13),
-          Text(
+          const SizedBox(height: 15),
+          const Text(
             'Belum Ada Permintaan',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: textDark,
-              fontSize: 17,
+              fontSize: 16.5,
               fontWeight: FontWeight.w900,
             ),
           ),
-          SizedBox(height: 7),
-          Text(
+          const SizedBox(height: 7),
+          const Text(
             'Semua permintaan reset password sudah diproses atau belum ada anggota yang mengajukan.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: textGrey,
-              fontSize: 12.5,
-              height: 1.45,
+              fontSize: 12.4,
+              height: 1.4,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -479,16 +639,181 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
     );
   }
 
-  BoxDecoration _cardDecoration({double radius = 20}) {
+  Widget _loadingCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(radius: 20),
+      child: Row(
+        children: [
+          Container(
+            height: 42,
+            width: 42,
+            decoration: BoxDecoration(
+              color: borderColor,
+              borderRadius: BorderRadius.circular(15),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              children: [
+                Container(
+                  height: 13,
+                  decoration: BoxDecoration(
+                    color: borderColor,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                const SizedBox(height: 9),
+                Container(
+                  height: 11,
+                  decoration: BoxDecoration(
+                    color: borderColor,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _messageState({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 34),
+      decoration: _cardDecoration(radius: 22),
+      child: Column(
+        children: [
+          Container(
+            height: 76,
+            width: 76,
+            decoration: BoxDecoration(
+              color: softGreen,
+              shape: BoxShape.circle,
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
+            ),
+            child: Icon(icon, color: primaryGreen, size: 34),
+          ),
+          const SizedBox(height: 15),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 16.5,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 12.4,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle({required String title, required String subtitle}) {
+    return Row(
+      children: [
+        Container(
+          height: 30,
+          width: 4,
+          decoration: BoxDecoration(
+            color: primaryGreen,
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 11.2,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _backButton() {
+    return InkWell(
+      onTap: () {
+        if (!mounted) return;
+        Navigator.pop(context);
+      },
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        height: 42,
+        width: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+        ),
+        child: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          color: Colors.white,
+          size: 17,
+        ),
+      ),
+    );
+  }
+
+  Widget _iconBox(IconData icon, Color color) {
+    return Container(
+      height: 42,
+      width: 42,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(icon, color: color, size: 22),
+    );
+  }
+
+  BoxDecoration _cardDecoration({double radius = 18}) {
     return BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.96),
+      color: Colors.white,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 16,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.026),
+          blurRadius: 12,
+          offset: const Offset(0, 5),
         ),
       ],
     );

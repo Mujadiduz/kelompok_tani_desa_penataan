@@ -26,13 +26,13 @@ class AlatFormPage extends StatefulWidget {
 class _AlatFormPageState extends State<AlatFormPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
-  static const Color bgColor = Color(0xffF3F7F3);
+  static const Color bgColor = Color(0xffF6FAF7);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color borderColor = Color(0xffE5E7EB);
-  static const Color orangeStatus = Color(0xffF57C00);
+  static const Color orangeStatus = Color(0xffF59E0B);
   static const Color redStatus = Color(0xffDC2626);
-  static const Color blueStatus = Color(0xff1976D2);
+  static const Color blueStatus = Color(0xff2563EB);
 
   final TextEditingController tanggalKembaliController =
       TextEditingController();
@@ -60,6 +60,8 @@ class _AlatFormPageState extends State<AlatFormPage> {
       );
       return;
     }
+
+    if (!mounted) return;
 
     Navigator.push(
       context,
@@ -257,47 +259,47 @@ class _AlatFormPageState extends State<AlatFormPage> {
       resizeToAvoidBottomInset: true,
       backgroundColor: bgColor,
       body: AppBackground(
+        showPattern: false,
         child: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
           child: SafeArea(
             child: ListView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
-              padding: EdgeInsets.fromLTRB(16, 14, 16, bottomInset + 96),
+              padding: EdgeInsets.fromLTRB(16, 14, 16, bottomInset + 24),
               children: [
                 _headerPage(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 _userInfoCard(),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 _stepCard(),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 _alatInfoCard(),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 _formCard(validTanggal, durasi),
+                const SizedBox(height: 12),
+                _guideCard(),
+                const SizedBox(height: 18),
+                _submitButton(bisaLanjut),
               ],
             ),
           ),
         ),
       ),
-      bottomNavigationBar: _bottomButton(bisaLanjut),
     );
   }
 
   Widget _headerPage() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(26),
+        color: darkGreen,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.20),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: darkGreen.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 7),
           ),
         ],
       ),
@@ -313,17 +315,17 @@ class _AlatFormPageState extends State<AlatFormPage> {
                   'Form Peminjaman',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: 19,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 5),
+                SizedBox(height: 4),
                 Text(
-                  'Lengkapi tanggal kembali dan keperluan',
+                  'Lengkapi jadwal kembali',
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: Color(0xffD1FAE5),
                     fontSize: 12,
-                    height: 1.35,
+                    height: 1.3,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -331,11 +333,11 @@ class _AlatFormPageState extends State<AlatFormPage> {
             ),
           ),
           Container(
-            height: 48,
-            width: 48,
+            height: 44,
+            width: 44,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
             ),
             child: const Icon(Icons.edit_note_rounded, color: Colors.white),
@@ -347,33 +349,33 @@ class _AlatFormPageState extends State<AlatFormPage> {
 
   Widget _userInfoCard() {
     return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(radius: 18),
       child: Row(
         children: [
           Container(
-            height: 50,
-            width: 50,
+            height: 46,
+            width: 46,
             decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(16),
+              color: primaryGreen.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
               Icons.person_rounded,
               color: primaryGreen,
-              size: 28,
+              size: 25,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Pemohon',
+                  'Data Pemohon',
                   style: TextStyle(
                     color: textGrey,
-                    fontSize: 11.5,
+                    fontSize: 11.3,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -384,18 +386,18 @@ class _AlatFormPageState extends State<AlatFormPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 16,
+                    fontSize: 15.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   'NIK ${sensorNik(widget.nik)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 12,
+                    fontSize: 11.6,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -403,16 +405,16 @@ class _AlatFormPageState extends State<AlatFormPage> {
             ),
           ),
           Container(
-            height: 38,
-            width: 38,
+            height: 36,
+            width: 36,
             decoration: BoxDecoration(
               color: primaryGreen.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.verified_user_rounded,
               color: primaryGreen,
-              size: 21,
+              size: 20,
             ),
           ),
         ],
@@ -423,10 +425,22 @@ class _AlatFormPageState extends State<AlatFormPage> {
   Widget _stepCard() {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              _stepDot('1', true),
+              _stepLine(true),
+              _stepDot('2', true),
+              _stepLine(true),
+              _stepDot('3', true),
+              _stepLine(false),
+              _stepDot('4', false),
+            ],
+          ),
+          const SizedBox(height: 12),
           const Text(
             'Tahap 3 dari 4',
             style: TextStyle(
@@ -435,27 +449,55 @@ class _AlatFormPageState extends State<AlatFormPage> {
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           const Text(
-            'Lengkapi tanggal kembali dan catatan peminjaman.',
+            'Tentukan tanggal kembali dan isi catatan jika diperlukan.',
             style: TextStyle(
               color: textGrey,
-              fontSize: 12,
+              fontSize: 11.8,
               height: 1.35,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: 0.75,
-              minHeight: 7,
-              backgroundColor: primaryGreen.withValues(alpha: 0.12),
-              valueColor: const AlwaysStoppedAnimation<Color>(primaryGreen),
-            ),
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _stepDot(String text, bool active) {
+    return Container(
+      height: 28,
+      width: 28,
+      decoration: BoxDecoration(
+        color: active ? primaryGreen : const Color(0xffEEF2F7),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: active ? primaryGreen : borderColor),
+      ),
+      child: Center(
+        child: Text(
+          text,
+          style: TextStyle(
+            color: active ? Colors.white : textGrey,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stepLine(bool active) {
+    return Expanded(
+      child: Container(
+        height: 3,
+        margin: const EdgeInsets.symmetric(horizontal: 5),
+        decoration: BoxDecoration(
+          color:
+              active
+                  ? primaryGreen.withValues(alpha: 0.55)
+                  : const Color(0xffE5E7EB),
+          borderRadius: BorderRadius.circular(99),
+        ),
       ),
     );
   }
@@ -464,22 +506,22 @@ class _AlatFormPageState extends State<AlatFormPage> {
     final color = warnaAlat(widget.namaAlat);
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle(
             icon: Icons.agriculture_rounded,
             title: 'Data Alat',
-            subtitle: 'Alat dan tanggal pinjam yang sudah dipilih',
+            subtitle: 'Alat dan tanggal pinjam yang dipilih',
           ),
-          const SizedBox(height: 14),
-          _infoBox(
+          const SizedBox(height: 13),
+          _infoArea(
             children: [
               _infoRow(
                 iconAlat(widget.namaAlat),
-                'Alat Dipilih',
+                'Alat',
                 widget.namaAlat,
                 iconColor: color,
               ),
@@ -497,35 +539,22 @@ class _AlatFormPageState extends State<AlatFormPage> {
 
   Widget _formCard(bool validTanggal, int durasi) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle(
             icon: Icons.assignment_rounded,
             title: 'Detail Peminjaman',
-            subtitle: 'Isi tanggal kembali dan catatan keperluan',
+            subtitle: 'Lengkapi tanggal kembali',
           ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: tanggalKembaliController,
-            readOnly: true,
-            decoration: _inputDecoration(
-              label: 'Tanggal Kembali',
-              icon: Icons.event_available_rounded,
-              suffixIcon: Icons.calendar_month_rounded,
-            ),
-            onTap: pilihTanggalKembali,
-          ),
-          if (tanggalKembaliController.text.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _durationBox(validTanggal, durasi),
-          ],
+          const SizedBox(height: 13),
+          _tanggalKembaliCard(validTanggal, durasi),
           const SizedBox(height: 12),
           TextField(
             controller: catatanController,
-            maxLines: 3,
+            maxLines: 4,
             keyboardType: TextInputType.multiline,
             textInputAction: TextInputAction.done,
             decoration: _inputDecoration(
@@ -540,42 +569,87 @@ class _AlatFormPageState extends State<AlatFormPage> {
     );
   }
 
-  Widget _durationBox(bool validTanggal, int durasi) {
-    final color = validTanggal ? primaryGreen : redStatus;
+  Widget _tanggalKembaliCard(bool validTanggal, int durasi) {
+    final hasValue = tanggalKembaliController.text.trim().isNotEmpty;
+    final color =
+        !hasValue
+            ? primaryGreen
+            : validTanggal
+            ? primaryGreen
+            : redStatus;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            validTanggal
-                ? Icons.check_circle_outline_rounded
-                : Icons.warning_amber_rounded,
-            color: color,
-            size: 19,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              validTanggal
-                  ? 'Durasi peminjaman: $durasi hari.'
-                  : 'Tanggal kembali tidak boleh sebelum tanggal pinjam.',
-              style: TextStyle(
+    return InkWell(
+      onTap: pilihTanggalKembali,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.075),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withValues(alpha: 0.18)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 48,
+              width: 48,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(
+                Icons.event_available_rounded,
                 color: color,
-                fontSize: 12.3,
-                height: 1.35,
-                fontWeight: FontWeight.w700,
+                size: 25,
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Tanggal Kembali',
+                    style: TextStyle(
+                      color: textGrey,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    hasValue
+                        ? tanggalKembaliController.text.trim()
+                        : 'Pilih tanggal kembali',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: hasValue ? textDark : color,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  if (hasValue) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      validTanggal
+                          ? 'Durasi peminjaman $durasi hari'
+                          : 'Tanggal tidak valid',
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.calendar_month_rounded, color: color, size: 24),
+          ],
+        ),
       ),
     );
   }
@@ -583,8 +657,8 @@ class _AlatFormPageState extends State<AlatFormPage> {
   Widget _ringkasanMini(bool validTanggal, int durasi) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xffFAFAFA),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xffF9FAFB),
+        borderRadius: BorderRadius.circular(15),
         border: Border.all(color: borderColor),
       ),
       child: Column(
@@ -604,6 +678,60 @@ class _AlatFormPageState extends State<AlatFormPage> {
             isLast: true,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _guideCard() {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: primaryGreen.withValues(alpha: 0.075),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 19),
+          SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              'Pastikan tanggal kembali sudah sesuai sebelum melanjutkan ke halaman konfirmasi.',
+              style: TextStyle(
+                color: primaryGreen,
+                fontSize: 12.2,
+                height: 1.4,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _submitButton(bool enabled) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton.icon(
+        onPressed: enabled ? lanjutKonfirmasi : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryGreen,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: primaryGreen.withValues(alpha: 0.36),
+          disabledForegroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        ),
+        icon: const Icon(Icons.arrow_forward_rounded, size: 20),
+        label: Text(
+          enabled ? 'Lanjut Konfirmasi' : 'Pilih Tanggal Kembali',
+          style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900),
+        ),
       ),
     );
   }
@@ -633,7 +761,7 @@ class _AlatFormPageState extends State<AlatFormPage> {
                 title,
                 style: const TextStyle(
                   color: textDark,
-                  fontSize: 16,
+                  fontSize: 15.5,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -653,12 +781,12 @@ class _AlatFormPageState extends State<AlatFormPage> {
     );
   }
 
-  Widget _infoBox({required List<Widget> children}) {
+  Widget _infoArea({required List<Widget> children}) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(13, 13, 13, 4),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 3),
       decoration: BoxDecoration(
         color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(15),
         border: Border.all(color: borderColor),
       ),
       child: Column(children: children),
@@ -679,12 +807,12 @@ class _AlatFormPageState extends State<AlatFormPage> {
           Icon(icon, color: iconColor ?? primaryGreen, size: 17),
           const SizedBox(width: 8),
           SizedBox(
-            width: 112,
+            width: 100,
             child: Text(
               label,
               style: const TextStyle(
                 color: textGrey,
-                fontSize: 12,
+                fontSize: 11.8,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -695,9 +823,9 @@ class _AlatFormPageState extends State<AlatFormPage> {
               textAlign: TextAlign.right,
               style: const TextStyle(
                 color: textDark,
-                fontSize: 12,
+                fontSize: 11.8,
                 height: 1.35,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
@@ -713,7 +841,7 @@ class _AlatFormPageState extends State<AlatFormPage> {
     bool isLast = false,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
         border: Border(
           bottom:
@@ -727,7 +855,7 @@ class _AlatFormPageState extends State<AlatFormPage> {
               label,
               style: const TextStyle(
                 color: textGrey,
-                fontSize: 12,
+                fontSize: 11.8,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -738,53 +866,12 @@ class _AlatFormPageState extends State<AlatFormPage> {
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: valueColor ?? textDark,
-                fontSize: 12,
+                fontSize: 11.8,
                 fontWeight: FontWeight.w900,
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _bottomButton(bool enabled) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 14,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          width: double.infinity,
-          height: 54,
-          child: ElevatedButton.icon(
-            onPressed: enabled ? lanjutKonfirmasi : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryGreen,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.38),
-              disabledForegroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            icon: const Icon(Icons.arrow_forward_rounded, size: 20),
-            label: Text(
-              enabled ? 'Lanjut Konfirmasi' : 'Pilih Tanggal Kembali',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -795,13 +882,13 @@ class _AlatFormPageState extends State<AlatFormPage> {
         if (!mounted) return;
         Navigator.pop(context);
       },
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        height: 44,
-        width: 44,
+        height: 42,
+        width: 42,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
         ),
         child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
@@ -812,17 +899,18 @@ class _AlatFormPageState extends State<AlatFormPage> {
   InputDecoration _inputDecoration({
     required String label,
     required IconData icon,
-    IconData? suffixIcon,
   }) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: textGrey),
-      prefixIcon: Icon(icon, color: primaryGreen),
-      suffixIcon:
-          suffixIcon == null ? null : Icon(suffixIcon, color: primaryGreen),
+      labelStyle: const TextStyle(
+        color: textGrey,
+        fontSize: 12.5,
+        fontWeight: FontWeight.w600,
+      ),
+      prefixIcon: Icon(icon, color: primaryGreen, size: 21),
       filled: true,
       fillColor: const Color(0xffF9FAFB),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
@@ -830,21 +918,21 @@ class _AlatFormPageState extends State<AlatFormPage> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: primaryGreen, width: 1.5),
+        borderSide: const BorderSide(color: primaryGreen, width: 1.4),
       ),
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  BoxDecoration _cardDecoration({double radius = 18}) {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.035),
-          blurRadius: 13,
-          offset: const Offset(0, 6),
+          color: Colors.black.withValues(alpha: 0.032),
+          blurRadius: 12,
+          offset: const Offset(0, 5),
         ),
       ],
     );

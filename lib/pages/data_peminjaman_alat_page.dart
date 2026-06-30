@@ -15,8 +15,9 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
   static const Color lightGreen = Color(0xffE8F5E9);
+  static const Color softGreen = Color(0xffEAF7EC);
   static const Color backgroundColor = Color(0xffF6FAF7);
-  static const Color cardBorder = Color(0xffE5E7EB);
+  static const Color cardBorder = Color(0xffE6ECE8);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffFB8C00);
@@ -109,6 +110,14 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
     } catch (_) {
       return raw;
     }
+  }
+
+  String _maskNik(dynamic value) {
+    final nik = _text(value, fallback: '').replaceAll(RegExp(r'\s+'), '');
+    if (nik.isEmpty) return '•••• •••• •••• ----';
+
+    final last4 = nik.length >= 4 ? nik.substring(nik.length - 4) : nik;
+    return '•••• •••• •••• $last4';
   }
 
   int _countStatus(List<Map<String, dynamic>> data, List<String> statuses) {
@@ -218,7 +227,7 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
                     _header(total: 0),
                     const SizedBox(height: 16),
                     _emptyState(
-                      icon: Icons.error_outline_rounded,
+                      icon: Icons.fact_check_rounded,
                       title: 'Terjadi Kesalahan',
                       message: snapshot.error.toString(),
                     ),
@@ -279,7 +288,7 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _sectionTitle(
-                                  title: 'Daftar Data',
+                                  title: 'Daftar Peminjaman',
                                   subtitle:
                                       '${dataFilter.length} data ditampilkan',
                                 ),
@@ -297,24 +306,21 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
                                   )
                                 else if (semuaData.isEmpty)
                                   _emptyState(
-                                    icon: Icons.inbox_outlined,
+                                    icon: Icons.assignment_ind_rounded,
                                     title: 'Belum Ada Data',
                                     message:
                                         'Data peminjaman alat akan muncul setelah anggota mengajukan peminjaman.',
                                   )
                                 else if (dataFilter.isEmpty)
                                   _emptyState(
-                                    icon: Icons.search_off_rounded,
+                                    icon: Icons.manage_search_rounded,
                                     title: 'Data Tidak Ditemukan',
                                     message:
                                         'Tidak ada data yang sesuai dengan pencarian atau filter.',
                                   )
                                 else
-                                  ...dataFilter.asMap().entries.map(
-                                    (entry) => _dataCard(
-                                      nomor: entry.key + 1,
-                                      item: entry.value,
-                                    ),
+                                  ...dataFilter.map(
+                                    (item) => _dataCard(item: item),
                                   ),
                               ],
                             );
@@ -335,7 +341,7 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
   Widget _header({required int total}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [darkGreen, primaryGreen],
@@ -345,20 +351,21 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.20),
+            color: darkGreen.withValues(alpha: 0.18),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              _backButton(),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
+          _backButton(),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   'Data Peminjaman Alat',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -368,71 +375,51 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-              ),
-              _headerBadge('$total Data'),
-            ],
+                SizedBox(height: 4),
+                Text(
+                  'Riwayat pengajuan peminjaman alat pertanian',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xffDDEFE3),
+                    fontSize: 11.8,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
-          _headerInfo(
-            icon: Icons.agriculture_rounded,
-            text:
-                total == 0
-                    ? 'Belum ada data peminjaman alat.'
-                    : 'Menampilkan data peminjaman alat secara ringkas dan mudah dibaca.',
-          ),
+          const SizedBox(width: 10),
+          _headerBadge(total),
         ],
       ),
     );
   }
 
-  Widget _headerBadge(String text) {
+  Widget _headerBadge(int total) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(30),
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-
-  Widget _headerInfo({required IconData icon, required String text}) {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-      ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            height: 42,
-            width: 42,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: Colors.white),
+          const Icon(
+            Icons.precision_manufacturing_rounded,
+            color: Colors.white,
+            size: 14,
           ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.90),
-                fontSize: 12.5,
-                height: 1.35,
-                fontWeight: FontWeight.w700,
-              ),
+          const SizedBox(width: 5),
+          Text(
+            total.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -448,98 +435,70 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
     required int selesai,
     required int ditolak,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Ringkasan Data',
-            style: TextStyle(
-              color: textDark,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _summaryItem(
+                title: 'Total',
+                value: total.toString(),
+                icon: Icons.dataset_rounded,
+                color: primaryGreen,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Pantauan status peminjaman alat yang tersimpan di sistem.',
-            style: TextStyle(
-              color: textGrey,
-              fontSize: 12.2,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
+            const SizedBox(width: 9),
+            Expanded(
+              child: _summaryItem(
+                title: 'Menunggu',
+                value: menunggu.toString(),
+                icon: Icons.pending_actions_rounded,
+                color: orangeStatus,
+              ),
             ),
-          ),
-          const SizedBox(height: 13),
-          Row(
-            children: [
-              Expanded(
-                child: _summaryItem(
-                  title: 'Total',
-                  value: total.toString(),
-                  icon: Icons.dataset_rounded,
-                  color: primaryGreen,
-                ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: _summaryItem(
+                title: 'Disetujui',
+                value: disetujui.toString(),
+                icon: Icons.verified_user_rounded,
+                color: blueStatus,
               ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: _summaryItem(
-                  title: 'Menunggu',
-                  value: menunggu.toString(),
-                  icon: Icons.schedule_rounded,
-                  color: orangeStatus,
-                ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 9),
+        Row(
+          children: [
+            Expanded(
+              child: _summaryItem(
+                title: 'Dipinjam',
+                value: dipinjam.toString(),
+                icon: Icons.handyman_rounded,
+                color: orangeStatus,
               ),
-            ],
-          ),
-          const SizedBox(height: 9),
-          Row(
-            children: [
-              Expanded(
-                child: _summaryItem(
-                  title: 'Disetujui',
-                  value: disetujui.toString(),
-                  icon: Icons.check_circle_rounded,
-                  color: blueStatus,
-                ),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: _summaryItem(
+                title: 'Selesai',
+                value: selesai.toString(),
+                icon: Icons.task_alt_rounded,
+                color: primaryGreen,
               ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: _summaryItem(
-                  title: 'Dipinjam',
-                  value: dipinjam.toString(),
-                  icon: Icons.agriculture_rounded,
-                  color: orangeStatus,
-                ),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: _summaryItem(
+                title: 'Ditolak',
+                value: ditolak.toString(),
+                icon: Icons.cancel_presentation_rounded,
+                color: redStatus,
               ),
-            ],
-          ),
-          const SizedBox(height: 9),
-          Row(
-            children: [
-              Expanded(
-                child: _summaryItem(
-                  title: 'Selesai',
-                  value: selesai.toString(),
-                  icon: Icons.task_alt_rounded,
-                  color: primaryGreen,
-                ),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: _summaryItem(
-                  title: 'Ditolak',
-                  value: ditolak.toString(),
-                  icon: Icons.cancel_rounded,
-                  color: redStatus,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -550,40 +509,45 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
     required Color color,
   }) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 104),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      height: 74,
+      padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: color.withValues(alpha: 0.14)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.022),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 21),
-          const SizedBox(height: 8),
+          Icon(icon, size: 15, color: color),
+          const Spacer(),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: color,
-              fontSize: 19,
+              fontSize: 18,
               height: 1,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 3),
           Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 10.5,
-              height: 1,
-              fontWeight: FontWeight.w800,
+              fontSize: 9.2,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -593,7 +557,19 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
 
   Widget _searchBox() {
     return Container(
-      decoration: _cardDecoration(),
+      height: 52,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: TextField(
         controller: _searchController,
         focusNode: _searchFocusNode,
@@ -602,8 +578,16 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
         keyboardType: TextInputType.text,
         onChanged: (value) => _keywordNotifier.value = value,
         decoration: InputDecoration(
-          hintText: 'Cari nama, NIK, alat, tanggal, atau status',
-          prefixIcon: const Icon(Icons.search_rounded, color: primaryGreen),
+          hintText: 'Cari nama, NIK, alat, tanggal, atau status...',
+          prefixIcon: const Icon(
+            Icons.manage_search_rounded,
+            color: primaryGreen,
+            size: 19,
+          ),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 42,
+            minHeight: 42,
+          ),
           suffixIcon: ValueListenableBuilder<String>(
             valueListenable: _keywordNotifier,
             builder: (context, value, _) {
@@ -615,19 +599,20 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
                   _keywordNotifier.value = '';
                   _searchFocusNode.requestFocus();
                 },
-                icon: const Icon(Icons.close_rounded, color: textGrey),
+                icon: const Icon(
+                  Icons.cancel_rounded,
+                  color: textGrey,
+                  size: 18,
+                ),
               );
             },
           ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 15,
-          ),
+          contentPadding: const EdgeInsets.fromLTRB(0, 16, 14, 14),
           hintStyle: const TextStyle(
             color: textGrey,
             fontWeight: FontWeight.w600,
-            fontSize: 13,
+            fontSize: 12.7,
           ),
         ),
       ),
@@ -659,16 +644,26 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
                       selected: aktif,
-                      label: Text(item[1]),
+                      showCheckmark: false,
+                      visualDensity: VisualDensity.compact,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 7),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       selectedColor: primaryGreen,
                       backgroundColor: Colors.white,
                       side: BorderSide(
-                        color: aktif ? primaryGreen : cardBorder,
+                        color:
+                            aktif
+                                ? primaryGreen.withValues(alpha: 0.85)
+                                : cardBorder,
                       ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      label: Text(item[1]),
                       labelStyle: TextStyle(
                         color: aktif ? Colors.white : textGrey,
                         fontWeight: FontWeight.w800,
-                        fontSize: 12,
+                        fontSize: 11.5,
                       ),
                       onSelected: (_) => _filterNotifier.value = item[0],
                     ),
@@ -684,8 +679,8 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
     return Row(
       children: [
         Container(
-          height: 34,
-          width: 5,
+          height: 30,
+          width: 4,
           decoration: BoxDecoration(
             color: primaryGreen,
             borderRadius: BorderRadius.circular(99),
@@ -700,7 +695,7 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
                 title,
                 style: const TextStyle(
                   color: textDark,
-                  fontSize: 16,
+                  fontSize: 15.5,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -709,7 +704,7 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
                 subtitle,
                 style: const TextStyle(
                   color: textGrey,
-                  fontSize: 11.5,
+                  fontSize: 11.2,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -720,105 +715,124 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
     );
   }
 
-  Widget _dataCard({required int nomor, required Map<String, dynamic> item}) {
+  Widget _dataCard({required Map<String, dynamic> item}) {
     final status = _statusData(item);
     final color = _statusColor(status);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.026),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _numberBox(nomor),
+          _avatarBox(status),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _text(item['nama']),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w900,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _text(item['nama']),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: textDark,
+                          fontSize: 14.2,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _statusBadge(status, color),
+                  ],
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'NIK ${_text(item['nik'])}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: textGrey,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Row(
+                  children: [
+                    const Icon(Icons.badge_rounded, size: 13, color: textGrey),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        _maskNik(item['nik']),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: textGrey,
+                          fontSize: 11.4,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 9),
+                const SizedBox(height: 10),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    _miniTag(
-                      Icons.agriculture_rounded,
-                      _namaAlat(item),
-                      primaryGreen,
+                    _miniInfo(
+                      icon: Icons.precision_manufacturing_rounded,
+                      text: _namaAlat(item),
+                      color: primaryGreen,
                     ),
-                    _miniTag(
-                      Icons.event_rounded,
-                      _tanggalPinjam(item),
-                      blueStatus,
+                    _miniInfo(
+                      icon: Icons.calendar_month_rounded,
+                      text: _tanggalPinjam(item),
+                      color: blueStatus,
                     ),
-                    _miniTag(
-                      Icons.event_available_rounded,
-                      _tanggalKembali(item),
-                      orangeStatus,
+                    _miniInfo(
+                      icon: Icons.event_available_rounded,
+                      text: _tanggalKembali(item),
+                      color: orangeStatus,
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          _statusBadge(status, color),
         ],
       ),
     );
   }
 
-  Widget _numberBox(int nomor) {
+  Widget _avatarBox(String status) {
+    final color = _statusColor(status);
+
     return Container(
       height: 42,
       width: 42,
       decoration: BoxDecoration(
-        color: primaryGreen.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: color.withValues(alpha: 0.11)),
       ),
-      child: Center(
-        child: Text(
-          nomor.toString(),
-          style: const TextStyle(
-            color: primaryGreen,
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ),
+      child: Icon(Icons.handyman_rounded, color: color, size: 21),
     );
   }
 
   Widget _statusBadge(String status, Color color) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 92),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
       decoration: BoxDecoration(
         color: _statusBackground(status),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.14)),
+        border: Border.all(color: color.withValues(alpha: 0.12)),
       ),
       child: Text(
         _statusText(status).toUpperCase(),
@@ -826,33 +840,39 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: color,
-          fontSize: 9.5,
+          fontSize: 8.8,
           fontWeight: FontWeight.w900,
+          letterSpacing: 0.25,
         ),
       ),
     );
   }
 
-  Widget _miniTag(IconData icon, String text, Color color) {
+  Widget _miniInfo({
+    required IconData icon,
+    required String text,
+    required Color color,
+  }) {
     final value = text.trim().isEmpty ? '-' : text.trim();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: color.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.08)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
+          Icon(icon, size: 11.5, color: color),
           const SizedBox(width: 4),
           Text(
             value,
             style: TextStyle(
               color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
+              fontSize: 9.8,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -868,26 +888,37 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 20),
-      decoration: _cardDecoration(),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.026),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Container(
-            height: 84,
-            width: 84,
+            height: 76,
+            width: 76,
             decoration: BoxDecoration(
-              color: lightGreen,
+              color: softGreen,
               shape: BoxShape.circle,
               border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
             ),
-            child: Icon(icon, color: primaryGreen, size: 40),
+            child: Icon(icon, color: primaryGreen, size: 34),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 15),
           Text(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textDark,
-              fontSize: 17,
+              fontSize: 16.5,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -897,7 +928,7 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 12.5,
+              fontSize: 12.4,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -915,30 +946,19 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
       },
       borderRadius: BorderRadius.circular(15),
       child: Container(
-        height: 44,
-        width: 44,
+        height: 42,
+        width: 42,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
         ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+        child: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          color: Colors.white,
+          size: 17,
+        ),
       ),
-    );
-  }
-
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: cardBorder),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.035),
-          blurRadius: 13,
-          offset: const Offset(0, 6),
-        ),
-      ],
     );
   }
 }

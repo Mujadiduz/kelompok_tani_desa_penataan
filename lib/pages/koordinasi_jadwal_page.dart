@@ -26,13 +26,14 @@ class KoordinasiJadwalPage extends StatefulWidget {
 class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
-  static const Color bgColor = Color(0xffF3F7F3);
+  static const Color bgColor = Color(0xffF6FAF7);
+  static const Color softGreen = Color(0xffEAF7EC);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color borderColor = Color(0xffE5E7EB);
-  static const Color orangeStatus = Color(0xffF57C00);
-  static const Color redStatus = Color(0xffE53935);
-  static const Color blueStatus = Color(0xff1976D2);
+  static const Color orangeStatus = Color(0xffF59E0B);
+  static const Color redStatus = Color(0xffDC2626);
+  static const Color blueStatus = Color(0xff2563EB);
 
   int? tanggalDipilih;
   final DateTime sekarang = DateTime.now();
@@ -189,16 +190,9 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
 
     final status = (item['status'] ?? '').toString().toLowerCase();
 
-    if (status == 'menunggu') {
-      return 'Tanggal ini sedang menunggu persetujuan';
-    }
-
-    if (status == 'disetujui') {
-      return 'Tanggal ini sudah disetujui admin';
-    }
-
-    if (status == 'dipinjam') {
-      return 'Alat sedang dipinjam pada tanggal ini';
+    if (status == 'menunggu') return 'Tanggal ini sedang menunggu persetujuan';
+    if (status == 'disetujui' || status == 'dipinjam') {
+      return 'Tanggal ini sudah terpakai';
     }
 
     return 'Tanggal tersedia';
@@ -240,6 +234,8 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
 
   void lanjutKeForm() {
     if (tanggalDipilih == null) return;
+
+    if (!mounted) return;
 
     Navigator.push(
       context,
@@ -283,6 +279,7 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     return Scaffold(
       backgroundColor: bgColor,
       body: AppBackground(
+        showPattern: false,
         child: SafeArea(
           child: StreamBuilder<DatabaseEvent>(
             stream: peminjamanRef.onValue,
@@ -307,21 +304,21 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                       onRefresh: _refreshData,
                       child: ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 96),
                         children: [
                           _userInfoCard(),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 12),
                           _stepCard(),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 12),
                           _alatCard(),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 12),
                           _summaryGrid(
                             tersedia: tersedia,
                             menunggu: menunggu,
-                            dipakai: disetujui + dipinjam,
+                            terpakai: disetujui + dipinjam,
                           ),
-                          const SizedBox(height: 14),
-                          _legendStatus(),
+                          const SizedBox(height: 12),
+                          _availabilityInfo(),
                           const SizedBox(height: 18),
                           _sectionTitle(
                             title: 'Kalender Peminjaman',
@@ -330,7 +327,7 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                           const SizedBox(height: 12),
                           _kalenderCard(dataPeminjaman),
                           if (tanggalDipilih != null) ...[
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             _tanggalDipilihCard(),
                           ],
                         ],
@@ -352,19 +349,15 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [darkGreen, primaryGreen],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(26),
+          color: darkGreen,
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: darkGreen.withValues(alpha: 0.20),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
+              color: darkGreen.withValues(alpha: 0.18),
+              blurRadius: 16,
+              offset: const Offset(0, 7),
             ),
           ],
         ),
@@ -380,17 +373,17 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                     'Pilih Jadwal',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 19,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  SizedBox(height: 5),
+                  SizedBox(height: 4),
                   Text(
-                    'Atur tanggal peminjaman alat pertanian',
+                    'Tentukan tanggal peminjaman',
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: Color(0xffD1FAE5),
                       fontSize: 12,
-                      height: 1.35,
+                      height: 1.3,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -398,11 +391,11 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
               ),
             ),
             Container(
-              height: 48,
-              width: 48,
+              height: 44,
+              width: 44,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
               ),
               child: const Icon(
@@ -418,33 +411,33 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
 
   Widget _userInfoCard() {
     return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(radius: 18),
       child: Row(
         children: [
           Container(
-            height: 50,
-            width: 50,
+            height: 46,
+            width: 46,
             decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(16),
+              color: primaryGreen.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
               Icons.person_rounded,
               color: primaryGreen,
-              size: 28,
+              size: 25,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Pemohon',
+                  'Data Pemohon',
                   style: TextStyle(
                     color: textGrey,
-                    fontSize: 11.5,
+                    fontSize: 11.3,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -455,18 +448,18 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 16,
+                    fontSize: 15.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   'NIK ${sensorNik(widget.nik)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 12,
+                    fontSize: 11.6,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -474,16 +467,16 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
             ),
           ),
           Container(
-            height: 38,
-            width: 38,
+            height: 36,
+            width: 36,
             decoration: BoxDecoration(
               color: primaryGreen.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.verified_user_rounded,
               color: primaryGreen,
-              size: 21,
+              size: 20,
             ),
           ),
         ],
@@ -494,10 +487,22 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
   Widget _stepCard() {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              _stepDot('1', true),
+              _stepLine(true),
+              _stepDot('2', true),
+              _stepLine(false),
+              _stepDot('3', false),
+              _stepLine(false),
+              _stepDot('4', false),
+            ],
+          ),
+          const SizedBox(height: 12),
           const Text(
             'Tahap 2 dari 4',
             style: TextStyle(
@@ -506,27 +511,55 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           const Text(
-            'Pilih tanggal peminjaman alat yang masih kosong.',
+            'Pilih tanggal peminjaman alat yang masih tersedia.',
             style: TextStyle(
               color: textGrey,
-              fontSize: 12,
+              fontSize: 11.8,
               height: 1.35,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: 0.50,
-              minHeight: 7,
-              backgroundColor: primaryGreen.withValues(alpha: 0.12),
-              valueColor: const AlwaysStoppedAnimation<Color>(primaryGreen),
-            ),
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _stepDot(String text, bool active) {
+    return Container(
+      height: 28,
+      width: 28,
+      decoration: BoxDecoration(
+        color: active ? primaryGreen : const Color(0xffEEF2F7),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: active ? primaryGreen : borderColor),
+      ),
+      child: Center(
+        child: Text(
+          text,
+          style: TextStyle(
+            color: active ? Colors.white : textGrey,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stepLine(bool active) {
+    return Expanded(
+      child: Container(
+        height: 3,
+        margin: const EdgeInsets.symmetric(horizontal: 5),
+        decoration: BoxDecoration(
+          color:
+              active
+                  ? primaryGreen.withValues(alpha: 0.55)
+                  : const Color(0xffE5E7EB),
+          borderRadius: BorderRadius.circular(99),
+        ),
       ),
     );
   }
@@ -535,30 +568,30 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     final color = warnaAlat(widget.namaAlat);
 
     return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(radius: 18),
       child: Row(
         children: [
           Container(
-            width: 50,
-            height: 50,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(iconAlat(widget.namaAlat), color: color, size: 28),
+            child: Icon(iconAlat(widget.namaAlat), color: color, size: 25),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Alat yang Dipilih',
+                  'Alat Dipilih',
                   style: TextStyle(
                     color: textGrey,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11.3,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -568,11 +601,24 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 16,
+                    fontSize: 15.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
               ],
+            ),
+          ),
+          Container(
+            height: 34,
+            width: 34,
+            decoration: BoxDecoration(
+              color: softGreen,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.check_circle_rounded,
+              color: primaryGreen,
+              size: 20,
             ),
           ),
         ],
@@ -583,13 +629,13 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
   Widget _summaryGrid({
     required int tersedia,
     required int menunggu,
-    required int dipakai,
+    required int terpakai,
   }) {
     return Row(
       children: [
         Expanded(
           child: _summaryMini(
-            title: 'Tersedia',
+            title: 'Ketersediaan',
             value: tersedia.toString(),
             icon: Icons.event_available_rounded,
             color: primaryGreen,
@@ -608,7 +654,7 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
         Expanded(
           child: _summaryMini(
             title: 'Terpakai',
-            value: dipakai.toString(),
+            value: terpakai.toString(),
             icon: Icons.event_busy_rounded,
             color: redStatus,
           ),
@@ -624,29 +670,31 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      decoration: _cardDecoration(),
+      height: 82,
+      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+      decoration: _cardDecoration(radius: 18),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 22),
+          Icon(icon, color: color, size: 21),
           const SizedBox(height: 6),
           Text(
             value,
             style: TextStyle(
               color: color,
               fontSize: 18,
+              height: 1,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 5),
           Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: textGrey,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w800,
+              color: textDark,
+              fontSize: 10.4,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -654,29 +702,27 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     );
   }
 
-  Widget _legendStatus() {
+  Widget _availabilityInfo() {
     return Container(
       padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Keterangan Warna',
-            style: TextStyle(
-              color: textDark,
-              fontSize: 13.5,
-              fontWeight: FontWeight.w900,
-            ),
+          _sectionSmallTitle(
+            icon: Icons.info_outline_rounded,
+            title: 'Keterangan Jadwal',
+            subtitle: 'Warna kalender menunjukkan kondisi tanggal',
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              _statusColor(primaryGreen, 'Tersedia'),
-              _statusColor(orangeStatus, 'Menunggu'),
-              _statusColor(redStatus, 'Terpakai'),
-              _statusColor(const Color(0xffCBD5E1), 'Lewat'),
+              _statusChip(primaryGreen, 'Ketersediaan'),
+              _statusChip(orangeStatus, 'Menunggu'),
+              _statusChip(redStatus, 'Terpakai'),
+              _statusChip(const Color(0xffCBD5E1), 'Lewat'),
             ],
           ),
         ],
@@ -684,24 +730,78 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     );
   }
 
-  Widget _statusColor(Color color, String label) {
+  Widget _sectionSmallTitle({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
     return Row(
       children: [
         Container(
-          width: 11,
-          height: 11,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          height: 36,
+          width: 36,
+          decoration: BoxDecoration(
+            color: primaryGreen.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: primaryGreen, size: 20),
         ),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: const TextStyle(
-            color: textGrey,
-            fontSize: 10.5,
-            fontWeight: FontWeight.w800,
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 11.2,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _statusChip(Color color, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 9,
+            height: 9,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color == const Color(0xffCBD5E1) ? textGrey : color,
+              fontSize: 10.8,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -709,7 +809,7 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     return Row(
       children: [
         Container(
-          height: 34,
+          height: 32,
           width: 5,
           decoration: BoxDecoration(
             color: primaryGreen,
@@ -725,7 +825,7 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                 title,
                 style: const TextStyle(
                   color: textDark,
-                  fontSize: 16,
+                  fontSize: 15.8,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -750,18 +850,26 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            bulanTahun(),
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-            ),
+          Row(
+            children: [
+              const Icon(Icons.calendar_month_rounded, color: primaryGreen),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  bulanTahun(),
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 16.2,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           _namaHari(),
@@ -772,8 +880,8 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
             itemCount: totalGrid,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
+              crossAxisSpacing: 7,
+              mainAxisSpacing: 7,
             ),
             itemBuilder: (context, index) {
               final kosongAwal = hariPertamaBulan() - 1;
@@ -816,6 +924,9 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     final bisaDipilih = bisaDipilihTanggal(tanggal, dataPeminjaman);
     final selected = tanggalDipilih == tanggal;
 
+    final bgColorBox = selected ? blueStatus : warna;
+    final opacity = bisaDipilih ? 1.0 : 0.70;
+
     return InkWell(
       onTap: () => pilihTanggal(tanggal, dataPeminjaman),
       borderRadius: BorderRadius.circular(13),
@@ -823,32 +934,29 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
         duration: const Duration(milliseconds: 180),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? blueStatus : warna,
+          color: bgColorBox.withValues(alpha: opacity),
           borderRadius: BorderRadius.circular(13),
           border: Border.all(
             color: selected ? textDark : Colors.transparent,
-            width: selected ? 1.4 : 1,
+            width: selected ? 1.3 : 1,
           ),
           boxShadow:
               selected
                   ? [
                     BoxShadow(
-                      color: blueStatus.withValues(alpha: 0.25),
+                      color: blueStatus.withValues(alpha: 0.22),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
                   ]
                   : [],
         ),
-        child: Opacity(
-          opacity: bisaDipilih ? 1 : 0.72,
-          child: Text(
-            '$tanggal',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
+        child: Text(
+          '$tanggal',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11.8,
+            fontWeight: FontWeight.w900,
           ),
         ),
       ),
@@ -857,11 +965,11 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
 
   Widget _tanggalDipilihCard() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: primaryGreen.withValues(alpha: 0.08),
+        color: primaryGreen.withValues(alpha: 0.075),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
       ),
       child: Row(
         children: [
@@ -884,7 +992,7 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
               'Tanggal dipilih: ${tanggalLengkap()}',
               style: const TextStyle(
                 color: primaryGreen,
-                fontSize: 12.5,
+                fontSize: 12.2,
                 height: 1.4,
                 fontWeight: FontWeight.w900,
               ),
@@ -914,23 +1022,26 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
         top: false,
         child: SizedBox(
           width: double.infinity,
-          height: 54,
+          height: 52,
           child: ElevatedButton.icon(
             onPressed: aktif ? lanjutKeForm : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryGreen,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.38),
+              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.36),
               disabledForegroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(15),
               ),
             ),
             icon: const Icon(Icons.arrow_forward_rounded, size: 20),
             label: Text(
               aktif ? 'Lanjut Isi Data' : 'Pilih Tanggal Terlebih Dahulu',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ),
@@ -944,13 +1055,13 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
         if (!mounted) return;
         Navigator.pop(context);
       },
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        height: 44,
-        width: 44,
+        height: 42,
+        width: 42,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
         ),
         child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
@@ -958,14 +1069,14 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  BoxDecoration _cardDecoration({double radius = 18}) {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.035),
+          color: Colors.black.withValues(alpha: 0.032),
           blurRadius: 12,
           offset: const Offset(0, 5),
         ),

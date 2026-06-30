@@ -23,6 +23,7 @@ class _LoginPageState extends State<LoginPage> {
   static const Color borderColor = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
+  static const Color goldColor = Color(0xffD97706);
 
   final TextEditingController _nikController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -78,9 +79,7 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       if (!snapshot.exists || snapshot.value == null) {
-        _showMessage(
-          'Akun belum ditemukan. Cek status pendaftaran terlebih dahulu.',
-        );
+        _showMessage('Akun belum ditemukan. Silakan cek status pendaftaran.');
         return;
       }
 
@@ -109,13 +108,11 @@ class _LoginPageState extends State<LoginPage> {
         context,
         MaterialPageRoute(builder: (_) => UserHomePage(nama: nama, nik: nik)),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       _showMessage('Login gagal. Periksa koneksi internet.');
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -138,29 +135,35 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final height = MediaQuery.sizeOf(context).height;
+    final isSmallScreen = height < 720;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: AppBackground(
+        showPattern: false,
         child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
           onTap: () => FocusScope.of(context).unfocus(),
           child: SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.manual,
-                padding: EdgeInsets.fromLTRB(18, 18, 18, bottomInset + 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _brandHeader(),
-                    const SizedBox(height: 18),
-                    _loginCard(),
-                    const SizedBox(height: 12),
-                    _registerCard(),
-                  ],
-                ),
+            child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                isSmallScreen ? 16 : 22,
+                20,
+                bottomInset + 34,
               ),
+              children: [
+                _topIdentity(),
+                SizedBox(height: isSmallScreen ? 14 : 20),
+                _brandCard(isSmallScreen),
+                const SizedBox(height: 14),
+                _loginCard(),
+                const SizedBox(height: 14),
+                _registerCard(),
+              ],
             ),
           ),
         ),
@@ -168,93 +171,173 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _brandHeader() {
-    return Column(
-      children: [
-        Container(
-          height: 82,
-          width: 82,
-          decoration: BoxDecoration(
-            color: darkGreen,
-            borderRadius: BorderRadius.circular(25),
-            boxShadow: [
-              BoxShadow(
-                color: darkGreen.withValues(alpha: 0.22),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+  Widget _topIdentity() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+      decoration: BoxDecoration(
+        color: darkGreen,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withValues(alpha: 0.20),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 42,
+            width: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+            ),
+            child: const Icon(
+              Icons.account_balance_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Kelompok Tani Desa Penataan',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Kabupaten Pasuruan',
+                  style: TextStyle(
+                    color: Color(0xffD1FAE5),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            ),
+            child: const Text(
+              'User',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
               ),
-            ],
+            ),
           ),
-          child: const Icon(
-            Icons.agriculture_rounded,
-            color: Colors.white,
-            size: 44,
+        ],
+      ),
+    );
+  }
+
+  Widget _brandCard(bool isSmallScreen) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(18, isSmallScreen ? 15 : 18, 18, 18),
+      decoration: _cardDecoration(radius: 24),
+      child: Column(
+        children: [
+          Container(
+            height: isSmallScreen ? 72 : 82,
+            width: isSmallScreen ? 72 : 82,
+            decoration: BoxDecoration(
+              color: primaryGreen,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: primaryGreen.withValues(alpha: 0.26),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.spa_rounded,
+                  color: Colors.white.withValues(alpha: 0.22),
+                  size: isSmallScreen ? 54 : 62,
+                ),
+                Icon(
+                  Icons.person_rounded,
+                  color: Colors.white,
+                  size: isSmallScreen ? 34 : 39,
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
-        const Text(
-          'TaniGo',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: textDark,
-            fontSize: 29,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.2,
+          const SizedBox(height: 13),
+          const Text(
+            'Akses Pengguna',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: textDark,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-        ),
-        const SizedBox(height: 5),
-        const Text(
-          'Masuk akun anggota kelompok tani',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: textGrey,
-            fontSize: 13,
-            height: 1.35,
-            fontWeight: FontWeight.w600,
+          const SizedBox(height: 6),
+          const Text(
+            'Masuk menggunakan identitas yang telah terdaftar pada sistem layanan kelompok tani.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: textGrey,
+              fontSize: 12.5,
+              height: 1.42,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _loginCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(17),
       decoration: _cardDecoration(radius: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Masuk Pengguna',
-            style: TextStyle(
-              color: textDark,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
+          _cardTitle(
+            icon: Icons.login_rounded,
+            title: 'Masuk Akun',
+            subtitle: 'Gunakan NIK dan password untuk melanjutkan.',
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Gunakan NIK dan password yang sudah terdaftar.',
-            style: TextStyle(
-              color: textGrey,
-              fontSize: 12.5,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 15),
           _inputField(
             controller: _nikController,
             focusNode: _nikFocus,
             label: 'NIK',
-            hint: '16 digit NIK',
+            hint: 'Masukkan 16 digit NIK',
             icon: Icons.badge_rounded,
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.next,
             onSubmitted: (_) => _passwordFocus.requestFocus(),
           ),
-          const SizedBox(height: 13),
+          const SizedBox(height: 12),
           _inputField(
             controller: _passwordController,
             focusNode: _passwordFocus,
@@ -304,12 +387,60 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           _loginButton(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 11),
           _statusButton(),
         ],
       ),
+    );
+  }
+
+  Widget _cardTitle({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      children: [
+        Container(
+          height: 42,
+          width: 42,
+          decoration: BoxDecoration(
+            color: primaryGreen.withValues(alpha: 0.11),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, color: primaryGreen, size: 22),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 12,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -333,6 +464,8 @@ class _LoginPageState extends State<LoginPage> {
       textInputAction: textInputAction,
       onSubmitted: onSubmitted,
       maxLength: label == 'NIK' ? 16 : null,
+      enableSuggestions: false,
+      autocorrect: false,
       style: const TextStyle(
         color: textDark,
         fontWeight: FontWeight.w800,
@@ -366,14 +499,14 @@ class _LoginPageState extends State<LoginPage> {
         color: Colors.black.withValues(alpha: 0.35),
         fontWeight: FontWeight.w600,
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(17)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: borderColor),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: primaryGreen, width: 1.5),
       ),
     );
@@ -383,39 +516,49 @@ class _LoginPageState extends State<LoginPage> {
     return SizedBox(
       width: double.infinity,
       height: 52,
-      child: ElevatedButton.icon(
+      child: ElevatedButton(
         onPressed: _isLoading ? null : _loginPengguna,
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryGreen,
-          foregroundColor: Colors.white,
           disabledBackgroundColor: primaryGreen.withValues(alpha: 0.42),
           elevation: 0,
+          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(17),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
-        icon:
+        child:
             _isLoading
                 ? const SizedBox(
-                  width: 19,
-                  height: 19,
+                  width: 21,
+                  height: 21,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2.3,
+                    strokeWidth: 2.4,
                     color: Colors.white,
                   ),
                 )
-                : const Icon(Icons.login_rounded),
-        label: Text(
-          _isLoading ? 'Masuk...' : 'Masuk',
-          style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900),
-        ),
+                : const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.login_rounded, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Masuk',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14.8,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
       ),
     );
   }
 
   Widget _statusButton() {
     return InkWell(
-      borderRadius: BorderRadius.circular(17),
+      borderRadius: BorderRadius.circular(16),
       onTap:
           _isLoading
               ? null
@@ -432,8 +575,8 @@ class _LoginPageState extends State<LoginPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
-          color: softGreen.withValues(alpha: 0.88),
-          borderRadius: BorderRadius.circular(17),
+          color: softGreen.withValues(alpha: 0.86),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: primaryGreen.withValues(alpha: 0.13)),
         ),
         child: const Center(
@@ -453,24 +596,44 @@ class _LoginPageState extends State<LoginPage> {
   Widget _registerCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      decoration: _cardDecoration(radius: 20),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: softGreen.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.13)),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Flexible(
+          Container(
+            height: 42,
+            width: 42,
+            decoration: BoxDecoration(
+              color: goldColor.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.person_add_alt_1_rounded,
+              color: goldColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 11),
+          const Expanded(
             child: Text(
-              'Belum memiliki akun?',
+              'Belum memiliki akun pengguna?',
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: textGrey,
-                fontSize: 12.5,
+                fontSize: 12,
+                height: 1.35,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           InkWell(
+            borderRadius: BorderRadius.circular(999),
             onTap:
                 _isLoading
                     ? null
@@ -481,12 +644,19 @@ class _LoginPageState extends State<LoginPage> {
                         MaterialPageRoute(builder: (_) => const RegisterPage()),
                       );
                     },
-            child: const Text(
-              'Daftar',
-              style: TextStyle(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+              decoration: BoxDecoration(
                 color: primaryGreen,
-                fontSize: 12.8,
-                fontWeight: FontWeight.w900,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Text(
+                'Daftar',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
           ),
@@ -495,16 +665,16 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  BoxDecoration _cardDecoration({double radius = 20}) {
+  BoxDecoration _cardDecoration({double radius = 22}) {
     return BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.96),
+      color: Colors.white,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 16,
-          offset: const Offset(0, 7),
+          blurRadius: 14,
+          offset: const Offset(0, 6),
         ),
       ],
     );

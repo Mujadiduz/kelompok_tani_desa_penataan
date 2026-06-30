@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
+import '../widgets/app_background.dart';
 import 'alat_page.dart';
 import 'notifikasi_page.dart';
 import 'pengumuman_page.dart';
@@ -25,12 +26,12 @@ class _UserHomePageState extends State<UserHomePage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
   static const Color softGreen = Color(0xffEAF7EC);
-  static const Color bgColor = Color(0xffF3F7F3);
+  static const Color bgColor = Color(0xffF6FAF7);
   static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffF57C00);
-  static const Color blueStatus = Color(0xff1976D2);
+  static const Color orangeStatus = Color(0xffF59E0B);
+  static const Color blueStatus = Color(0xff2563EB);
   static const Color redStatus = Color(0xffDC2626);
   static const Color purpleStatus = Color(0xff7C3AED);
 
@@ -233,37 +234,6 @@ class _UserHomePageState extends State<UserHomePage> {
     return 'Selamat malam';
   }
 
-  String todayText() {
-    final now = DateTime.now();
-
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'Mei',
-      'Jun',
-      'Jul',
-      'Agu',
-      'Sep',
-      'Okt',
-      'Nov',
-      'Des',
-    ];
-
-    return '${now.day} ${months[now.month - 1]} ${now.year}';
-  }
-
-  String formatTanggal(dynamic value) {
-    final raw = (value ?? '').toString().trim();
-    if (raw.isEmpty) return '-';
-
-    final parsed = DateTime.tryParse(raw);
-    if (parsed == null) return raw;
-
-    return '${parsed.day} ${monthName(parsed.month)} ${parsed.year}';
-  }
-
   String monthName(int month) {
     const months = [
       'Jan',
@@ -316,33 +286,30 @@ class _UserHomePageState extends State<UserHomePage> {
     final clean = category.toLowerCase().trim();
 
     if (clean == 'pupuk' || clean == 'penyaluran_pupuk') {
-      return 'Penyaluran Pupuk';
+      return 'Penyaluran';
     }
 
-    if (clean == 'alat' || clean == 'jadwal_alat') {
-      return 'Jadwal Alat';
-    }
-
+    if (clean == 'alat' || clean == 'jadwal_alat') return 'Jadwal';
     if (clean == 'rapat' || clean == 'agenda') return 'Agenda';
     if (clean == 'panen') return 'Panen';
-    if (clean == 'gotong_royong') return 'Gotong Royong';
+    if (clean == 'gotong_royong') return 'Kegiatan';
 
-    return 'Pengumuman';
+    return 'Informasi';
   }
 
   IconData informationIcon(String category) {
     final clean = category.toLowerCase().trim();
 
     if (clean == 'pupuk' || clean == 'penyaluran_pupuk') {
-      return Icons.eco_rounded;
+      return Icons.inventory_2_rounded;
     }
 
     if (clean == 'alat' || clean == 'jadwal_alat') {
-      return Icons.agriculture_rounded;
+      return Icons.construction_rounded;
     }
 
-    if (clean == 'rapat' || clean == 'agenda') return Icons.groups_rounded;
-    if (clean == 'panen') return Icons.grass_rounded;
+    if (clean == 'rapat' || clean == 'agenda') return Icons.groups_2_rounded;
+    if (clean == 'panen') return Icons.spa_rounded;
     if (clean == 'gotong_royong') return Icons.handshake_rounded;
 
     return Icons.campaign_rounded;
@@ -386,7 +353,7 @@ class _UserHomePageState extends State<UserHomePage> {
     final tanggal = (item['tanggal'] ?? item['tgl'] ?? '').toString().trim();
     if (tanggal.isNotEmpty) return tanggal;
 
-    return 'Informasi aktif';
+    return 'Aktif';
   }
 
   void openPage(Widget page) {
@@ -399,49 +366,52 @@ class _UserHomePageState extends State<UserHomePage> {
     return Scaffold(
       backgroundColor: bgColor,
       bottomNavigationBar: bottomNav(),
-      body: SafeArea(
-        child: StreamBuilder<_UserDashboardData>(
-          stream: dashboardController.stream,
-          initialData: _UserDashboardData.empty(),
-          builder: (context, snapshot) {
-            final data = snapshot.data ?? _UserDashboardData.empty();
+      body: AppBackground(
+        showPattern: false,
+        child: SafeArea(
+          child: StreamBuilder<_UserDashboardData>(
+            stream: dashboardController.stream,
+            initialData: _UserDashboardData.empty(),
+            builder: (context, snapshot) {
+              final data = snapshot.data ?? _UserDashboardData.empty();
 
-            return RefreshIndicator(
-              color: primaryGreen,
-              onRefresh: () async => emitDashboardData(),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                children: [
-                  headerCard(data),
-                  const SizedBox(height: 12),
-                  memberCard(),
-                  const SizedBox(height: 12),
-                  summaryCard(data),
-                  const SizedBox(height: 18),
-                  sectionTitle('Layanan Utama'),
-                  const SizedBox(height: 10),
-                  serviceList(),
-                  const SizedBox(height: 18),
-                  sectionTitleWithAction(
-                    title: 'Status Pengajuan Terbaru',
-                    actionText: 'Riwayat',
-                    onTap: () => openPage(RiwayatPage(nik: widget.nik)),
-                  ),
-                  const SizedBox(height: 10),
-                  latestSubmission(data.pengajuanTerbaru),
-                  const SizedBox(height: 18),
-                  sectionTitleWithAction(
-                    title: 'Informasi Kelompok Tani',
-                    actionText: 'Lihat Semua',
-                    onTap: () => openPage(const PengumumanPage()),
-                  ),
-                  const SizedBox(height: 10),
-                  informationSection(data.informasiAktif),
-                ],
-              ),
-            );
-          },
+              return RefreshIndicator(
+                color: primaryGreen,
+                onRefresh: () async => emitDashboardData(),
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                  children: [
+                    headerCard(data),
+                    const SizedBox(height: 12),
+                    memberCard(),
+                    const SizedBox(height: 12),
+                    summaryCard(data),
+                    const SizedBox(height: 18),
+                    sectionTitle('Layanan Utama'),
+                    const SizedBox(height: 10),
+                    serviceList(),
+                    const SizedBox(height: 18),
+                    sectionTitleWithAction(
+                      title: 'Status Pengajuan Terbaru',
+                      actionText: 'Riwayat',
+                      onTap: () => openPage(RiwayatPage(nik: widget.nik)),
+                    ),
+                    const SizedBox(height: 10),
+                    latestSubmission(data.pengajuanTerbaru),
+                    const SizedBox(height: 18),
+                    sectionTitleWithAction(
+                      title: 'Informasi Kelompok Tani',
+                      actionText: 'Lihat Semua',
+                      onTap: () => openPage(const PengumumanPage()),
+                    ),
+                    const SizedBox(height: 10),
+                    informationSection(data.informasiAktif),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -452,13 +422,13 @@ class _UserHomePageState extends State<UserHomePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: primaryGreen,
-        borderRadius: BorderRadius.circular(12),
+        color: darkGreen,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: primaryGreen.withValues(alpha: 0.22),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: darkGreen.withValues(alpha: 0.20),
+            blurRadius: 16,
+            offset: const Offset(0, 7),
           ),
         ],
       ),
@@ -473,8 +443,8 @@ class _UserHomePageState extends State<UserHomePage> {
                 Text(
                   greeting(),
                   style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
+                    color: Color(0xffD1FAE5),
+                    fontSize: 11.8,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -491,7 +461,9 @@ class _UserHomePageState extends State<UserHomePage> {
                 ),
                 const SizedBox(height: 3),
                 const Text(
-                  'Anggota Kelompok Tani',
+                  'Akses layanan kelompok tani',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 11.5,
@@ -515,9 +487,9 @@ class _UserHomePageState extends State<UserHomePage> {
       height: 50,
       width: 50,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
+        color: Colors.white.withValues(alpha: 0.14),
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
       ),
       child: Center(
         child: Text(
@@ -547,14 +519,14 @@ class _UserHomePageState extends State<UserHomePage> {
               height: 44,
               width: 44,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.16),
+                color: Colors.white.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
               ),
               child: const Icon(
-                Icons.notifications_rounded,
+                Icons.notifications_none_rounded,
                 color: Colors.white,
-                size: 23,
+                size: 24,
               ),
             ),
             if (totalNotif > 0)
@@ -595,24 +567,24 @@ class _UserHomePageState extends State<UserHomePage> {
 
   Widget memberCard() {
     return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: cardDecoration(radius: 18),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: softGreen,
-              borderRadius: BorderRadius.circular(10),
+              color: primaryGreen.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
-              Icons.verified_user_rounded,
+              Icons.verified_rounded,
               color: primaryGreen,
-              size: 28,
+              size: 24,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -621,16 +593,16 @@ class _UserHomePageState extends State<UserHomePage> {
                   'Status Keanggotaan',
                   style: TextStyle(
                     color: textDark,
-                    fontSize: 15,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: 3),
                 Text(
-                  'Akun sudah aktif dan terverifikasi.',
+                  'Akun aktif dan terverifikasi.',
                   style: TextStyle(
                     color: textGrey,
-                    fontSize: 12,
+                    fontSize: 11.8,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -641,7 +613,7 @@ class _UserHomePageState extends State<UserHomePage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: softGreen,
+              color: primaryGreen.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(99),
             ),
             child: const Text(
@@ -662,129 +634,81 @@ class _UserHomePageState extends State<UserHomePage> {
     final totalMenunggu = data.totalMenunggu;
 
     return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: cardDecoration(),
-      child: Column(
+      padding: const EdgeInsets.all(14),
+      decoration: cardDecoration(radius: 18),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                height: 46,
-                width: 46,
-                decoration: BoxDecoration(
-                  color:
-                      totalMenunggu == 0
-                          ? primaryGreen.withValues(alpha: 0.11)
-                          : orangeStatus.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
+          Container(
+            height: 42,
+            width: 42,
+            decoration: BoxDecoration(
+              color:
                   totalMenunggu == 0
-                      ? Icons.check_circle_rounded
-                      : Icons.pending_actions_rounded,
-                  color: totalMenunggu == 0 ? primaryGreen : orangeStatus,
-                  size: 25,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
+                      ? primaryGreen.withValues(alpha: 0.10)
+                      : orangeStatus.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              totalMenunggu == 0
+                  ? Icons.task_alt_rounded
+                  : Icons.schedule_rounded,
+              color: totalMenunggu == 0 ? primaryGreen : orangeStatus,
+              size: 23,
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   totalMenunggu == 0
-                      ? 'Tidak ada pengajuan yang menunggu.'
-                      : '$totalMenunggu pengajuan sedang menunggu admin.',
+                      ? 'Tidak ada pengajuan menunggu'
+                      : 'Pengajuan sedang menunggu',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
                     fontSize: 14,
-                    height: 1.35,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: miniSummary(
-                  title: 'Pengajuan',
-                  value: totalMenunggu.toString(),
-                  subtitle: 'Menunggu',
-                  icon: Icons.assignment_rounded,
-                  color: orangeStatus,
+                const SizedBox(height: 3),
+                Text(
+                  totalMenunggu == 0
+                      ? 'Semua pengajuan sudah diproses.'
+                      : '$totalMenunggu data menunggu proses admin.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 11.7,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: miniSummary(
-                  title: 'Notifikasi',
-                  value: data.totalNotif.toString(),
-                  subtitle: 'Baru',
-                  icon: Icons.notifications_rounded,
-                  color: blueStatus,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: miniSummary(
-                  title: 'Informasi',
-                  value: data.informasiAktif.length.toString(),
-                  subtitle: 'Aktif',
-                  icon: Icons.campaign_rounded,
-                  color: primaryGreen,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget miniSummary({
-    required String title,
-    required String value,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      height: 98,
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 22),
-          const Spacer(),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 21,
-              fontWeight: FontWeight.w900,
+              ],
             ),
           ),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
+          const SizedBox(width: 8),
+          Container(
+            constraints: const BoxConstraints(minWidth: 34),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color:
+                  totalMenunggu == 0
+                      ? primaryGreen.withValues(alpha: 0.10)
+                      : orangeStatus.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
             ),
-          ),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: textGrey,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+            child: Text(
+              totalMenunggu.toString(),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: totalMenunggu == 0 ? primaryGreen : orangeStatus,
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],
@@ -796,15 +720,15 @@ class _UserHomePageState extends State<UserHomePage> {
     final menus = [
       _HomeMenu(
         title: 'Bantuan Pupuk',
-        subtitle: 'Ajukan kebutuhan pupuk pertanian.',
-        icon: Icons.eco_rounded,
+        subtitle: 'Ajukan kebutuhan pupuk.',
+        icon: Icons.inventory_2_rounded,
         color: primaryGreen,
         page: PupukPage(nama: widget.nama, nik: widget.nik),
       ),
       _HomeMenu(
         title: 'Peminjaman Alat',
-        subtitle: 'Ajukan peminjaman alat pertanian.',
-        icon: Icons.agriculture_rounded,
+        subtitle: 'Ajukan peminjaman alat.',
+        icon: Icons.construction_rounded,
         color: orangeStatus,
         page: AlatPage(nama: widget.nama, nik: widget.nik),
       ),
@@ -818,22 +742,22 @@ class _UserHomePageState extends State<UserHomePage> {
       margin: const EdgeInsets.only(bottom: 10),
       child: InkWell(
         onTap: () => openPage(menu.page),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
-          padding: const EdgeInsets.all(15),
-          decoration: cardDecoration(),
+          padding: const EdgeInsets.all(14),
+          decoration: cardDecoration(radius: 18),
           child: Row(
             children: [
               Container(
-                height: 48,
-                width: 48,
+                height: 46,
+                width: 46,
                 decoration: BoxDecoration(
-                  color: menu.color.withValues(alpha: 0.11),
-                  borderRadius: BorderRadius.circular(10),
+                  color: menu.color.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(menu.icon, color: menu.color, size: 27),
+                child: Icon(menu.icon, color: menu.color, size: 24),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -842,16 +766,16 @@ class _UserHomePageState extends State<UserHomePage> {
                       menu.title,
                       style: const TextStyle(
                         color: textDark,
-                        fontSize: 15,
+                        fontSize: 14.5,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       menu.subtitle,
                       style: const TextStyle(
                         color: textGrey,
-                        fontSize: 12,
+                        fontSize: 11.8,
                         height: 1.35,
                         fontWeight: FontWeight.w600,
                       ),
@@ -859,7 +783,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: menu.color, size: 26),
+              Icon(Icons.chevron_right_rounded, color: menu.color, size: 25),
             ],
           ),
         ),
@@ -870,10 +794,9 @@ class _UserHomePageState extends State<UserHomePage> {
   Widget latestSubmission(List<Map<String, dynamic>> list) {
     if (list.isEmpty) {
       return emptyCard(
-        icon: Icons.assignment_turned_in_rounded,
+        icon: Icons.fact_check_rounded,
         title: 'Belum Ada Pengajuan',
-        message:
-            'Pengajuan bantuan pupuk dan peminjaman alat akan tampil di sini.',
+        message: 'Riwayat pengajuan akan tampil setelah data dikirim.',
       );
     }
 
@@ -901,24 +824,24 @@ class _UserHomePageState extends State<UserHomePage> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(15),
-      decoration: cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: cardDecoration(radius: 18),
       child: Row(
         children: [
           Container(
-            height: 48,
-            width: 48,
+            height: 46,
+            width: 46,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(10),
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
-              isPupuk ? Icons.eco_rounded : Icons.agriculture_rounded,
+              isPupuk ? Icons.inventory_2_rounded : Icons.construction_rounded,
               color: color,
-              size: 27,
+              size: 24,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -927,7 +850,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   isPupuk ? 'Bantuan Pupuk' : 'Peminjaman Alat',
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 11,
+                    fontSize: 10.8,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -938,7 +861,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 15,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -947,7 +870,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   subtitle,
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 12,
+                    fontSize: 11.8,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -965,15 +888,14 @@ class _UserHomePageState extends State<UserHomePage> {
       return emptyCard(
         icon: Icons.campaign_rounded,
         title: 'Belum Ada Informasi',
-        message:
-            'Informasi kelompok tani akan tampil di sini setelah admin menambahkan data.',
+        message: 'Informasi terbaru akan tampil di halaman ini.',
       );
     }
 
     final shown = list.take(3).toList();
 
     return Container(
-      decoration: cardDecoration(),
+      decoration: cardDecoration(radius: 18),
       child: Column(
         children: [
           ...shown.map((item) => informationItem(item)),
@@ -1026,10 +948,10 @@ class _UserHomePageState extends State<UserHomePage> {
             height: 42,
             width: 42,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(10),
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(informationIcon(category), color: color, size: 23),
+            child: Icon(informationIcon(category), color: color, size: 22),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -1040,7 +962,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   informationLabel(category).toUpperCase(),
                   style: TextStyle(
                     color: color,
-                    fontSize: 10.5,
+                    fontSize: 10.2,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -1062,7 +984,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 12,
+                    fontSize: 11.8,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1072,7 +994,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   informationDate(item),
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 11,
+                    fontSize: 10.8,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1089,13 +1011,13 @@ class _UserHomePageState extends State<UserHomePage> {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: statusBg(status),
-        borderRadius: BorderRadius.circular(99),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         statusText(status),
         style: TextStyle(
           color: statusColor(status),
-          fontSize: 10.5,
+          fontSize: 10.2,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -1107,7 +1029,7 @@ class _UserHomePageState extends State<UserHomePage> {
       title,
       style: const TextStyle(
         color: textDark,
-        fontSize: 17,
+        fontSize: 16.5,
         fontWeight: FontWeight.w900,
       ),
     );
@@ -1123,19 +1045,19 @@ class _UserHomePageState extends State<UserHomePage> {
         Expanded(child: sectionTitle(title)),
         InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(999),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
             decoration: BoxDecoration(
-              color: softGreen,
-              borderRadius: BorderRadius.circular(99),
-              border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
+              color: softGreen.withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
             ),
             child: Text(
               actionText,
               style: const TextStyle(
                 color: primaryGreen,
-                fontSize: 12,
+                fontSize: 11.8,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -1152,35 +1074,35 @@ class _UserHomePageState extends State<UserHomePage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: cardDecoration(),
+      padding: const EdgeInsets.all(20),
+      decoration: cardDecoration(radius: 18),
       child: Column(
         children: [
           Container(
-            height: 72,
-            width: 72,
+            height: 58,
+            width: 58,
             decoration: BoxDecoration(
-              color: softGreen,
-              borderRadius: BorderRadius.circular(24),
+              color: softGreen.withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(icon, color: primaryGreen, size: 36),
+            child: Icon(icon, color: primaryGreen, size: 30),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Text(
             title,
             style: const TextStyle(
               color: textDark,
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             message,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 12.5,
+              fontSize: 12.2,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -1209,11 +1131,11 @@ class _UserHomePageState extends State<UserHomePage> {
         selectedItemColor: primaryGreen,
         unselectedItemColor: const Color(0xff9CA3AF),
         selectedLabelStyle: const TextStyle(
-          fontSize: 12,
+          fontSize: 11.5,
           fontWeight: FontWeight.w800,
         ),
         unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
+          fontSize: 11.5,
           fontWeight: FontWeight.w600,
         ),
         type: BottomNavigationBarType.fixed,
@@ -1226,15 +1148,15 @@ class _UserHomePageState extends State<UserHomePage> {
         },
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
+            icon: Icon(Icons.grid_view_rounded),
             label: 'Beranda',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.history_rounded),
+            icon: Icon(Icons.receipt_long_rounded),
             label: 'Riwayat',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded),
+            icon: Icon(Icons.account_circle_rounded),
             label: 'Profil',
           ),
         ],
@@ -1242,16 +1164,16 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  BoxDecoration cardDecoration() {
+  BoxDecoration cardDecoration({double radius = 18}) {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.03),
-          blurRadius: 8,
-          offset: const Offset(0, 3),
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 12,
+          offset: const Offset(0, 5),
         ),
       ],
     );

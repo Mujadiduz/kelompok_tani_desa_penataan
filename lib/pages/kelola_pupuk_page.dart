@@ -14,9 +14,9 @@ class KelolaPupukPage extends StatefulWidget {
 class _KelolaPupukPageState extends State<KelolaPupukPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
-  static const Color bgColor = Color(0xffF4F7F4);
-  static const Color softGreen = Color(0xffE8F5E9);
-  static const Color cardBorder = Color(0xffE5E7EB);
+  static const Color bgColor = Color(0xffF6FAF7);
+  static const Color softGreen = Color(0xffEAF7EC);
+  static const Color cardBorder = Color(0xffE6ECE8);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffF57C00);
@@ -44,18 +44,18 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
   IconData _iconPupuk(String nama) {
     final value = nama.toLowerCase();
 
-    if (value.contains('urea')) return Icons.water_drop_rounded;
-    if (value.contains('npk')) return Icons.grain_rounded;
-    if (value.contains('organik')) return Icons.eco_rounded;
-    if (value.contains('kandang')) return Icons.grass_rounded;
-    if (value.contains('kompos')) return Icons.local_florist_rounded;
+    if (value.contains('urea')) return Icons.water_drop_outlined;
+    if (value.contains('npk')) return Icons.scatter_plot_rounded;
+    if (value.contains('organik')) return Icons.nature_rounded;
+    if (value.contains('kandang')) return Icons.yard_rounded;
+    if (value.contains('kompos')) return Icons.compost_rounded;
     if (value.contains('za')) return Icons.science_rounded;
     if (value.contains('sp')) return Icons.bubble_chart_rounded;
     if (value.contains('kcl')) return Icons.inventory_2_rounded;
     if (value.contains('dolomit')) return Icons.terrain_rounded;
     if (value.contains('hayati')) return Icons.spa_rounded;
 
-    return Icons.eco_rounded;
+    return Icons.inventory_2_rounded;
   }
 
   Color _warnaPupuk(String nama) {
@@ -198,6 +198,20 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
     }
   }
 
+  String _formatTanggal(dynamic value) {
+    final raw = (value ?? '').toString().trim();
+    if (raw.isEmpty) return '-';
+
+    try {
+      final date = DateTime.parse(raw);
+      return '${date.day.toString().padLeft(2, '0')}/'
+          '${date.month.toString().padLeft(2, '0')}/'
+          '${date.year}';
+    } catch (_) {
+      return raw;
+    }
+  }
+
   int _hitungTotalStok(List<MapEntry<String, dynamic>> list) {
     int total = 0;
 
@@ -246,21 +260,21 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
           builder: (context, setSheetState) {
             return Padding(
               padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                left: 14,
+                right: 14,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 14,
               ),
               child: Container(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: cardBorder),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
+                      color: Colors.black.withValues(alpha: 0.10),
                       blurRadius: 22,
-                      offset: const Offset(0, 10),
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
@@ -271,7 +285,7 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
                     children: [
                       Center(
                         child: Container(
-                          width: 46,
+                          width: 42,
                           height: 5,
                           decoration: BoxDecoration(
                             color: const Color(0xffD1D5DB),
@@ -279,52 +293,45 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
                       Row(
                         children: [
-                          Container(
-                            height: 52,
-                            width: 52,
-                            decoration: BoxDecoration(
-                              color: primaryGreen.withValues(alpha: 0.11),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Icon(
-                              Icons.eco_rounded,
-                              color: primaryGreen,
-                              size: 29,
-                            ),
+                          _iconBox(
+                            id == null
+                                ? Icons.add_task_rounded
+                                : Icons.edit_note_rounded,
+                            primaryGreen,
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 11),
                           Expanded(
                             child: Text(
                               id == null ? 'Tambah Pupuk' : 'Edit Pupuk',
                               style: const TextStyle(
                                 color: textDark,
-                                fontSize: 20,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 5),
                       const Text(
-                        'Lengkapi data pupuk yang digunakan untuk pengajuan bantuan anggota.',
+                        'Lengkapi data pupuk untuk kebutuhan bantuan anggota.',
                         style: TextStyle(
                           color: textGrey,
-                          fontSize: 12.5,
+                          fontSize: 12,
                           height: 1.4,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 16),
                       TextField(
                         controller: _namaController,
                         textInputAction: TextInputAction.next,
                         decoration: _inputDecoration(
                           label: 'Nama Pupuk',
-                          icon: Icons.grass_rounded,
+                          icon: Icons.inventory_2_rounded,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -333,12 +340,12 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
                         keyboardType: TextInputType.number,
                         decoration: _inputDecoration(
                           label: 'Stok Pupuk (Kg)',
-                          icon: Icons.inventory_2_rounded,
+                          icon: Icons.dataset_rounded,
                         ),
                       ),
                       const SizedBox(height: 14),
                       _bottomSheetInfo(),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
                       Row(
                         children: [
                           Expanded(
@@ -402,7 +409,7 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
                                         ),
                                       )
                                       : const Icon(
-                                        Icons.save_rounded,
+                                        Icons.save_as_rounded,
                                         size: 18,
                                       ),
                               label: Text(
@@ -434,23 +441,23 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
 
   Widget _bottomSheetInfo() {
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: primaryGreen.withValues(alpha: 0.07),
+        color: primaryGreen.withValues(alpha: 0.065),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 21),
+          Icon(Icons.info_rounded, color: primaryGreen, size: 18),
           SizedBox(width: 9),
           Expanded(
             child: Text(
-              'Stok pupuk akan otomatis berkurang ketika admin menandai bantuan sebagai sudah diambil.',
+              'Stok pupuk otomatis berkurang saat bantuan ditandai sudah diambil.',
               style: TextStyle(
                 color: textGrey,
-                fontSize: 12,
+                fontSize: 11.6,
                 height: 1.4,
                 fontWeight: FontWeight.w600,
               ),
@@ -467,8 +474,9 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
       builder: (dialogContext) {
         return Dialog(
           insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(22),
           ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
@@ -542,7 +550,10 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
                           ),
                         ),
                         onPressed: () => Navigator.pop(dialogContext, true),
-                        icon: const Icon(Icons.delete_rounded, size: 18),
+                        icon: const Icon(
+                          Icons.delete_forever_rounded,
+                          size: 18,
+                        ),
                         label: const Text(
                           'Hapus',
                           style: TextStyle(fontWeight: FontWeight.w900),
@@ -572,11 +583,11 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: primaryGreen,
         foregroundColor: Colors.white,
-        elevation: 3,
+        elevation: 2,
         onPressed: () => _formPupuk(),
-        icon: const Icon(Icons.add_rounded),
+        icon: const Icon(Icons.add_task_rounded, size: 19),
         label: const Text(
-          'Tambah Pupuk',
+          'Tambah',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
       ),
@@ -597,43 +608,29 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
                 onRefresh: _refreshData,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.zero,
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 100),
                   children: [
                     _header(pupukList.length),
                     const SizedBox(height: 16),
-                    _sectionTitle(
-                      title: 'Ringkasan Pupuk',
-                      subtitle: 'Pantauan stok dan jenis pupuk yang tersedia',
-                      horizontalPadding: 16,
-                    ),
-                    const SizedBox(height: 12),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _summaryGrid(
-                        totalJenis: pupukList.length,
-                        pupukAktif: pupukAktif,
-                        totalStok: totalStok,
-                      ),
+                    _summaryGrid(
+                      totalJenis: pupukList.length,
+                      pupukAktif: pupukAktif,
+                      totalStok: totalStok,
                     ),
                     const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _infoPanel(
-                        stokRendah: stokRendah,
-                        stokKosong: stokKosong,
-                      ),
+                    _stockPanel(
+                      totalStok: totalStok,
+                      pupukAktif: pupukAktif,
+                      stokRendah: stokRendah,
+                      stokKosong: stokKosong,
                     ),
                     const SizedBox(height: 18),
                     _sectionTitle(
                       title: 'Daftar Pupuk',
                       subtitle: 'Kelola nama pupuk dan jumlah stok',
-                      horizontalPadding: 16,
                     ),
                     const SizedBox(height: 12),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                      child: _buildContent(snapshot, pupukList),
-                    ),
+                    _buildContent(snapshot, pupukList),
                   ],
                 ),
               );
@@ -654,7 +651,7 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
 
     if (snapshot.hasError) {
       return _messageState(
-        icon: Icons.error_outline_rounded,
+        icon: Icons.fact_check_rounded,
         title: 'Terjadi Kesalahan',
         message: snapshot.error.toString(),
       );
@@ -662,7 +659,7 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
 
     if (pupukList.isEmpty) {
       return _messageState(
-        icon: Icons.inventory_2_outlined,
+        icon: Icons.inventory_2_rounded,
         title: 'Belum Ada Data Pupuk',
         message: 'Tekan tombol tambah untuk memasukkan data pupuk.',
       );
@@ -680,93 +677,98 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
   }
 
   Widget _header(int total) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [darkGreen, primaryGreen],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [darkGreen, primaryGreen],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
-          borderRadius: BorderRadius.circular(26),
-          boxShadow: [
-            BoxShadow(
-              color: darkGreen.withValues(alpha: 0.20),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
+        ],
+      ),
+      child: Row(
+        children: [
+          _backButton(),
+          const SizedBox(width: 12),
+          Container(
+            height: 42,
+            width: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            _backButton(),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Kelola Pupuk',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    'Atur data stok pupuk untuk bantuan anggota',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.78),
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+            child: const Icon(
+              Icons.inventory_2_rounded,
+              color: Colors.white,
+              size: 21,
             ),
-            _headerCounter(total),
-          ],
-        ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Kelola Pupuk',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Data stok pupuk untuk bantuan anggota',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xffDDEFE3),
+                    fontSize: 11.8,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          _headerCounter(total),
+        ],
       ),
     );
   }
 
   Widget _headerCounter(int total) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 54, minHeight: 50),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          const Icon(Icons.fact_check_rounded, color: Colors.white, size: 14),
+          const SizedBox(width: 5),
           Text(
             total.toString(),
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
-              height: 1,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'pupuk',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.82),
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -783,83 +785,75 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
       _SummaryItem(
         title: 'Jenis Pupuk',
         value: totalJenis.toString(),
-        icon: Icons.grass_rounded,
+        icon: Icons.category_rounded,
         color: primaryGreen,
       ),
       _SummaryItem(
-        title: 'Pupuk Aktif',
+        title: 'Aktif',
         value: pupukAktif.toString(),
-        icon: Icons.check_circle_rounded,
+        icon: Icons.verified_user_rounded,
         color: blueStatus,
       ),
       _SummaryItem(
-        title: 'Total Stok',
-        value: '$totalStok Kg',
+        title: 'Stok Tersedia',
+        value: totalStok.toString(),
         icon: Icons.inventory_2_rounded,
         color: orangeStatus,
       ),
     ];
 
-    return Column(
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(child: _summaryCard(items[0])),
-            const SizedBox(width: 10),
-            Expanded(child: _summaryCard(items[1])),
-          ],
-        ),
-        const SizedBox(height: 10),
-        _summaryCard(items[2]),
+        Expanded(child: _summaryCard(items[0])),
+        const SizedBox(width: 9),
+        Expanded(child: _summaryCard(items[1])),
+        const SizedBox(width: 9),
+        Expanded(child: _summaryCard(items[2])),
       ],
     );
   }
 
   Widget _summaryCard(_SummaryItem item) {
     return Container(
-      height: 92,
-      padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(),
-      child: Row(
-        children: [
-          Container(
-            height: 42,
-            width: 42,
-            decoration: BoxDecoration(
-              color: item.color.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(item.icon, color: item.color, size: 23),
+      height: 74,
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.022),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: item.color,
-                    fontSize: 22,
-                    height: 1,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(item.icon, size: 15, color: item.color),
+          const Spacer(),
+          Text(
+            item.value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: item.color,
+              fontSize: 18,
+              height: 1,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            item.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 9.2,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -867,50 +861,74 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
     );
   }
 
-  Widget _infoPanel({required int stokRendah, required int stokKosong}) {
+  Widget _stockPanel({
+    required int totalStok,
+    required int pupukAktif,
+    required int stokRendah,
+    required int stokKosong,
+  }) {
     final hasWarning = stokRendah > 0 || stokKosong > 0;
-
-    String message;
-    if (stokKosong > 0) {
-      message =
-          '$stokKosong jenis pupuk stoknya kosong. Segera lakukan pembaruan stok agar data bantuan tetap akurat.';
-    } else if (stokRendah > 0) {
-      message =
-          '$stokRendah jenis pupuk memiliki stok terbatas. Segera lakukan pengecekan stok.';
-    } else {
-      message =
-          'Stok pupuk akan otomatis berkurang saat admin menandai bantuan sebagai sudah diambil.';
-    }
-
+    final aman = totalStok > 0 && pupukAktif > 0 && !hasWarning;
     final color = hasWarning ? orangeStatus : primaryGreen;
 
+    String title;
+    String message;
+
+    if (stokKosong > 0) {
+      title = 'Stok pupuk perlu diperbarui';
+      message =
+          '$stokKosong jenis pupuk kosong. Segera perbarui stok agar data bantuan tetap akurat.';
+    } else if (stokRendah > 0) {
+      title = 'Stok pupuk mulai terbatas';
+      message =
+          '$stokRendah jenis pupuk memiliki stok rendah. Lakukan pengecekan sebelum bantuan disetujui.';
+    } else if (aman) {
+      title = 'Stok pupuk siap digunakan';
+      message =
+          '$totalStok kg dari $pupukAktif jenis pupuk aktif tersedia untuk bantuan anggota.';
+    } else {
+      title = 'Stok pupuk belum siap';
+      message =
+          'Tambahkan data pupuk aktif agar pengajuan bantuan bisa diproses.';
+    }
+
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.12)),
-      ),
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(radius: 18),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
+          _iconBox(
             hasWarning
                 ? Icons.warning_amber_rounded
-                : Icons.info_outline_rounded,
-            color: color,
-            size: 22,
+                : aman
+                ? Icons.task_alt_rounded
+                : Icons.info_rounded,
+            color,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 11),
           Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: textGrey,
-                fontSize: 12.5,
-                height: 1.45,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 13.8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 11.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -923,93 +941,78 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
     final stok = int.tryParse((pupuk['stok'] ?? 0).toString()) ?? 0;
     final status = (pupuk['status'] ?? 'aktif').toString();
     final color = _warnaPupuk(namaPupuk);
+    final tanggal = _formatTanggal(
+      pupuk['tanggal_update'] ?? pupuk['tanggal_input'],
+    );
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: _cardDecoration(radius: 20),
       child: Column(
         children: [
           Row(
             children: [
-              Container(
-                height: 50,
-                width: 50,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.11),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(_iconPupuk(namaPupuk), color: color, size: 28),
-              ),
-              const SizedBox(width: 12),
+              _pupukIconBox(_iconPupuk(namaPupuk), color),
+              const SizedBox(width: 11),
               Expanded(
-                child: Text(
-                  namaPupuk,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w900,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      namaPupuk,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textDark,
+                        fontSize: 14.2,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Diperbarui: $tanggal',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textGrey,
+                        fontSize: 11.2,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 8),
               _statusBadge(status),
             ],
           ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xffF9FAFB),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: cardBorder),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _detailMini(
-                    icon: Icons.inventory_2_rounded,
-                    label: 'Stok',
-                    value: '$stok Kg',
-                    color: _warnaStok(stok),
-                  ),
-                ),
-                Container(width: 1, height: 40, color: cardBorder),
-                Expanded(
-                  child: _detailMini(
-                    icon: Icons.verified_rounded,
-                    label: 'Status',
-                    value:
-                        status.toLowerCase() == 'aktif' ? 'Aktif' : 'Nonaktif',
-                    color:
-                        status.toLowerCase() == 'aktif'
-                            ? primaryGreen
-                            : redStatus,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(
-                child: _actionButton(
-                  icon: Icons.edit_rounded,
-                  label: 'Edit',
-                  color: orangeStatus,
-                  onTap: () => _formPupuk(id: id, data: pupuk),
-                ),
+              _miniInfo(
+                icon: Icons.inventory_2_rounded,
+                text: '$stok kg',
+                color: _warnaStok(stok),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _actionButton(
-                  icon: Icons.delete_rounded,
-                  label: 'Hapus',
-                  color: redStatus,
-                  onTap: () => _konfirmasiHapus(id, namaPupuk),
-                ),
+              const SizedBox(width: 7),
+              _miniInfo(
+                icon: Icons.verified_user_rounded,
+                text: status.toLowerCase() == 'aktif' ? 'Aktif' : 'Nonaktif',
+                color:
+                    status.toLowerCase() == 'aktif' ? primaryGreen : redStatus,
+              ),
+              const Spacer(),
+              _smallAction(
+                icon: Icons.edit_note_rounded,
+                color: orangeStatus,
+                onTap: () => _formPupuk(id: id, data: pupuk),
+              ),
+              const SizedBox(width: 7),
+              _smallAction(
+                icon: Icons.delete_forever_rounded,
+                color: redStatus,
+                onTap: () => _konfirmasiHapus(id, namaPupuk),
               ),
             ],
           ),
@@ -1018,35 +1021,67 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
     );
   }
 
-  Widget _detailMini({
+  Widget _pupukIconBox(IconData icon, Color color) {
+    return Container(
+      height: 42,
+      width: 42,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: color.withValues(alpha: 0.11)),
+      ),
+      child: Icon(icon, color: color, size: 21),
+    );
+  }
+
+  Widget _miniInfo({
     required IconData icon,
-    required String label,
-    required String value,
+    required String text,
     required Color color,
   }) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: color,
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11.5, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 9.8,
+              fontWeight: FontWeight.w800,
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _smallAction({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 31,
+        width: 31,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.11)),
         ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            color: textGrey,
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
+        child: Icon(icon, color: color, size: 16),
+      ),
     );
   }
 
@@ -1054,55 +1089,21 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
     final aktif = status.toLowerCase() == 'aktif';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
       decoration: BoxDecoration(
-        color: (aktif ? primaryGreen : redStatus).withValues(alpha: 0.10),
+        color: (aktif ? primaryGreen : redStatus).withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: (aktif ? primaryGreen : redStatus).withValues(alpha: 0.16),
+          color: (aktif ? primaryGreen : redStatus).withValues(alpha: 0.12),
         ),
       ),
       child: Text(
         aktif ? 'AKTIF' : 'NONAKTIF',
         style: TextStyle(
           color: aktif ? primaryGreen : redStatus,
-          fontSize: 9.5,
+          fontSize: 8.8,
           fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-
-  Widget _actionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.09),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.13)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
+          letterSpacing: 0.25,
         ),
       ),
     );
@@ -1110,17 +1111,17 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
 
   Widget _loadingCard() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(radius: 20),
       child: Row(
         children: [
           Container(
-            height: 50,
-            width: 50,
+            height: 42,
+            width: 42,
             decoration: BoxDecoration(
               color: cardBorder,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(15),
             ),
           ),
           const SizedBox(width: 12),
@@ -1128,15 +1129,15 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
             child: Column(
               children: [
                 Container(
-                  height: 14,
+                  height: 13,
                   decoration: BoxDecoration(
                     color: cardBorder,
                     borderRadius: BorderRadius.circular(99),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 9),
                 Container(
-                  height: 12,
+                  height: 11,
                   decoration: BoxDecoration(
                     color: cardBorder,
                     borderRadius: BorderRadius.circular(99),
@@ -1157,37 +1158,37 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 34),
+      decoration: _cardDecoration(radius: 22),
       child: Column(
         children: [
           Container(
-            height: 78,
-            width: 78,
+            height: 76,
+            width: 76,
             decoration: BoxDecoration(
               color: softGreen,
               shape: BoxShape.circle,
               border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
             ),
-            child: Icon(icon, color: primaryGreen, size: 38),
+            child: Icon(icon, color: primaryGreen, size: 34),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 15),
           Text(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textDark,
-              fontSize: 16,
+              fontSize: 16.5,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
           Text(
             message,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 12,
+              fontSize: 12.4,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -1197,50 +1198,43 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
     );
   }
 
-  Widget _sectionTitle({
-    required String title,
-    required String subtitle,
-    required double horizontalPadding,
-  }) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-      child: Row(
-        children: [
-          Container(
-            height: 34,
-            width: 5,
-            decoration: BoxDecoration(
-              color: primaryGreen,
-              borderRadius: BorderRadius.circular(99),
-            ),
+  Widget _sectionTitle({required String title, required String subtitle}) {
+    return Row(
+      children: [
+        Container(
+          height: 30,
+          width: 4,
+          decoration: BoxDecoration(
+            color: primaryGreen,
+            borderRadius: BorderRadius.circular(99),
           ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w900,
-                  ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w900,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: textGrey,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 11.2,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1252,15 +1246,31 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
       },
       borderRadius: BorderRadius.circular(15),
       child: Container(
-        height: 44,
-        width: 44,
+        height: 42,
+        width: 42,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
         ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+        child: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          color: Colors.white,
+          size: 17,
+        ),
       ),
+    );
+  }
+
+  Widget _iconBox(IconData icon, Color color) {
+    return Container(
+      height: 42,
+      width: 42,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(icon, color: color, size: 22),
     );
   }
 
@@ -1270,11 +1280,11 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
   }) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: textGrey),
-      prefixIcon: Icon(icon, color: primaryGreen),
+      labelStyle: const TextStyle(color: textGrey, fontSize: 12.5),
+      prefixIcon: Icon(icon, color: primaryGreen, size: 19),
       filled: true,
       fillColor: const Color(0xffF9FAFB),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -1282,19 +1292,19 @@ class _KelolaPupukPageState extends State<KelolaPupukPage> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: primaryGreen, width: 1.5),
+        borderSide: const BorderSide(color: primaryGreen, width: 1.4),
       ),
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  BoxDecoration _cardDecoration({double radius = 18}) {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.035),
+          color: Colors.black.withValues(alpha: 0.026),
           blurRadius: 12,
           offset: const Offset(0, 5),
         ),

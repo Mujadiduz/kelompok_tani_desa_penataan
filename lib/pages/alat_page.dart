@@ -18,14 +18,14 @@ class AlatPage extends StatefulWidget {
 class _AlatPageState extends State<AlatPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
-  static const Color bgColor = Color(0xffF3F7F3);
-  static const Color softGreen = Color(0xffE8F5E9);
+  static const Color bgColor = Color(0xffF6FAF7);
+  static const Color softGreen = Color(0xffEAF7EC);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color borderColor = Color(0xffE5E7EB);
-  static const Color orangeStatus = Color(0xffF57C00);
+  static const Color orangeStatus = Color(0xffF59E0B);
   static const Color redStatus = Color(0xffDC2626);
-  static const Color blueStatus = Color(0xff1976D2);
+  static const Color blueStatus = Color(0xff2563EB);
 
   String? idAlatDipilih;
   String? namaAlatDipilih;
@@ -176,7 +176,7 @@ class _AlatPageState extends State<AlatPage> {
   }
 
   String teksStatusStok(int tersedia) {
-    if (tersedia <= 0) return 'Tidak Tersedia';
+    if (tersedia <= 0) return 'Belum tersedia';
     if (tersedia <= 1) return 'Terbatas';
     return 'Tersedia';
   }
@@ -184,6 +184,29 @@ class _AlatPageState extends State<AlatPage> {
   Color warnaStatusStok(int tersedia) {
     if (tersedia <= 0) return redStatus;
     if (tersedia <= 1) return orangeStatus;
+    return primaryGreen;
+  }
+
+  String sensorNik(String nik) {
+    final cleanNik = nik.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanNik.length <= 4) return nik;
+    return '•••• •••• •••• ${cleanNik.substring(cleanNik.length - 4)}';
+  }
+
+  String statusLayananText(int tersedia) {
+    if (tersedia <= 0) return 'Belum Bisa Dipinjam';
+    return 'Siap Dipinjam';
+  }
+
+  String statusLayananDesc(int tersedia) {
+    if (tersedia <= 0) {
+      return 'Saat ini belum ada alat yang tersedia untuk dipilih.';
+    }
+    return 'Silakan pilih alat yang tersedia, lalu lanjutkan ke pemilihan jadwal.';
+  }
+
+  Color statusLayananColor(int tersedia) {
+    if (tersedia <= 0) return orangeStatus;
     return primaryGreen;
   }
 
@@ -204,17 +227,12 @@ class _AlatPageState extends State<AlatPage> {
     );
   }
 
-  String sensorNik(String nik) {
-    final cleanNik = nik.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleanNik.length <= 4) return nik;
-    return '•••• •••• •••• ${cleanNik.substring(cleanNik.length - 4)}';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor,
       body: AppBackground(
+        showPattern: false,
         child: SafeArea(
           child: StreamBuilder<DatabaseEvent>(
             stream: alatRef.onValue,
@@ -229,7 +247,6 @@ class _AlatPageState extends State<AlatPage> {
                   );
 
                   final totalJenis = alatList.length;
-                  final unitSemua = totalUnit(alatList);
                   final unitDipinjam = totalDipinjam(alatList, peminjamanList);
                   final unitTersedia = totalTersedia(alatList, peminjamanList);
 
@@ -243,25 +260,26 @@ class _AlatPageState extends State<AlatPage> {
                           onRefresh: _refreshData,
                           child: ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 96),
                             children: [
                               _userInfoCard(),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 12),
                               _stepCard(),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 12),
                               _summaryGrid(
                                 totalJenis: totalJenis,
-                                totalUnit: unitSemua,
                                 tersedia: unitTersedia,
                                 dipinjam: unitDipinjam,
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 12),
+                              _serviceStatusCard(unitTersedia),
+                              const SizedBox(height: 12),
                               _guideCard(),
                               const SizedBox(height: 18),
                               _sectionTitle(
                                 title: 'Pilih Alat Pertanian',
                                 subtitle:
-                                    'Pilih alat yang masih tersedia untuk dipinjam',
+                                    'Pilih alat yang tersedia untuk dipinjam',
                               ),
                               const SizedBox(height: 12),
                               _buildContent(
@@ -298,7 +316,7 @@ class _AlatPageState extends State<AlatPage> {
       return _messageState(
         icon: Icons.error_outline_rounded,
         title: 'Terjadi Kesalahan',
-        message: 'Data alat gagal dimuat.',
+        message: 'Data alat gagal dimuat. Silakan coba lagi.',
       );
     }
 
@@ -338,19 +356,15 @@ class _AlatPageState extends State<AlatPage> {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [darkGreen, primaryGreen],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(26),
+          color: darkGreen,
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: darkGreen.withValues(alpha: 0.20),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
+              color: darkGreen.withValues(alpha: 0.18),
+              blurRadius: 16,
+              offset: const Offset(0, 7),
             ),
           ],
         ),
@@ -366,17 +380,17 @@ class _AlatPageState extends State<AlatPage> {
                     'Peminjaman Alat',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 19,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  SizedBox(height: 5),
+                  SizedBox(height: 4),
                   Text(
-                    'Pilih alat untuk melanjutkan jadwal peminjaman',
+                    'Pilih alat yang ingin dipinjam',
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: Color(0xffD1FAE5),
                       fontSize: 12,
-                      height: 1.35,
+                      height: 1.3,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -384,11 +398,11 @@ class _AlatPageState extends State<AlatPage> {
               ),
             ),
             Container(
-              height: 48,
-              width: 48,
+              height: 44,
+              width: 44,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
               ),
               child: const Icon(Icons.agriculture_rounded, color: Colors.white),
@@ -401,33 +415,33 @@ class _AlatPageState extends State<AlatPage> {
 
   Widget _userInfoCard() {
     return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(radius: 18),
       child: Row(
         children: [
           Container(
-            height: 50,
-            width: 50,
+            height: 46,
+            width: 46,
             decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(16),
+              color: primaryGreen.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
               Icons.person_rounded,
               color: primaryGreen,
-              size: 28,
+              size: 25,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Pemohon',
+                  'Data Pemohon',
                   style: TextStyle(
                     color: textGrey,
-                    fontSize: 11.5,
+                    fontSize: 11.3,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -438,18 +452,18 @@ class _AlatPageState extends State<AlatPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 16,
+                    fontSize: 15.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   'NIK ${sensorNik(widget.nik)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 12,
+                    fontSize: 11.6,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -457,16 +471,16 @@ class _AlatPageState extends State<AlatPage> {
             ),
           ),
           Container(
-            height: 38,
-            width: 38,
+            height: 36,
+            width: 36,
             decoration: BoxDecoration(
               color: primaryGreen.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.verified_user_rounded,
               color: primaryGreen,
-              size: 21,
+              size: 20,
             ),
           ),
         ],
@@ -477,10 +491,22 @@ class _AlatPageState extends State<AlatPage> {
   Widget _stepCard() {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              _stepDot('1', true),
+              _stepLine(true),
+              _stepDot('2', false),
+              _stepLine(false),
+              _stepDot('3', false),
+              _stepLine(false),
+              _stepDot('4', false),
+            ],
+          ),
+          const SizedBox(height: 12),
           const Text(
             'Tahap 1 dari 4',
             style: TextStyle(
@@ -489,24 +515,14 @@ class _AlatPageState extends State<AlatPage> {
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           const Text(
-            'Pilih alat pertanian yang ingin dipinjam.',
+            'Pilih alat pertanian terlebih dahulu sebelum menentukan jadwal.',
             style: TextStyle(
               color: textGrey,
-              fontSize: 12,
+              fontSize: 11.8,
               height: 1.35,
               fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: 0.25,
-              minHeight: 7,
-              backgroundColor: primaryGreen.withValues(alpha: 0.12),
-              valueColor: const AlwaysStoppedAnimation<Color>(primaryGreen),
             ),
           ),
         ],
@@ -514,56 +530,67 @@ class _AlatPageState extends State<AlatPage> {
     );
   }
 
+  Widget _stepDot(String text, bool active) {
+    return Container(
+      height: 28,
+      width: 28,
+      decoration: BoxDecoration(
+        color: active ? primaryGreen : const Color(0xffEEF2F7),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: active ? primaryGreen : borderColor),
+      ),
+      child: Center(
+        child: Text(
+          text,
+          style: TextStyle(
+            color: active ? Colors.white : textGrey,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stepLine(bool active) {
+    return Expanded(
+      child: Container(
+        height: 3,
+        margin: const EdgeInsets.symmetric(horizontal: 5),
+        decoration: BoxDecoration(
+          color:
+              active
+                  ? primaryGreen.withValues(alpha: 0.55)
+                  : const Color(0xffE5E7EB),
+          borderRadius: BorderRadius.circular(99),
+        ),
+      ),
+    );
+  }
+
   Widget _summaryGrid({
     required int totalJenis,
-    required int totalUnit,
     required int tersedia,
     required int dipinjam,
   }) {
-    return Column(
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _summaryMini(
-                title: 'Jenis',
-                value: totalJenis.toString(),
-                icon: Icons.handyman_rounded,
-                color: primaryGreen,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _summaryMini(
-                title: 'Tersedia',
-                value: tersedia.toString(),
-                icon: Icons.check_circle_rounded,
-                color: blueStatus,
-              ),
-            ),
-          ],
+        Expanded(
+          child: _summaryMini(
+            title: 'Pilihan Alat',
+            value: totalJenis.toString(),
+            icon: Icons.handyman_rounded,
+            color: primaryGreen,
+          ),
         ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _summaryMini(
-                title: 'Dipinjam',
-                value: dipinjam.toString(),
-                icon: Icons.output_rounded,
-                color: orangeStatus,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _summaryMini(
-                title: 'Total Unit',
-                value: totalUnit.toString(),
-                icon: Icons.inventory_2_rounded,
-                color: primaryGreen,
-              ),
-            ),
-          ],
+        const SizedBox(width: 10),
+        Expanded(
+          child: _summaryMini(
+            title: 'Siap Dipinjam',
+            value: tersedia.toString(),
+            icon: Icons.check_circle_rounded,
+            color: blueStatus,
+          ),
         ),
       ],
     );
@@ -576,21 +603,21 @@ class _AlatPageState extends State<AlatPage> {
     required Color color,
   }) {
     return Container(
-      height: 86,
-      padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(),
+      height: 80,
+      padding: const EdgeInsets.all(12),
+      decoration: _cardDecoration(radius: 18),
       child: Row(
         children: [
           Container(
-            height: 42,
-            width: 42,
+            height: 39,
+            width: 39,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(13),
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: color, size: 23),
+            child: Icon(icon, color: color, size: 21),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -600,7 +627,7 @@ class _AlatPageState extends State<AlatPage> {
                   value,
                   style: TextStyle(
                     color: color,
-                    fontSize: 20,
+                    fontSize: 19,
                     height: 1,
                     fontWeight: FontWeight.w900,
                   ),
@@ -612,8 +639,62 @@ class _AlatPageState extends State<AlatPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _serviceStatusCard(int tersedia) {
+    final color = statusLayananColor(tersedia);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(radius: 18),
+      child: Row(
+        children: [
+          Container(
+            height: 44,
+            width: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              tersedia > 0
+                  ? Icons.assignment_turned_in_rounded
+                  : Icons.info_outline_rounded,
+              color: color,
+              size: 23,
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  statusLayananText(tersedia),
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  statusLayananDesc(tersedia),
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 11.7,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -628,21 +709,21 @@ class _AlatPageState extends State<AlatPage> {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: primaryGreen.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
+        color: primaryGreen.withValues(alpha: 0.075),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 20),
+          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 19),
           SizedBox(width: 9),
           Expanded(
             child: Text(
-              'Alat yang sedang dipinjam anggota lain akan mengurangi jumlah tersedia. Setelah memilih alat, lanjutkan ke pilihan jadwal.',
+              'Alat yang tersedia dapat dipilih. Setelah itu, lanjutkan ke tahap pemilihan jadwal peminjaman.',
               style: TextStyle(
                 color: primaryGreen,
-                fontSize: 12.5,
+                fontSize: 12.2,
                 height: 1.4,
                 fontWeight: FontWeight.w700,
               ),
@@ -657,7 +738,7 @@ class _AlatPageState extends State<AlatPage> {
     return Row(
       children: [
         Container(
-          height: 34,
+          height: 32,
           width: 5,
           decoration: BoxDecoration(
             color: primaryGreen,
@@ -673,7 +754,7 @@ class _AlatPageState extends State<AlatPage> {
                 title,
                 style: const TextStyle(
                   color: textDark,
-                  fontSize: 16,
+                  fontSize: 15.8,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -713,25 +794,25 @@ class _AlatPageState extends State<AlatPage> {
                 });
               }
               : null,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       child: Opacity(
         opacity: tersedia ? 1 : 0.58,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
             color:
-                selected ? primaryGreen.withValues(alpha: 0.08) : Colors.white,
-            borderRadius: BorderRadius.circular(20),
+                selected ? primaryGreen.withValues(alpha: 0.075) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: selected ? primaryGreen : borderColor,
-              width: selected ? 1.5 : 1,
+              width: selected ? 1.4 : 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.035),
-                blurRadius: 12,
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 11,
                 offset: const Offset(0, 5),
               ),
             ],
@@ -739,22 +820,22 @@ class _AlatPageState extends State<AlatPage> {
           child: Row(
             children: [
               Container(
-                width: 50,
-                height: 50,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color:
                       selected
                           ? primaryGreen
                           : primaryGreen.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 child: Icon(
                   iconAlat(nama),
                   color: selected ? Colors.white : primaryGreen,
-                  size: 27,
+                  size: 25,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -765,7 +846,7 @@ class _AlatPageState extends State<AlatPage> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: textDark,
-                        fontSize: 15.5,
+                        fontSize: 15,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -778,13 +859,13 @@ class _AlatPageState extends State<AlatPage> {
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Icon(
                 selected
                     ? Icons.check_circle_rounded
                     : Icons.radio_button_unchecked_rounded,
-                color: selected ? primaryGreen : textGrey,
-                size: 25,
+                color: selected ? primaryGreen : const Color(0xff9CA3AF),
+                size: 24,
               ),
             ],
           ),
@@ -798,18 +879,23 @@ class _AlatPageState extends State<AlatPage> {
     required int jumlahUnit,
     required Color color,
   }) {
+    final text =
+        tersedia <= 0
+            ? teksStatusStok(tersedia)
+            : '${teksStatusStok(tersedia)} • $tersedia unit';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: color.withValues(alpha: 0.16)),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
       child: Text(
-        '${teksStatusStok(tersedia)} • $tersedia dari $jumlahUnit unit',
+        text,
         style: TextStyle(
           color: color,
-          fontSize: 11.5,
+          fontSize: 11,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -835,23 +921,26 @@ class _AlatPageState extends State<AlatPage> {
         top: false,
         child: SizedBox(
           width: double.infinity,
-          height: 54,
+          height: 52,
           child: ElevatedButton.icon(
             onPressed: aktif ? lanjutPilihJadwal : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryGreen,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.38),
+              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.36),
               disabledForegroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(15),
               ),
             ),
             icon: const Icon(Icons.arrow_forward_rounded, size: 20),
             label: Text(
               aktif ? 'Lanjut Pilih Jadwal' : 'Pilih Alat Terlebih Dahulu',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ),
@@ -863,20 +952,20 @@ class _AlatPageState extends State<AlatPage> {
     return Column(
       children: List.generate(3, (index) {
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
-          decoration: _cardDecoration(),
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(13),
+          decoration: _cardDecoration(radius: 18),
           child: Row(
             children: [
               Container(
-                width: 50,
-                height: 50,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: borderColor,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(15),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   children: [
@@ -913,18 +1002,18 @@ class _AlatPageState extends State<AlatPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(radius: 18),
       child: Column(
         children: [
           Container(
-            height: 76,
-            width: 76,
+            height: 72,
+            width: 72,
             decoration: BoxDecoration(
               color: softGreen,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
             ),
-            child: Icon(icon, color: primaryGreen, size: 38),
+            child: Icon(icon, color: primaryGreen, size: 36),
           ),
           const SizedBox(height: 14),
           Text(
@@ -932,7 +1021,7 @@ class _AlatPageState extends State<AlatPage> {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textDark,
-              fontSize: 16,
+              fontSize: 15.8,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -942,7 +1031,7 @@ class _AlatPageState extends State<AlatPage> {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 12.5,
+              fontSize: 12.4,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -958,13 +1047,13 @@ class _AlatPageState extends State<AlatPage> {
         if (!mounted) return;
         Navigator.pop(context);
       },
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        height: 44,
-        width: 44,
+        height: 42,
+        width: 42,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
         ),
         child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
@@ -972,14 +1061,14 @@ class _AlatPageState extends State<AlatPage> {
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  BoxDecoration _cardDecoration({double radius = 18}) {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.035),
+          color: Colors.black.withValues(alpha: 0.032),
           blurRadius: 12,
           offset: const Offset(0, 5),
         ),

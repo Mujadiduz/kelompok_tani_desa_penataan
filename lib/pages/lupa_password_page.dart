@@ -107,7 +107,7 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
 
       if (_masihAdaResetMenunggu(cekReset.value)) {
         _showMessage(
-          'Permintaan reset password Anda masih menunggu proses admin.',
+          'Permintaan reset password masih menunggu proses admin.',
           primaryGreen,
         );
         return;
@@ -138,13 +138,11 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
       if (!mounted) return;
 
       _showSuccessDialog();
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       _showMessage('Gagal mengajukan reset password.', dangerColor);
     } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -190,14 +188,14 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
       builder: (dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(20),
           ),
           title: const Text(
             'Permintaan Terkirim',
             style: TextStyle(color: textDark, fontWeight: FontWeight.w900),
           ),
           content: const Text(
-            'Permintaan reset password berhasil dikirim ke admin. Silakan tunggu sampai admin memproses password baru Anda.',
+            'Permintaan reset password berhasil dikirim. Silakan tunggu proses dari admin.',
             style: TextStyle(
               color: textGrey,
               height: 1.45,
@@ -226,19 +224,25 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: AppBackground(
+        showPattern: false,
         child: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
           child: SafeArea(
             child: ListView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              padding: EdgeInsets.fromLTRB(20, 18, 20, bottomInset + 28),
               children: [
-                _header(),
+                _header(context),
                 const SizedBox(height: 16),
-                _formCard(),
+                _mainCard(),
                 const SizedBox(height: 14),
                 _infoCard(),
               ],
@@ -249,17 +253,17 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
     );
   }
 
-  Widget _header() {
+  Widget _header(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
         color: darkGreen,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: darkGreen.withValues(alpha: 0.20),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            blurRadius: 16,
+            offset: const Offset(0, 7),
           ),
         ],
       ),
@@ -267,52 +271,55 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
         children: [
           InkWell(
             onTap: () => Navigator.pop(context),
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              height: 42,
-              width: 42,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+            borderRadius: BorderRadius.circular(12),
+            child: const SizedBox(
+              height: 40,
+              width: 36,
+              child: Icon(
+                Icons.arrow_back_rounded,
+                color: Colors.white,
+                size: 25,
               ),
-              child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 6),
           Container(
-            height: 48,
-            width: 48,
+            height: 42,
+            width: 42,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(15),
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
             ),
             child: const Icon(
               Icons.lock_reset_rounded,
               color: Colors.white,
-              size: 28,
+              size: 24,
             ),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(width: 12),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Lupa Password',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 19,
+                    fontSize: 18,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: 3),
                 Text(
-                  'Ajukan reset password ke admin.',
+                  'Pemulihan akses akun',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12.2,
-                    height: 1.3,
+                    color: Color(0xffD1FAE5),
+                    fontSize: 11.8,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -324,15 +331,16 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
     );
   }
 
-  Widget _formCard() {
+  Widget _mainCard() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: _cardDecoration(radius: 24),
+      decoration: _cardDecoration(radius: 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Data Anggota',
+            'Verifikasi NIK',
             style: TextStyle(
               color: textDark,
               fontSize: 18,
@@ -341,7 +349,7 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Masukkan NIK anggota yang sudah aktif.',
+            'Masukkan NIK anggota yang sudah terdaftar.',
             style: TextStyle(
               color: textGrey,
               fontSize: 12.5,
@@ -359,6 +367,11 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
             onSubmitted: (_) {
               if (!isLoading) ajukanResetPassword();
             },
+            style: const TextStyle(
+              color: textDark,
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+            ),
             decoration: _inputDecoration(
               label: 'NIK',
               hint: 'Masukkan 16 digit NIK',
@@ -369,35 +382,46 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
           SizedBox(
             width: double.infinity,
             height: 52,
-            child: ElevatedButton.icon(
+            child: ElevatedButton(
               onPressed: isLoading ? null : ajukanResetPassword,
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryGreen,
-                foregroundColor: Colors.white,
                 disabledBackgroundColor: primaryGreen.withValues(alpha: 0.42),
                 elevation: 0,
+                shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(17),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              icon:
+              child:
                   isLoading
                       ? const SizedBox(
-                        width: 19,
-                        height: 19,
+                        width: 21,
+                        height: 21,
                         child: CircularProgressIndicator(
-                          strokeWidth: 2.3,
+                          strokeWidth: 2.4,
                           color: Colors.white,
                         ),
                       )
-                      : const Icon(Icons.send_rounded),
-              label: Text(
-                isLoading ? 'Mengirim...' : 'Kirim Permintaan',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14.5,
-                ),
-              ),
+                      : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.send_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Kirim Permintaan',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14.5,
+                            ),
+                          ),
+                        ],
+                      ),
             ),
           ),
         ],
@@ -409,7 +433,7 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: softGreen.withValues(alpha: 0.86),
+        color: softGreen.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: primaryGreen.withValues(alpha: 0.13)),
       ),
@@ -420,7 +444,7 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Admin akan memproses permintaan reset password. Setelah selesai, pemberitahuan akan masuk melalui menu notifikasi.',
+              'Permintaan akan diteruskan ke admin untuk proses pemulihan password.',
               style: TextStyle(
                 color: textGrey,
                 fontSize: 12.4,
@@ -451,14 +475,14 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
         color: Colors.black.withValues(alpha: 0.35),
         fontWeight: FontWeight.w600,
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(17)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: borderColor),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: primaryGreen, width: 1.5),
       ),
     );
@@ -466,14 +490,14 @@ class _LupaPasswordPageState extends State<LupaPasswordPage> {
 
   BoxDecoration _cardDecoration({double radius = 20}) {
     return BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.96),
+      color: Colors.white,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 16,
-          offset: const Offset(0, 7),
+          blurRadius: 14,
+          offset: const Offset(0, 6),
         ),
       ],
     );

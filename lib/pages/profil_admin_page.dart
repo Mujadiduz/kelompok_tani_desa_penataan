@@ -26,7 +26,7 @@ class ProfilAdminPage extends StatefulWidget {
 class _ProfilAdminPageState extends State<ProfilAdminPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
-  static const Color cardBorder = Color(0xffE5E7EB);
+  static const Color cardBorder = Color(0xffE6ECE8);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color orangeStatus = Color(0xffF59E0B);
@@ -232,7 +232,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                 onRefresh: _refreshData,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
                   children: [
                     _header(data),
                     const SizedBox(height: 16),
@@ -240,7 +240,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                     const SizedBox(height: 18),
                     _sectionTitle(
                       title: 'Data Sistem',
-                      subtitle: 'Klik kartu untuk melihat data lengkap',
+                      subtitle: 'Pilih menu untuk melihat data lengkap',
                     ),
                     const SizedBox(height: 12),
                     _statsGrid(data),
@@ -251,7 +251,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                     ),
                     const SizedBox(height: 12),
                     _menuTile(
-                      icon: Icons.info_outline_rounded,
+                      icon: Icons.info_rounded,
                       title: 'Tentang Aplikasi',
                       subtitle: 'Informasi sistem dan fitur aplikasi',
                       color: primaryGreen,
@@ -273,13 +273,17 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
     final aman = data.totalVerifikasi == 0;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
       decoration: BoxDecoration(
-        color: darkGreen,
-        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          colors: [darkGreen, primaryGreen],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.20),
+            color: darkGreen.withValues(alpha: 0.18),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -287,35 +291,23 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
       ),
       child: Row(
         children: [
-          InkWell(
-            onTap: () => Navigator.pop(context),
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              height: 42,
-              width: 42,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
-              ),
-              child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-            ),
-          ),
+          _backButton(),
           const SizedBox(width: 12),
           Container(
-            height: 48,
-            width: 48,
+            height: 42,
+            width: 42,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
             ),
             child: const Icon(
               Icons.admin_panel_settings_rounded,
               color: Colors.white,
-              size: 28,
+              size: 22,
             ),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,53 +325,70 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                 const SizedBox(height: 4),
                 Text(
                   aman
-                      ? 'Semua verifikasi sudah diproses.'
-                      : '${data.totalVerifikasi} data perlu diverifikasi.',
+                      ? 'Semua verifikasi sudah diproses'
+                      : '${data.totalVerifikasi} data perlu diverifikasi',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12.2,
+                    color: Color(0xffDDEFE3),
+                    fontSize: 11.8,
                     height: 1.3,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 10),
           _headerCounter(data.totalVerifikasi),
         ],
       ),
     );
   }
 
+  Widget _backButton() {
+    return InkWell(
+      onTap: () {
+        if (!mounted) return;
+        Navigator.pop(context);
+      },
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        height: 42,
+        width: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+        ),
+        child: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          color: Colors.white,
+          size: 17,
+        ),
+      ),
+    );
+  }
+
   Widget _headerCounter(int total) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 52, minHeight: 48),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          const Icon(Icons.fact_check_rounded, color: Colors.white, size: 14),
+          const SizedBox(width: 5),
           Text(
             total.toString(),
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
-              height: 1,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'cek',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.82),
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -389,31 +398,32 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
 
   Widget _verificationCard(_AdminProfileData data) {
     final aman = data.totalVerifikasi == 0;
+    final color = aman ? primaryGreen : orangeStatus;
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(radius: 24),
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(radius: 20),
       child: Column(
         children: [
           Row(
             children: [
               Container(
-                height: 54,
-                width: 54,
+                height: 42,
+                width: 42,
                 decoration: BoxDecoration(
-                  color:
-                      aman
-                          ? primaryGreen.withValues(alpha: 0.11)
-                          : orangeStatus.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(17),
+                  color: color.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: color.withValues(alpha: 0.11)),
                 ),
                 child: Icon(
-                  aman ? Icons.done_all_rounded : Icons.pending_actions_rounded,
-                  color: aman ? primaryGreen : orangeStatus,
-                  size: 29,
+                  aman
+                      ? Icons.verified_user_rounded
+                      : Icons.pending_actions_rounded,
+                  color: color,
+                  size: 21,
                 ),
               ),
-              const SizedBox(width: 13),
+              const SizedBox(width: 11),
               Expanded(
                 child: Text(
                   aman
@@ -421,7 +431,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                       : '${data.totalVerifikasi} verifikasi menunggu keputusan admin.',
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 15,
+                    fontSize: 13.5,
                     height: 1.35,
                     fontWeight: FontWeight.w900,
                   ),
@@ -429,34 +439,34 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
               ),
             ],
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 13),
           Row(
             children: [
               Expanded(
                 child: _verifyBox(
                   title: 'Anggota',
                   value: data.calonMenunggu,
-                  icon: Icons.person_add_alt_1_rounded,
+                  icon: Icons.assignment_ind_rounded,
                   color: blueStatus,
                   onTap: () => _openPage(const VerifikasiAnggotaPage()),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 9),
               Expanded(
                 child: _verifyBox(
                   title: 'Pupuk',
                   value: data.pupukMenunggu,
-                  icon: Icons.eco_rounded,
+                  icon: Icons.inventory_2_rounded,
                   color: primaryGreen,
                   onTap: () => _openPage(const VerifikasiPupukPage()),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 9),
               Expanded(
                 child: _verifyBox(
                   title: 'Alat',
                   value: data.alatMenunggu,
-                  icon: Icons.agriculture_rounded,
+                  icon: Icons.handyman_rounded,
                   color: orangeStatus,
                   onTap: () => _openPage(const VerifikasiPeminjamanPage()),
                 ),
@@ -477,35 +487,47 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(17),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
+        height: 74,
+        padding: const EdgeInsets.all(9),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: color.withValues(alpha: 0.14)),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cardBorder),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.022),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 23),
-            const SizedBox(height: 7),
+            Icon(icon, size: 15, color: color),
+            const Spacer(),
             Text(
               value.toString(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: color,
-                fontSize: 19,
+                fontSize: 18,
+                height: 1,
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: textGrey,
-                fontSize: 10.8,
-                fontWeight: FontWeight.w800,
+                fontSize: 9.2,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
@@ -519,28 +541,28 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
       _StatItem(
         title: 'Anggota Aktif',
         value: data.totalAnggota,
-        icon: Icons.groups_rounded,
+        icon: Icons.verified_user_rounded,
         color: primaryGreen,
         page: const AnggotaAktifPage(),
       ),
       _StatItem(
         title: 'Calon Anggota',
         value: data.totalCalon,
-        icon: Icons.person_add_alt_1_rounded,
+        icon: Icons.assignment_ind_rounded,
         color: blueStatus,
         page: const DataCalonAnggotaPage(),
       ),
       _StatItem(
         title: 'Bantuan Pupuk',
         value: data.totalPupuk,
-        icon: Icons.eco_rounded,
+        icon: Icons.inventory_2_rounded,
         color: primaryGreen,
         page: const DataBantuanPupukPage(),
       ),
       _StatItem(
         title: 'Peminjaman Alat',
         value: data.totalPeminjaman,
-        icon: Icons.agriculture_rounded,
+        icon: Icons.precision_manufacturing_rounded,
         color: orangeStatus,
         page: const DataPeminjamanAlatPage(),
       ),
@@ -565,23 +587,24 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
   Widget _statCard(_StatItem item) {
     return InkWell(
       onTap: () => _openPage(item.page),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        height: 112,
-        padding: const EdgeInsets.all(14),
-        decoration: _cardDecoration(radius: 20),
+        height: 92,
+        padding: const EdgeInsets.all(11),
+        decoration: _cardDecoration(radius: 18),
         child: Row(
           children: [
             Container(
-              height: 44,
-              width: 44,
+              height: 38,
+              width: 38,
               decoration: BoxDecoration(
-                color: item.color.withValues(alpha: 0.11),
+                color: item.color.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: item.color.withValues(alpha: 0.10)),
               ),
-              child: Icon(item.icon, color: item.color, size: 24),
+              child: Icon(item.icon, color: item.color, size: 19),
             ),
-            const SizedBox(width: 11),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -593,27 +616,27 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: item.color,
-                      fontSize: 23,
+                      fontSize: 19,
                       height: 1,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 7),
+                  const SizedBox(height: 5),
                   Text(
                     item.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: textDark,
-                      fontSize: 12,
-                      height: 1.22,
+                      fontSize: 11.2,
+                      height: 1.2,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: item.color, size: 22),
+            Icon(Icons.chevron_right_rounded, color: item.color, size: 18),
           ],
         ),
       ),
@@ -629,22 +652,23 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: _cardDecoration(radius: 20),
+        padding: const EdgeInsets.all(12),
+        decoration: _cardDecoration(radius: 18),
         child: Row(
           children: [
             Container(
-              height: 44,
-              width: 44,
+              height: 38,
+              width: 38,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.11),
+                color: color.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: color.withValues(alpha: 0.10)),
               ),
-              child: Icon(icon, color: color),
+              child: Icon(icon, color: color, size: 19),
             ),
-            const SizedBox(width: 11),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -653,7 +677,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                     title,
                     style: const TextStyle(
                       color: textDark,
-                      fontSize: 14.2,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -662,7 +686,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                     subtitle,
                     style: const TextStyle(
                       color: textGrey,
-                      fontSize: 11.8,
+                      fontSize: 11.2,
                       height: 1.35,
                       fontWeight: FontWeight.w600,
                     ),
@@ -670,7 +694,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: color),
+            Icon(Icons.chevron_right_rounded, color: color, size: 18),
           ],
         ),
       ),
@@ -680,26 +704,31 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
   Widget _logoutTile() {
     return InkWell(
       onTap: _logout,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: redColor.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: redColor.withValues(alpha: 0.12)),
+          color: redColor.withValues(alpha: 0.055),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: redColor.withValues(alpha: 0.10)),
         ),
         child: Row(
           children: [
             Container(
-              height: 44,
-              width: 44,
+              height: 38,
+              width: 38,
               decoration: BoxDecoration(
-                color: redColor.withValues(alpha: 0.11),
+                color: redColor.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: redColor.withValues(alpha: 0.10)),
               ),
-              child: const Icon(Icons.logout_rounded, color: redColor),
+              child: const Icon(
+                Icons.logout_rounded,
+                color: redColor,
+                size: 19,
+              ),
             ),
-            const SizedBox(width: 11),
+            const SizedBox(width: 10),
             const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -708,7 +737,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                     'Keluar',
                     style: TextStyle(
                       color: redColor,
-                      fontSize: 14.2,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -717,7 +746,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                     'Akhiri sesi admin dan kembali ke login',
                     style: TextStyle(
                       color: textGrey,
-                      fontSize: 11.8,
+                      fontSize: 11.2,
                       height: 1.35,
                       fontWeight: FontWeight.w600,
                     ),
@@ -725,7 +754,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: redColor),
+            Icon(Icons.chevron_right_rounded, color: redColor, size: 18),
           ],
         ),
       ),
@@ -736,8 +765,8 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
     return Row(
       children: [
         Container(
-          height: 34,
-          width: 5,
+          height: 30,
+          width: 4,
           decoration: BoxDecoration(
             color: primaryGreen,
             borderRadius: BorderRadius.circular(99),
@@ -752,7 +781,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                 title,
                 style: const TextStyle(
                   color: textDark,
-                  fontSize: 16.5,
+                  fontSize: 15.5,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -761,7 +790,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                 subtitle,
                 style: const TextStyle(
                   color: textGrey,
-                  fontSize: 11.7,
+                  fontSize: 11.2,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -772,16 +801,16 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
     );
   }
 
-  BoxDecoration _cardDecoration({double radius = 20}) {
+  BoxDecoration _cardDecoration({double radius = 18}) {
     return BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.96),
+      color: Colors.white,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 16,
-          offset: const Offset(0, 7),
+          color: Colors.black.withValues(alpha: 0.026),
+          blurRadius: 12,
+          offset: const Offset(0, 5),
         ),
       ],
     );

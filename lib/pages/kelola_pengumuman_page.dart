@@ -16,8 +16,9 @@ class KelolaPengumumanPage extends StatefulWidget {
 class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
-  static const Color bgColor = Color(0xffF4F7F4);
-  static const Color cardBorder = Color(0xffE5E7EB);
+  static const Color bgColor = Color(0xffF6FAF7);
+  static const Color softGreen = Color(0xffEAF7EC);
+  static const Color cardBorder = Color(0xffE6ECE8);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color redColor = Color(0xffDC2626);
@@ -205,8 +206,11 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
       SnackBar(
         backgroundColor: darkGreen,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
-        content: Text(message),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        content: Text(
+          message,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
       ),
     );
   }
@@ -226,10 +230,10 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
   IconData _categoryIcon(String category) {
     final clean = category.toLowerCase().trim();
 
-    if (clean == 'pupuk') return Icons.eco_rounded;
-    if (clean == 'alat') return Icons.agriculture_rounded;
-    if (clean == 'rapat') return Icons.groups_rounded;
-    if (clean == 'panen') return Icons.grass_rounded;
+    if (clean == 'pupuk') return Icons.inventory_2_rounded;
+    if (clean == 'alat') return Icons.precision_manufacturing_rounded;
+    if (clean == 'rapat') return Icons.diversity_3_rounded;
+    if (clean == 'panen') return Icons.yard_rounded;
     if (clean == 'gotong_royong') return Icons.handshake_rounded;
 
     return Icons.campaign_rounded;
@@ -245,6 +249,18 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     if (clean == 'gotong_royong') return purpleColor;
 
     return primaryGreen;
+  }
+
+  String _previewSubtitle(int aktif, int total) {
+    if (total == 0) {
+      return 'Belum ada pengumuman. Tambahkan info agar anggota tertarik membuka halaman pengumuman.';
+    }
+
+    if (aktif == 0) {
+      return 'Belum ada pengumuman aktif. Aktifkan informasi penting agar tampil di halaman anggota.';
+    }
+
+    return '$aktif pengumuman aktif sedang tampil untuk anggota.';
   }
 
   void _openForm({Map<String, dynamic>? item}) {
@@ -267,20 +283,20 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
           builder: (context, setModalState) {
             return Padding(
               padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                left: 14,
+                right: 14,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 14,
               ),
               child: Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: cardBorder),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.10),
-                      blurRadius: 18,
+                      blurRadius: 22,
                       offset: const Offset(0, 8),
                     ),
                   ],
@@ -292,7 +308,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                     children: [
                       Center(
                         child: Container(
-                          width: 44,
+                          width: 42,
                           height: 5,
                           decoration: BoxDecoration(
                             color: const Color(0xffD1D5DB),
@@ -300,23 +316,16 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       Row(
                         children: [
-                          Container(
-                            height: 48,
-                            width: 48,
-                            decoration: BoxDecoration(
-                              color: primaryGreen.withValues(alpha: 0.11),
-                              borderRadius: BorderRadius.circular(13),
-                            ),
-                            child: const Icon(
-                              Icons.campaign_rounded,
-                              color: primaryGreen,
-                              size: 27,
-                            ),
+                          _iconBox(
+                            item == null
+                                ? Icons.add_task_rounded
+                                : Icons.edit_note_rounded,
+                            primaryGreen,
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 11),
                           Expanded(
                             child: Text(
                               item == null
@@ -324,19 +333,19 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                                   : 'Edit Pengumuman',
                               style: const TextStyle(
                                 color: textDark,
-                                fontSize: 20,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 5),
                       const Text(
-                        'Buat informasi yang akan tampil pada halaman anggota.',
+                        'Buat informasi yang jelas, singkat, dan menarik agar anggota mau membaca.',
                         style: TextStyle(
                           color: textGrey,
-                          fontSize: 12.5,
+                          fontSize: 12,
                           height: 1.4,
                           fontWeight: FontWeight.w600,
                         ),
@@ -349,7 +358,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                                 : titleController.text.trim(),
                         body:
                             bodyController.text.trim().isEmpty
-                                ? 'Isi singkat pengumuman akan tampil di sini.'
+                                ? 'Isi singkat pengumuman akan tampil di sini sebagai pratinjau untuk anggota.'
                                 : bodyController.text.trim(),
                         category: category,
                         compact: true,
@@ -366,7 +375,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                       _inputField(
                         controller: bodyController,
                         label: 'Isi Pengumuman',
-                        hint: 'Tulis isi pengumuman...',
+                        hint: 'Tulis isi pengumuman yang singkat dan jelas...',
                         icon: Icons.notes_rounded,
                         maxLines: 5,
                         onChanged: (_) => setModalState(() {}),
@@ -437,6 +446,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                               title: 'Aktif',
                               selected: status == 'aktif',
                               color: primaryGreen,
+                              icon: Icons.visibility_rounded,
                               onTap: () {
                                 setModalState(() => status = 'aktif');
                               },
@@ -448,6 +458,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                               title: 'Nonaktif',
                               selected: status == 'nonaktif',
                               color: orangeColor,
+                              icon: Icons.visibility_off_rounded,
                               onTap: () {
                                 setModalState(() => status = 'nonaktif');
                               },
@@ -455,17 +466,17 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
                       SizedBox(
                         width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
+                        height: 50,
+                        child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryGreen,
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(13),
+                              borderRadius: BorderRadius.circular(14),
                             ),
                           ),
                           onPressed:
@@ -491,7 +502,18 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                                     if (!mounted) return;
                                     navigator.pop();
                                   },
-                          child: Text(
+                          icon:
+                              _isProcessing
+                                  ? const SizedBox(
+                                    height: 17,
+                                    width: 17,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                  : const Icon(Icons.save_as_rounded, size: 18),
+                          label: Text(
                             _isProcessing
                                 ? 'Menyimpan...'
                                 : item == null
@@ -499,7 +521,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                                 : 'Update Pengumuman',
                             style: const TextStyle(
                               fontWeight: FontWeight.w900,
-                              fontSize: 15,
+                              fontSize: 14,
                             ),
                           ),
                         ),
@@ -530,22 +552,24 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.12) : bgColor,
+          color: isSelected ? color.withValues(alpha: 0.10) : bgColor,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: isSelected ? color : cardBorder),
+          border: Border.all(
+            color: isSelected ? color.withValues(alpha: 0.65) : cardBorder,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(_categoryIcon(value), size: 16, color: color),
-            const SizedBox(width: 6),
+            Icon(_categoryIcon(value), size: 14, color: color),
+            const SizedBox(width: 5),
             Text(
               _categoryLabel(value),
               style: TextStyle(
                 color: isSelected ? color : textGrey,
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -563,47 +587,40 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     required ValueChanged<String> onChanged,
     int maxLines = 1,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: textDark,
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-          ),
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, color: primaryGreen, size: 19),
+        filled: true,
+        fillColor: const Color(0xffF9FAFB),
+        labelStyle: const TextStyle(
+          color: textGrey,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
         ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: controller,
-          maxLines: maxLines,
-          onChanged: onChanged,
-          decoration: InputDecoration(
-            hintText: hint,
-            prefixIcon: Icon(icon, color: primaryGreen),
-            filled: true,
-            fillColor: const Color(0xffF9FAFB),
-            hintStyle: const TextStyle(color: textGrey, fontSize: 13),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 16,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(13),
-              borderSide: const BorderSide(color: cardBorder),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(13),
-              borderSide: const BorderSide(color: cardBorder),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(13),
-              borderSide: const BorderSide(color: primaryGreen, width: 1.5),
-            ),
-          ),
+        hintStyle: const TextStyle(
+          color: textGrey,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
         ),
-      ],
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 15,
+        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: cardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: primaryGreen, width: 1.4),
+        ),
+      ),
     );
   }
 
@@ -611,27 +628,35 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     required String title,
     required bool selected,
     required Color color,
+    required IconData icon,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.12) : bgColor,
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: selected ? color : cardBorder),
-        ),
-        child: Center(
-          child: Text(
-            title,
-            style: TextStyle(
-              color: selected ? color : textGrey,
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
-            ),
+          color: selected ? color.withValues(alpha: 0.10) : bgColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? color.withValues(alpha: 0.65) : cardBorder,
           ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: selected ? color : textGrey, size: 16),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: TextStyle(
+                color: selected ? color : textGrey,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -644,7 +669,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
         return AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
           ),
           title: const Text(
             'Hapus Pengumuman?',
@@ -661,7 +686,10 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
+              child: const Text(
+                'Batal',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
             ),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
@@ -676,8 +704,11 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                 Navigator.pop(dialogContext);
                 await _deleteAnnouncement(id);
               },
-              icon: const Icon(Icons.delete_rounded, size: 18),
-              label: const Text('Hapus'),
+              icon: const Icon(Icons.delete_forever_rounded, size: 18),
+              label: const Text(
+                'Hapus',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
             ),
           ],
         );
@@ -692,9 +723,9 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: primaryGreen,
         foregroundColor: Colors.white,
-        elevation: 3,
+        elevation: 2,
         onPressed: () => _openForm(),
-        icon: const Icon(Icons.add_rounded),
+        icon: const Icon(Icons.add_task_rounded, size: 19),
         label: const Text(
           'Tambah',
           style: TextStyle(fontWeight: FontWeight.w900),
@@ -709,40 +740,27 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
             final nonaktif = _countStatus(list, 'nonaktif');
 
             return ListView(
-              padding: EdgeInsets.zero,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 100),
               children: [
                 _header(list.length),
                 const SizedBox(height: 16),
-                _sectionTitle(
-                  title: 'Ringkasan Pengumuman',
-                  subtitle: 'Pantauan informasi yang tampil untuk anggota',
-                  horizontalPadding: 16,
-                ),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _summaryGrid(
-                    total: list.length,
-                    aktif: aktif,
-                    nonaktif: nonaktif,
-                  ),
+                _highlightPanel(total: list.length, aktif: aktif),
+                const SizedBox(height: 14),
+                _summaryGrid(
+                  total: list.length,
+                  aktif: aktif,
+                  nonaktif: nonaktif,
                 ),
                 const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _infoPanel(),
-                ),
+                _infoPanel(aktif: aktif, total: list.length),
                 const SizedBox(height: 18),
                 _sectionTitle(
                   title: 'Daftar Pengumuman',
                   subtitle: 'Kelola informasi yang dibaca anggota',
-                  horizontalPadding: 16,
                 ),
                 const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                  child: _buildContent(snapshot, list),
-                ),
+                _buildContent(snapshot, list),
               ],
             );
           },
@@ -763,7 +781,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
       return _emptyState(
         title: 'Gagal Memuat Pengumuman',
         message: 'Periksa koneksi internet atau Firebase.',
-        icon: Icons.error_outline_rounded,
+        icon: Icons.fact_check_rounded,
       );
     }
 
@@ -777,28 +795,26 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     }
 
     return Column(
-      children:
-          list.map((item) {
-            return _announcementCard(item);
-          }).toList(),
+      children: list.map((item) => _announcementCard(item)).toList(),
     );
   }
 
   Widget _header(int total) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
       decoration: BoxDecoration(
-        color: darkGreen,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(26),
-          bottomRight: Radius.circular(26),
+        gradient: const LinearGradient(
+          colors: [darkGreen, primaryGreen],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: darkGreen.withValues(alpha: 0.18),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -806,35 +822,51 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
         children: [
           _backButton(),
           const SizedBox(width: 12),
-          Expanded(
+          Container(
+            height: 42,
+            width: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            ),
+            child: const Icon(
+              Icons.campaign_rounded,
+              color: Colors.white,
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Kelola Pengumuman',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: 19,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
-                  'Atur informasi yang tampil di halaman anggota',
+                  'Buat informasi menarik untuk anggota',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.74),
-                    fontSize: 12,
-                    height: 1.35,
+                    color: Color(0xffDDEFE3),
+                    fontSize: 11.8,
+                    height: 1.3,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 10),
           _headerCounter(total),
         ],
       ),
@@ -843,32 +875,108 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
 
   Widget _headerCounter(int total) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 52, minHeight: 48),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          const Icon(Icons.fact_check_rounded, color: Colors.white, size: 14),
+          const SizedBox(width: 5),
           Text(
             total.toString(),
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
-              height: 1,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'info',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.82),
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
+        ],
+      ),
+    );
+  }
+
+  Widget _highlightPanel({required int total, required int aktif}) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            primaryGreen.withValues(alpha: 0.96),
+            darkGreen.withValues(alpha: 0.96),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withValues(alpha: 0.13),
+            blurRadius: 16,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -18,
+            bottom: -30,
+            child: Icon(
+              Icons.campaign_rounded,
+              size: 120,
+              color: Colors.white.withValues(alpha: 0.08),
             ),
+          ),
+          Row(
+            children: [
+              Container(
+                height: 46,
+                width: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Pengumuman yang menarik membuat anggota lebih cepat membaca informasi.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14.2,
+                        height: 1.32,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      _previewSubtitle(aktif, total),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.82),
+                        fontSize: 11.7,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -884,7 +992,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
       _SummaryItem(
         title: 'Total Info',
         value: total,
-        icon: Icons.campaign_rounded,
+        icon: Icons.dataset_rounded,
         color: primaryGreen,
       ),
       _SummaryItem(
@@ -901,62 +1009,47 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
       ),
     ];
 
-    return Column(
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(child: _summaryCard(items[0])),
-            const SizedBox(width: 10),
-            Expanded(child: _summaryCard(items[1])),
-          ],
-        ),
-        const SizedBox(height: 10),
-        _summaryCard(items[2]),
+        Expanded(child: _summaryCard(items[0])),
+        const SizedBox(width: 9),
+        Expanded(child: _summaryCard(items[1])),
+        const SizedBox(width: 9),
+        Expanded(child: _summaryCard(items[2])),
       ],
     );
   }
 
   Widget _summaryCard(_SummaryItem item) {
     return Container(
-      height: 92,
-      padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(),
-      child: Row(
+      height: 74,
+      padding: const EdgeInsets.all(9),
+      decoration: _cardDecoration(radius: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 40,
-            width: 40,
-            decoration: BoxDecoration(
-              color: item.color.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(12),
+          Icon(item.icon, size: 15, color: item.color),
+          const Spacer(),
+          Text(
+            item.value.toString(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: item.color,
+              fontSize: 18,
+              height: 1,
+              fontWeight: FontWeight.w900,
             ),
-            child: Icon(item.icon, color: item.color, size: 22),
           ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.value.toString(),
-                  style: TextStyle(
-                    color: item.color,
-                    fontSize: 22,
-                    height: 1,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  item.title,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 3),
+          Text(
+            item.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 9.2,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -964,26 +1057,28 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     );
   }
 
-  Widget _infoPanel() {
+  Widget _infoPanel({required int aktif, required int total}) {
+    final color = aktif > 0 ? primaryGreen : orangeColor;
+
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: primaryGreen.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(radius: 18),
+      child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 22),
-          SizedBox(width: 10),
+          _iconBox(
+            aktif > 0 ? Icons.task_alt_rounded : Icons.info_rounded,
+            color,
+          ),
+          const SizedBox(width: 11),
           Expanded(
             child: Text(
-              'Pengumuman aktif akan tampil di halaman anggota. Saat membuat pengumuman aktif, anggota akan mendapatkan notifikasi.',
-              style: TextStyle(
+              aktif > 0
+                  ? '$aktif dari $total pengumuman sedang aktif dan tampil di halaman anggota.'
+                  : 'Belum ada pengumuman aktif. Aktifkan pengumuman agar anggota dapat melihat informasi terbaru.',
+              style: const TextStyle(
                 color: textGrey,
-                fontSize: 12.5,
-                height: 1.45,
+                fontSize: 11.5,
+                height: 1.35,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1001,11 +1096,12 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     final status = (item['status'] ?? 'nonaktif').toString().toLowerCase();
     final category = (item['kategori'] ?? 'umum').toString().toLowerCase();
     final active = status == 'aktif';
+    final color = _categoryColor(category);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(12),
+      decoration: _cardDecoration(radius: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1015,59 +1111,46 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
             category: category,
             compact: false,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             children: [
-              Icon(
-                Icons.calendar_month_rounded,
-                size: 16,
-                color: textGrey.withValues(alpha: 0.8),
+              _miniInfo(
+                icon: Icons.calendar_month_rounded,
+                text: date,
+                color: blueColor,
               ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  date,
-                  style: const TextStyle(
-                    color: textGrey,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              const SizedBox(width: 7),
+              _miniInfo(
+                icon: _categoryIcon(category),
+                text: _categoryLabel(category),
+                color: color,
               ),
+              const Spacer(),
               _statusBadge(active),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(
-                child: _actionButton(
-                  title: active ? 'Nonaktif' : 'Aktifkan',
-                  icon:
-                      active
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded,
-                  color: active ? orangeColor : primaryGreen,
-                  onTap: () => _toggleStatus(id, status),
-                ),
+              _smallAction(
+                icon:
+                    active
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                color: active ? orangeColor : primaryGreen,
+                onTap: () => _toggleStatus(id, status),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _actionButton(
-                  title: 'Edit',
-                  icon: Icons.edit_rounded,
-                  color: blueColor,
-                  onTap: () => _openForm(item: item),
-                ),
+              const SizedBox(width: 7),
+              _smallAction(
+                icon: Icons.edit_note_rounded,
+                color: blueColor,
+                onTap: () => _openForm(item: item),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _actionButton(
-                  title: 'Hapus',
-                  icon: Icons.delete_rounded,
-                  color: redColor,
-                  onTap: () => _confirmDelete(id),
-                ),
+              const SizedBox(width: 7),
+              _smallAction(
+                icon: Icons.delete_forever_rounded,
+                color: redColor,
+                onTap: () => _confirmDelete(id),
               ),
             ],
           ),
@@ -1083,22 +1166,37 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     required bool compact,
   }) {
     final color = _categoryColor(category);
+    final icon = _categoryIcon(category);
 
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(compact ? 14 : 15),
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(13),
+        gradient: LinearGradient(
+          colors: [
+            color.withValues(alpha: 0.96),
+            Color.lerp(color, Colors.black, 0.18) ?? color,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: compact ? 0.08 : 0.12),
+            blurRadius: compact ? 10 : 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -18,
-            bottom: -26,
+            right: -20,
+            bottom: -28,
             child: Icon(
-              _categoryIcon(category),
-              size: compact ? 90 : 112,
+              icon,
+              size: compact ? 86 : 110,
               color: Colors.white.withValues(alpha: 0.10),
             ),
           ),
@@ -1110,21 +1208,20 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.14),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      _categoryIcon(category),
-                      color: Colors.white,
-                      size: 15,
-                    ),
+                    Icon(icon, color: Colors.white, size: 14),
                     const SizedBox(width: 5),
                     Text(
                       _categoryLabel(category).toUpperCase(),
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 10,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -1138,7 +1235,7 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: compact ? 17 : 18,
+                  fontSize: compact ? 16.5 : 18,
                   height: 1.2,
                   fontWeight: FontWeight.w900,
                 ),
@@ -1149,8 +1246,8 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
                 maxLines: compact ? 2 : 3,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.86),
-                  fontSize: 12.5,
+                  color: Colors.white.withValues(alpha: 0.88),
+                  fontSize: 12.2,
                   height: 1.4,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1162,54 +1259,81 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     );
   }
 
-  Widget _statusBadge(bool active) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: (active ? primaryGreen : orangeColor).withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        active ? 'AKTIF' : 'NONAKTIF',
-        style: TextStyle(
-          color: active ? primaryGreen : orangeColor,
-          fontSize: 9.5,
-          fontWeight: FontWeight.w900,
+  Widget _miniInfo({
+    required IconData icon,
+    required String text,
+    required Color color,
+  }) {
+    return Flexible(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11.5, color: color),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 9.8,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _actionButton({
-    required String title,
+  Widget _statusBadge(bool active) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
+      decoration: BoxDecoration(
+        color: (active ? primaryGreen : orangeColor).withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: (active ? primaryGreen : orangeColor).withValues(alpha: 0.12),
+        ),
+      ),
+      child: Text(
+        active ? 'AKTIF' : 'NONAKTIF',
+        style: TextStyle(
+          color: active ? primaryGreen : orangeColor,
+          fontSize: 8.8,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.25,
+        ),
+      ),
+    );
+  }
+
+  Widget _smallAction({
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 11),
+        height: 31,
+        width: 31,
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.09),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: color.withValues(alpha: 0.13)),
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.11)),
         ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(
-                color: color,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
+        child: Icon(icon, color: color, size: 16),
       ),
     );
   }
@@ -1221,54 +1345,55 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 26),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 34),
+      decoration: _cardDecoration(radius: 22),
       child: Column(
         children: [
           Container(
-            height: 78,
-            width: 78,
+            height: 76,
+            width: 76,
             decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.10),
+              color: softGreen,
               shape: BoxShape.circle,
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
             ),
-            child: Icon(icon, color: primaryGreen, size: 38),
+            child: Icon(icon, color: primaryGreen, size: 34),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 15),
           Text(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textDark,
-              fontSize: 16,
+              fontSize: 16.5,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
           Text(
             message,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 12,
+              fontSize: 12.4,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 18),
           SizedBox(
-            height: 48,
+            height: 46,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryGreen,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
               onPressed: () => _openForm(),
-              icon: const Icon(Icons.add_rounded),
+              icon: const Icon(Icons.add_task_rounded, size: 18),
               label: const Text(
                 'Tambah Pengumuman',
                 style: TextStyle(fontWeight: FontWeight.w900),
@@ -1284,15 +1409,15 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(radius: 20),
       child: Row(
         children: [
           Container(
-            height: 48,
-            width: 48,
+            height: 42,
+            width: 42,
             decoration: BoxDecoration(
               color: cardBorder,
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(15),
             ),
           ),
           const SizedBox(width: 12),
@@ -1300,15 +1425,15 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
             child: Column(
               children: [
                 Container(
-                  height: 14,
+                  height: 13,
                   decoration: BoxDecoration(
                     color: cardBorder,
                     borderRadius: BorderRadius.circular(99),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 9),
                 Container(
-                  height: 12,
+                  height: 11,
                   decoration: BoxDecoration(
                     color: cardBorder,
                     borderRadius: BorderRadius.circular(99),
@@ -1322,50 +1447,43 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
     );
   }
 
-  Widget _sectionTitle({
-    required String title,
-    required String subtitle,
-    required double horizontalPadding,
-  }) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-      child: Row(
-        children: [
-          Container(
-            height: 34,
-            width: 5,
-            decoration: BoxDecoration(
-              color: primaryGreen,
-              borderRadius: BorderRadius.circular(99),
-            ),
+  Widget _sectionTitle({required String title, required String subtitle}) {
+    return Row(
+      children: [
+        Container(
+          height: 30,
+          width: 4,
+          decoration: BoxDecoration(
+            color: primaryGreen,
+            borderRadius: BorderRadius.circular(99),
           ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w900,
-                  ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w900,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: textGrey,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 11.2,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1377,28 +1495,44 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
       },
       borderRadius: BorderRadius.circular(15),
       child: Container(
-        height: 44,
-        width: 44,
+        height: 42,
+        width: 42,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
         ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+        child: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          color: Colors.white,
+          size: 17,
+        ),
       ),
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  Widget _iconBox(IconData icon, Color color) {
+    return Container(
+      height: 42,
+      width: 42,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(icon, color: color, size: 22),
+    );
+  }
+
+  BoxDecoration _cardDecoration({double radius = 18}) {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.035),
-          blurRadius: 9,
-          offset: const Offset(0, 3),
+          color: Colors.black.withValues(alpha: 0.026),
+          blurRadius: 12,
+          offset: const Offset(0, 5),
         ),
       ],
     );

@@ -18,14 +18,14 @@ class PupukPage extends StatefulWidget {
 class _PupukPageState extends State<PupukPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
-  static const Color bgColor = Color(0xffF3F7F3);
-  static const Color softGreen = Color(0xffE8F5E9);
+  static const Color bgColor = Color(0xffF6FAF7);
+  static const Color softGreen = Color(0xffEAF7EC);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color borderColor = Color(0xffE5E7EB);
-  static const Color orangeStatus = Color(0xffF57C00);
+  static const Color orangeStatus = Color(0xffF59E0B);
   static const Color redStatus = Color(0xffDC2626);
-  static const Color blueStatus = Color(0xff1976D2);
+  static const Color blueStatus = Color(0xff2563EB);
 
   String? pupukDipilih;
   String? idPupukDipilih;
@@ -75,16 +75,6 @@ class _PupukPageState extends State<PupukPage> {
     return list;
   }
 
-  int hitungTotalStok(List<Map<String, dynamic>> list) {
-    int total = 0;
-
-    for (final pupuk in list) {
-      total += int.tryParse((pupuk['stok'] ?? 0).toString()) ?? 0;
-    }
-
-    return total;
-  }
-
   int hitungPupukTersedia(List<Map<String, dynamic>> list) {
     return list.where((pupuk) {
       final stok = int.tryParse((pupuk['stok'] ?? 0).toString()) ?? 0;
@@ -110,8 +100,8 @@ class _PupukPageState extends State<PupukPage> {
   }
 
   String teksKeteranganStok(int stok) {
-    if (stok <= 0) return 'Stok Habis';
-    if (stok <= 10) return 'Stok Terbatas';
+    if (stok <= 0) return 'Belum tersedia';
+    if (stok <= 10) return 'Terbatas';
     return 'Tersedia';
   }
 
@@ -144,17 +134,34 @@ class _PupukPageState extends State<PupukPage> {
     return '•••• •••• •••• ${cleanNik.substring(cleanNik.length - 4)}';
   }
 
+  String statusLayananText(int tersedia) {
+    if (tersedia <= 0) return 'Belum Bisa Diajukan';
+    return 'Siap Diajukan';
+  }
+
+  String statusLayananDesc(int tersedia) {
+    if (tersedia <= 0) {
+      return 'Saat ini belum ada pupuk yang tersedia untuk dipilih.';
+    }
+    return 'Silakan pilih jenis pupuk yang tersedia untuk melanjutkan pengajuan.';
+  }
+
+  Color statusLayananColor(int tersedia) {
+    if (tersedia <= 0) return orangeStatus;
+    return primaryGreen;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor,
       body: AppBackground(
+        showPattern: false,
         child: SafeArea(
           child: StreamBuilder<DatabaseEvent>(
             stream: pupukRef.onValue,
             builder: (context, snapshot) {
               final pupukList = ambilPupukList(snapshot.data?.snapshot.value);
-              final totalStok = hitungTotalStok(pupukList);
               final pupukTersedia = hitungPupukTersedia(pupukList);
 
               return Column(
@@ -167,21 +174,20 @@ class _PupukPageState extends State<PupukPage> {
                       onRefresh: _refreshData,
                       child: ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 96),
                         children: [
                           _userInfoCard(),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 12),
                           _summaryGrid(
                             totalJenis: pupukList.length,
                             pupukTersedia: pupukTersedia,
-                            totalStok: totalStok,
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 12),
                           _infoBox(),
                           const SizedBox(height: 18),
                           _sectionTitle(
                             title: 'Pilih Jenis Pupuk',
-                            subtitle: 'Pilih salah satu pupuk yang tersedia',
+                            subtitle: 'Pilih salah satu pupuk untuk diajukan',
                           ),
                           const SizedBox(height: 12),
                           _buildContent(snapshot, pupukList),
@@ -211,7 +217,7 @@ class _PupukPageState extends State<PupukPage> {
       return _messageState(
         icon: Icons.error_outline_rounded,
         title: 'Terjadi Kesalahan',
-        message: 'Data pupuk gagal dimuat.',
+        message: 'Data pupuk gagal dimuat. Silakan coba lagi.',
       );
     }
 
@@ -246,19 +252,15 @@ class _PupukPageState extends State<PupukPage> {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [darkGreen, primaryGreen],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(26),
+          color: darkGreen,
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: darkGreen.withValues(alpha: 0.20),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
+              color: darkGreen.withValues(alpha: 0.18),
+              blurRadius: 16,
+              offset: const Offset(0, 7),
             ),
           ],
         ),
@@ -274,17 +276,17 @@ class _PupukPageState extends State<PupukPage> {
                     'Bantuan Pupuk',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 19,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  SizedBox(height: 5),
+                  SizedBox(height: 4),
                   Text(
-                    'Pilih pupuk untuk melanjutkan pengajuan',
+                    'Pilih pupuk yang ingin diajukan',
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: Color(0xffD1FAE5),
                       fontSize: 12,
-                      height: 1.35,
+                      height: 1.3,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -292,11 +294,11 @@ class _PupukPageState extends State<PupukPage> {
               ),
             ),
             Container(
-              height: 48,
-              width: 48,
+              height: 44,
+              width: 44,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
               ),
               child: const Icon(Icons.eco_rounded, color: Colors.white),
@@ -309,33 +311,33 @@ class _PupukPageState extends State<PupukPage> {
 
   Widget _userInfoCard() {
     return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(radius: 18),
       child: Row(
         children: [
           Container(
-            height: 50,
-            width: 50,
+            height: 46,
+            width: 46,
             decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(16),
+              color: primaryGreen.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
               Icons.person_rounded,
               color: primaryGreen,
-              size: 28,
+              size: 25,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Pemohon',
+                  'Data Pemohon',
                   style: TextStyle(
                     color: textGrey,
-                    fontSize: 11.5,
+                    fontSize: 11.3,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -346,18 +348,18 @@ class _PupukPageState extends State<PupukPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 16,
+                    fontSize: 15.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   'NIK ${sensorNik(widget.nik)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 12,
+                    fontSize: 11.6,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -365,16 +367,16 @@ class _PupukPageState extends State<PupukPage> {
             ),
           ),
           Container(
-            height: 38,
-            width: 38,
+            height: 36,
+            width: 36,
             decoration: BoxDecoration(
               color: primaryGreen.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.verified_user_rounded,
               color: primaryGreen,
-              size: 21,
+              size: 20,
             ),
           ),
         ],
@@ -382,18 +384,14 @@ class _PupukPageState extends State<PupukPage> {
     );
   }
 
-  Widget _summaryGrid({
-    required int totalJenis,
-    required int pupukTersedia,
-    required int totalStok,
-  }) {
+  Widget _summaryGrid({required int totalJenis, required int pupukTersedia}) {
     return Column(
       children: [
         Row(
           children: [
             Expanded(
               child: _summaryMini(
-                title: 'Jenis',
+                title: 'Jenis Pupuk',
                 value: totalJenis.toString(),
                 icon: Icons.grass_rounded,
                 color: primaryGreen,
@@ -402,7 +400,7 @@ class _PupukPageState extends State<PupukPage> {
             const SizedBox(width: 10),
             Expanded(
               child: _summaryMini(
-                title: 'Tersedia',
+                title: 'Bisa Dipilih',
                 value: pupukTersedia.toString(),
                 icon: Icons.check_circle_rounded,
                 color: blueStatus,
@@ -411,13 +409,7 @@ class _PupukPageState extends State<PupukPage> {
           ],
         ),
         const SizedBox(height: 10),
-        _summaryWide(
-          title: 'Total Stok Pupuk Aktif',
-          value: '$totalStok Kg',
-          description: 'Jumlah stok keseluruhan dari pupuk yang masih aktif.',
-          icon: Icons.inventory_2_rounded,
-          color: orangeStatus,
-        ),
+        _serviceStatusCard(pupukTersedia),
       ],
     );
   }
@@ -429,21 +421,21 @@ class _PupukPageState extends State<PupukPage> {
     required Color color,
   }) {
     return Container(
-      height: 86,
-      padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(),
+      height: 80,
+      padding: const EdgeInsets.all(12),
+      decoration: _cardDecoration(radius: 18),
       child: Row(
         children: [
           Container(
-            height: 42,
-            width: 42,
+            height: 39,
+            width: 39,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(13),
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: color, size: 23),
+            child: Icon(icon, color: color, size: 21),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -453,7 +445,7 @@ class _PupukPageState extends State<PupukPage> {
                   value,
                   style: TextStyle(
                     color: color,
-                    fontSize: 20,
+                    fontSize: 19,
                     height: 1,
                     fontWeight: FontWeight.w900,
                   ),
@@ -461,9 +453,11 @@ class _PupukPageState extends State<PupukPage> {
                 const SizedBox(height: 6),
                 Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -475,55 +469,48 @@ class _PupukPageState extends State<PupukPage> {
     );
   }
 
-  Widget _summaryWide({
-    required String title,
-    required String value,
-    required String description,
-    required IconData icon,
-    required Color color,
-  }) {
+  Widget _serviceStatusCard(int pupukTersedia) {
+    final color = statusLayananColor(pupukTersedia);
+
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(radius: 18),
       child: Row(
         children: [
           Container(
-            height: 46,
-            width: 46,
+            height: 44,
+            width: 44,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.11),
+              color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(
+              pupukTersedia > 0
+                  ? Icons.assignment_turned_in_rounded
+                  : Icons.info_outline_rounded,
+              color: color,
+              size: 23,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  value,
+                  statusLayananText(pupukTersedia),
                   style: TextStyle(
                     color: color,
-                    fontSize: 19,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  title,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  description,
+                  statusLayananDesc(pupukTersedia),
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 11.5,
+                    fontSize: 11.7,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -540,21 +527,21 @@ class _PupukPageState extends State<PupukPage> {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: primaryGreen.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.18)),
+        color: primaryGreen.withValues(alpha: 0.075),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 20),
+          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 19),
           SizedBox(width: 9),
           Expanded(
             child: Text(
-              'Pupuk dengan stok habis tidak dapat dipilih. Setelah memilih pupuk, lanjutkan pengisian data pengajuan.',
+              'Pilih jenis pupuk yang tersedia, lalu lanjutkan pengisian data pengajuan.',
               style: TextStyle(
                 color: primaryGreen,
-                fontSize: 12.5,
+                fontSize: 12.2,
                 height: 1.4,
                 fontWeight: FontWeight.w700,
               ),
@@ -569,7 +556,7 @@ class _PupukPageState extends State<PupukPage> {
     return Row(
       children: [
         Container(
-          height: 34,
+          height: 32,
           width: 5,
           decoration: BoxDecoration(
             color: primaryGreen,
@@ -585,7 +572,7 @@ class _PupukPageState extends State<PupukPage> {
                 title,
                 style: const TextStyle(
                   color: textDark,
-                  fontSize: 16,
+                  fontSize: 15.8,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -624,25 +611,25 @@ class _PupukPageState extends State<PupukPage> {
                 });
               }
               : null,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       child: Opacity(
         opacity: tersedia ? 1 : 0.58,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
             color:
-                selected ? primaryGreen.withValues(alpha: 0.08) : Colors.white,
-            borderRadius: BorderRadius.circular(20),
+                selected ? primaryGreen.withValues(alpha: 0.075) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: selected ? primaryGreen : borderColor,
-              width: selected ? 1.5 : 1,
+              width: selected ? 1.4 : 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.035),
-                blurRadius: 12,
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 11,
                 offset: const Offset(0, 5),
               ),
             ],
@@ -650,22 +637,22 @@ class _PupukPageState extends State<PupukPage> {
           child: Row(
             children: [
               Container(
-                width: 50,
-                height: 50,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color:
                       selected
                           ? primaryGreen
                           : primaryGreen.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 child: Icon(
                   iconPupuk(nama),
                   color: selected ? Colors.white : primaryGreen,
-                  size: 27,
+                  size: 25,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,7 +663,7 @@ class _PupukPageState extends State<PupukPage> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: textDark,
-                        fontSize: 15.5,
+                        fontSize: 15,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -685,13 +672,13 @@ class _PupukPageState extends State<PupukPage> {
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Icon(
                 selected
                     ? Icons.check_circle_rounded
                     : Icons.radio_button_unchecked_rounded,
-                color: selected ? primaryGreen : textGrey,
-                size: 25,
+                color: selected ? primaryGreen : const Color(0xff9CA3AF),
+                size: 24,
               ),
             ],
           ),
@@ -701,18 +688,23 @@ class _PupukPageState extends State<PupukPage> {
   }
 
   Widget _stokBadge(int stok, Color color) {
+    final text =
+        stok <= 0
+            ? teksKeteranganStok(stok)
+            : '${teksKeteranganStok(stok)} • $stok Kg';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: color.withValues(alpha: 0.16)),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
       child: Text(
-        '${teksKeteranganStok(stok)} • $stok Kg',
+        text,
         style: TextStyle(
           color: color,
-          fontSize: 11.5,
+          fontSize: 11,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -738,23 +730,26 @@ class _PupukPageState extends State<PupukPage> {
         top: false,
         child: SizedBox(
           width: double.infinity,
-          height: 54,
+          height: 52,
           child: ElevatedButton.icon(
             onPressed: aktif ? lanjutPengajuan : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryGreen,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.38),
+              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.36),
               disabledForegroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(15),
               ),
             ),
             icon: const Icon(Icons.arrow_forward_rounded, size: 20),
             label: Text(
               aktif ? 'Lanjutkan Pengajuan' : 'Pilih Pupuk Terlebih Dahulu',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ),
@@ -766,20 +761,20 @@ class _PupukPageState extends State<PupukPage> {
     return Column(
       children: List.generate(3, (index) {
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
-          decoration: _cardDecoration(),
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(13),
+          decoration: _cardDecoration(radius: 18),
           child: Row(
             children: [
               Container(
-                width: 50,
-                height: 50,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: borderColor,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(15),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   children: [
@@ -816,18 +811,18 @@ class _PupukPageState extends State<PupukPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(radius: 18),
       child: Column(
         children: [
           Container(
-            height: 76,
-            width: 76,
+            height: 72,
+            width: 72,
             decoration: BoxDecoration(
               color: softGreen,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
             ),
-            child: Icon(icon, color: primaryGreen, size: 38),
+            child: Icon(icon, color: primaryGreen, size: 36),
           ),
           const SizedBox(height: 14),
           Text(
@@ -835,7 +830,7 @@ class _PupukPageState extends State<PupukPage> {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textDark,
-              fontSize: 16,
+              fontSize: 15.8,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -845,7 +840,7 @@ class _PupukPageState extends State<PupukPage> {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 12.5,
+              fontSize: 12.4,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -861,13 +856,13 @@ class _PupukPageState extends State<PupukPage> {
         if (!mounted) return;
         Navigator.pop(context);
       },
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        height: 44,
-        width: 44,
+        height: 42,
+        width: 42,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
         ),
         child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
@@ -875,14 +870,14 @@ class _PupukPageState extends State<PupukPage> {
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  BoxDecoration _cardDecoration({double radius = 18}) {
     return BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.035),
+          color: Colors.black.withValues(alpha: 0.032),
           blurRadius: 12,
           offset: const Offset(0, 5),
         ),
