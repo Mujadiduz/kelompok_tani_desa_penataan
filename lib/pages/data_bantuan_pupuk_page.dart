@@ -127,10 +127,6 @@ class _DataBantuanPupukPageState extends State<DataBantuanPupukPage> {
     return '•••• •••• •••• $last4';
   }
 
-  int _countStatus(List<Map<String, dynamic>> data, String status) {
-    return data.where((item) => _statusData(item) == status).length;
-  }
-
   Color _statusColor(String status) {
     if (status == 'disetujui') return blueStatus;
     if (status == 'ditolak') return redStatus;
@@ -146,10 +142,10 @@ class _DataBantuanPupukPageState extends State<DataBantuanPupukPage> {
   }
 
   String _statusText(String status) {
-    if (status == 'disetujui') return 'Disetujui';
-    if (status == 'ditolak') return 'Ditolak';
+    if (status == 'disetujui') return 'Setuju';
+    if (status == 'ditolak') return 'Tolak';
     if (status == 'sudah_diambil') return 'Diambil';
-    return 'Menunggu';
+    return 'Pengajuan';
   }
 
   List<Map<String, dynamic>> _filterData({
@@ -207,10 +203,6 @@ class _DataBantuanPupukPageState extends State<DataBantuanPupukPage> {
               }
 
               final semuaData = _ambilData(snapshot.data?.snapshot.value);
-              final menunggu = _countStatus(semuaData, 'menunggu');
-              final disetujui = _countStatus(semuaData, 'disetujui');
-              final diambil = _countStatus(semuaData, 'sudah_diambil');
-              final ditolak = _countStatus(semuaData, 'ditolak');
 
               return RefreshIndicator(
                 color: primaryGreen,
@@ -223,19 +215,11 @@ class _DataBantuanPupukPageState extends State<DataBantuanPupukPage> {
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
                   children: [
                     _header(total: semuaData.length),
-                    const SizedBox(height: 16),
-                    _summaryCard(
-                      total: semuaData.length,
-                      menunggu: menunggu,
-                      disetujui: disetujui,
-                      diambil: diambil,
-                      ditolak: ditolak,
-                    ),
                     const SizedBox(height: 14),
                     _searchBox(),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _filterChips(),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     ValueListenableBuilder<String>(
                       valueListenable: _keywordNotifier,
                       builder: (context, keyword, _) {
@@ -252,7 +236,7 @@ class _DataBantuanPupukPageState extends State<DataBantuanPupukPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _sectionTitle(
-                                  title: 'Daftar Bantuan',
+                                  title: 'Daftar Bantuan Pupuk',
                                   subtitle:
                                       '${dataFilter.length} data ditampilkan',
                                 ),
@@ -372,7 +356,7 @@ class _DataBantuanPupukPageState extends State<DataBantuanPupukPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.fact_check_rounded, color: Colors.white, size: 14),
+          const Icon(Icons.eco_rounded, color: Colors.white, size: 14),
           const SizedBox(width: 5),
           Text(
             total.toString(),
@@ -380,126 +364,6 @@ class _DataBantuanPupukPageState extends State<DataBantuanPupukPage> {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryCard({
-    required int total,
-    required int menunggu,
-    required int disetujui,
-    required int diambil,
-    required int ditolak,
-  }) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _summaryItem(
-                title: 'Total',
-                value: total.toString(),
-                icon: Icons.dataset_rounded,
-                color: primaryGreen,
-              ),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: _summaryItem(
-                title: 'Menunggu',
-                value: menunggu.toString(),
-                icon: Icons.pending_actions_rounded,
-                color: orangeStatus,
-              ),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: _summaryItem(
-                title: 'Disetujui',
-                value: disetujui.toString(),
-                icon: Icons.verified_user_rounded,
-                color: blueStatus,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 9),
-        Row(
-          children: [
-            Expanded(
-              child: _summaryItem(
-                title: 'Diambil',
-                value: diambil.toString(),
-                icon: Icons.inventory_2_rounded,
-                color: primaryGreen,
-              ),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: _summaryItem(
-                title: 'Ditolak',
-                value: ditolak.toString(),
-                icon: Icons.cancel_presentation_rounded,
-                color: redStatus,
-              ),
-            ),
-            const SizedBox(width: 9),
-            const Expanded(child: SizedBox()),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _summaryItem({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      height: 74,
-      padding: const EdgeInsets.all(9),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.022),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 15, color: color),
-          const Spacer(),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              height: 1,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: textGrey,
-              fontSize: 9.2,
-              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -530,7 +394,7 @@ class _DataBantuanPupukPageState extends State<DataBantuanPupukPage> {
         keyboardType: TextInputType.text,
         onChanged: (value) => _keywordNotifier.value = value,
         decoration: InputDecoration(
-          hintText: 'Cari nama, NIK, jenis pupuk, atau status...',
+          hintText: 'Cari nama, NIK, pupuk, tanggal, atau status...',
           prefixIcon: const Icon(
             Icons.manage_search_rounded,
             color: primaryGreen,
@@ -574,10 +438,10 @@ class _DataBantuanPupukPageState extends State<DataBantuanPupukPage> {
   Widget _filterChips() {
     final filters = [
       ['semua', 'Semua'],
-      ['menunggu', 'Menunggu'],
-      ['disetujui', 'Disetujui'],
+      ['menunggu', 'Pengajuan'],
+      ['disetujui', 'Setuju'],
       ['sudah_diambil', 'Diambil'],
-      ['ditolak', 'Ditolak'],
+      ['ditolak', 'Tolak'],
     ];
 
     return ValueListenableBuilder<String>(
@@ -592,16 +456,20 @@ class _DataBantuanPupukPageState extends State<DataBantuanPupukPage> {
                   final aktif = selected == item[0];
 
                   return Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: 6),
                     child: ChoiceChip(
                       selected: aktif,
                       showCheckmark: false,
-                      visualDensity: VisualDensity.compact,
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 7),
+                      visualDensity: const VisualDensity(
+                        horizontal: -3,
+                        vertical: -3,
+                      ),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 5),
                       selectedColor: primaryGreen,
                       backgroundColor: Colors.white,
                       side: BorderSide(
+                        width: 0.8,
                         color:
                             aktif
                                 ? primaryGreen.withValues(alpha: 0.85)
@@ -614,9 +482,11 @@ class _DataBantuanPupukPageState extends State<DataBantuanPupukPage> {
                       labelStyle: TextStyle(
                         color: aktif ? Colors.white : textGrey,
                         fontWeight: FontWeight.w800,
-                        fontSize: 11.5,
+                        fontSize: 10,
                       ),
-                      onSelected: (_) => _filterNotifier.value = item[0],
+                      onSelected: (_) {
+                        _filterNotifier.value = item[0];
+                      },
                     ),
                   );
                 }).toList(),
@@ -773,7 +643,7 @@ class _DataBantuanPupukPageState extends State<DataBantuanPupukPage> {
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: color.withValues(alpha: 0.11)),
       ),
-      child: Icon(Icons.assignment_ind_rounded, color: color, size: 21),
+      child: Icon(Icons.eco_rounded, color: color, size: 21),
     );
   }
 

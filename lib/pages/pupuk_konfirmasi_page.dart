@@ -9,11 +9,8 @@ class PupukKonfirmasiPage extends StatefulWidget {
   final String namaPupuk;
   final String nama;
   final String nik;
-  final String jumlahPetakSawah;
   final String jumlahPupuk;
   final String catatan;
-  final String jatahPupuk;
-  final String statusJatah;
 
   const PupukKonfirmasiPage({
     super.key,
@@ -21,11 +18,8 @@ class PupukKonfirmasiPage extends StatefulWidget {
     required this.namaPupuk,
     required this.nama,
     required this.nik,
-    required this.jumlahPetakSawah,
     required this.jumlahPupuk,
     required this.catatan,
-    required this.jatahPupuk,
-    required this.statusJatah,
   });
 
   @override
@@ -61,12 +55,6 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
     notifikasiAdminRef = db.ref('notifikasi_admin');
   }
 
-  bool get isMelebihiJatah => widget.statusJatah == 'melebihi_jatah';
-
-  Color get warnaJatah => isMelebihiJatah ? orangeStatus : primaryGreen;
-
-  String get teksJatah => isMelebihiJatah ? 'Melebihi Acuan' : 'Sesuai Acuan';
-
   String sensorNik(String nik) {
     final cleanNik = nik.replaceAll(RegExp(r'[^0-9]'), '');
     if (cleanNik.length <= 4) return nik;
@@ -74,18 +62,15 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
   }
 
   Future<void> simpanNotifikasiAdmin() async {
-    await notifikasiAdminRef
-        .push()
-        .set({
-          'judul': 'Pengajuan Pupuk Baru',
-          'pesan':
-              '${widget.nama} mengajukan bantuan pupuk ${widget.namaPupuk} sebanyak ${widget.jumlahPupuk} Kg.',
-          'tipe': 'bantuan_pupuk',
-          'status': 'belum_dibaca',
-          'dibaca': false,
-          'tanggal': DateTime.now().toIso8601String(),
-        })
-        .timeout(const Duration(seconds: 10));
+    await notifikasiAdminRef.push().set({
+      'judul': 'Pengajuan Pupuk Baru',
+      'pesan':
+          '${widget.nama} mengajukan bantuan pupuk ${widget.namaPupuk} sebanyak ${widget.jumlahPupuk} Kg.',
+      'tipe': 'bantuan_pupuk',
+      'status': 'belum_dibaca',
+      'dibaca': false,
+      'tanggal': DateTime.now().toIso8601String(),
+    }).timeout(const Duration(seconds: 10));
   }
 
   Future<void> kirimPermintaan() async {
@@ -94,7 +79,16 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
     FocusScope.of(context).unfocus();
 
     if (widget.idPupuk.trim().isEmpty) {
-      _showSnackBar('Data pupuk tidak valid', redStatus);
+      _showSnackBar('Data pupuk tidak valid.', redStatus);
+      return;
+    }
+
+    final jumlah = double.tryParse(
+      widget.jumlahPupuk.trim().replaceAll(',', '.'),
+    );
+
+    if (jumlah == null || jumlah <= 0) {
+      _showSnackBar('Jumlah pupuk tidak valid.', redStatus);
       return;
     }
 
@@ -106,29 +100,24 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
     setState(() => isLoading = true);
 
     try {
-      await pupukRef
-          .push()
-          .set({
-            'id_pupuk': widget.idPupuk.trim(),
-            'nama': widget.nama.trim(),
-            'nik': widget.nik.trim(),
-            'jenis_pupuk': widget.namaPupuk.trim(),
-            'luas_sawah': widget.jumlahPetakSawah.trim(),
-            'jumlah_petak_sawah': widget.jumlahPetakSawah.trim(),
-            'jatah_pupuk': widget.jatahPupuk.trim(),
-            'jumlah_pupuk': widget.jumlahPupuk.trim().replaceAll(',', '.'),
-            'status_jatah': widget.statusJatah.trim(),
-            'catatan': widget.catatan.trim(),
-            'status': 'menunggu',
-            'tanggal_pengajuan': DateTime.now().toIso8601String(),
-          })
-          .timeout(const Duration(seconds: 15));
+      await pupukRef.push().set({
+        'id_pupuk': widget.idPupuk.trim(),
+        'nama': widget.nama.trim(),
+        'nik': widget.nik.trim(),
+        'jenis_pupuk': widget.namaPupuk.trim(),
+        'jumlah_pupuk': jumlah,
+        'jumlah_kg': jumlah,
+        'catatan': widget.catatan.trim(),
+        'keterangan': widget.catatan.trim(),
+        'status': 'menunggu',
+        'tanggal_pengajuan': DateTime.now().toIso8601String(),
+      }).timeout(const Duration(seconds: 15));
 
       await simpanNotifikasiAdmin();
 
       if (!mounted) return;
 
-      _showSnackBar('Pengajuan pupuk berhasil dikirim', primaryGreen);
+      _showSnackBar('Pengajuan pupuk berhasil dikirim.', primaryGreen);
 
       Navigator.pop(context);
       Navigator.pop(context);
@@ -145,8 +134,6 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
   }
 
   Future<bool?> _showConfirmDialog() {
-    final color = isMelebihiJatah ? orangeStatus : primaryGreen;
-
     return showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -161,22 +148,7 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  height: 62,
-                  width: 62,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: color.withValues(alpha: 0.16)),
-                  ),
-                  child: Icon(
-                    isMelebihiJatah
-                        ? Icons.info_outline_rounded
-                        : Icons.send_rounded,
-                    color: color,
-                    size: 32,
-                  ),
-                ),
+                _dialogIcon(Icons.send_rounded, primaryGreen),
                 const SizedBox(height: 15),
                 const Text(
                   'Kirim Pengajuan?',
@@ -188,12 +160,10 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
                   ),
                 ),
                 const SizedBox(height: 7),
-                Text(
-                  isMelebihiJatah
-                      ? 'Jumlah melebihi batas acuan. Pengajuan tetap dikirim untuk diverifikasi admin.'
-                      : 'Pastikan data pengajuan sudah benar sebelum dikirim.',
+                const Text(
+                  'Pastikan data bantuan pupuk sudah benar. Setelah dikirim, pengajuan akan diverifikasi oleh admin kelompok tani.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: textGrey,
                     fontSize: 12.7,
                     height: 1.45,
@@ -253,6 +223,7 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
   void _showSnackBar(String pesan, Color color) {
     if (!mounted) return;
 
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -277,6 +248,7 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
         showPattern: false,
         child: SafeArea(
           child: ListView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
             padding: EdgeInsets.fromLTRB(16, 14, 16, bottomInset + 24),
             children: [
               _headerPage(),
@@ -389,8 +361,8 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
                   spacing: 7,
                   runSpacing: 7,
                   children: [
-                    _badge('Menunggu', orangeStatus),
-                    _badge(teksJatah, warnaJatah),
+                    _badge('Menunggu Verifikasi', orangeStatus),
+                    _badge('Bantuan Pupuk', primaryGreen),
                   ],
                 ),
               ],
@@ -404,7 +376,7 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
-              Icons.check_circle_rounded,
+              Icons.hourglass_bottom_rounded,
               color: primaryGreen,
               size: 20,
             ),
@@ -434,21 +406,10 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
               _detailRow(Icons.badge_outlined, 'NIK', sensorNik(widget.nik)),
               _detailRow(Icons.grass_rounded, 'Jenis Pupuk', widget.namaPupuk),
               _detailRow(
-                Icons.landscape_rounded,
-                'Luas Sawah',
-                '${widget.jumlahPetakSawah} Ha',
-              ),
-              _detailRow(
-                Icons.scale_rounded,
-                'Batas Acuan',
-                '${widget.jatahPupuk} Kg',
-                valueColor: primaryGreen,
-              ),
-              _detailRow(
                 Icons.inventory_2_rounded,
                 'Jumlah',
                 '${widget.jumlahPupuk} Kg',
-                valueColor: isMelebihiJatah ? orangeStatus : primaryGreen,
+                valueColor: primaryGreen,
               ),
               _detailRow(
                 Icons.notes_rounded,
@@ -533,7 +494,7 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
           Icon(icon, color: primaryGreen, size: 17),
           const SizedBox(width: 8),
           SizedBox(
-            width: 100,
+            width: 95,
             child: Text(
               label,
               style: const TextStyle(
@@ -561,34 +522,24 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
   }
 
   Widget _infoBox() {
-    final color = isMelebihiJatah ? orangeStatus : primaryGreen;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.075),
+        color: primaryGreen.withValues(alpha: 0.075),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.16)),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
       ),
-      child: Row(
+      child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            isMelebihiJatah
-                ? Icons.info_outline_rounded
-                : Icons.check_circle_outline_rounded,
-            color: color,
-            size: 19,
-          ),
-          const SizedBox(width: 9),
+          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 19),
+          SizedBox(width: 9),
           Expanded(
             child: Text(
-              isMelebihiJatah
-                  ? 'Jumlah melebihi batas acuan. Admin akan melakukan verifikasi.'
-                  : 'Pengajuan siap dikirim. Pastikan data sudah benar.',
+              'Pengajuan bantuan pupuk akan masuk ke admin untuk diverifikasi. Jumlah yang diajukan tidak dihitung otomatis berdasarkan luas lahan.',
               style: TextStyle(
-                color: color,
+                color: primaryGreen,
                 fontSize: 12.2,
                 height: 1.4,
                 fontWeight: FontWeight.w700,
@@ -616,17 +567,16 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
             borderRadius: BorderRadius.circular(15),
           ),
         ),
-        icon:
-            isLoading
-                ? const SizedBox(
-                  width: 19,
-                  height: 19,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.3,
-                    color: Colors.white,
-                  ),
-                )
-                : const Icon(Icons.send_rounded, size: 20),
+        icon: isLoading
+            ? const SizedBox(
+                width: 19,
+                height: 19,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.3,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.send_rounded, size: 20),
         label: Text(
           isLoading ? 'Mengirim...' : 'Kirim Pengajuan',
           style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900),
@@ -647,7 +597,7 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
         text,
         style: TextStyle(
           color: color,
-          fontSize: 11,
+          fontSize: 10.8,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -656,13 +606,12 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
 
   Widget _backButton() {
     return InkWell(
-      onTap:
-          isLoading
-              ? null
-              : () {
-                if (!mounted) return;
-                Navigator.pop(context);
-              },
+      onTap: isLoading
+          ? null
+          : () {
+              if (!mounted) return;
+              Navigator.pop(context);
+            },
       borderRadius: BorderRadius.circular(14),
       child: Container(
         height: 42,
@@ -674,6 +623,19 @@ class _PupukKonfirmasiPageState extends State<PupukKonfirmasiPage> {
         ),
         child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
+    );
+  }
+
+  Widget _dialogIcon(IconData icon, Color color) {
+    return Container(
+      height: 62,
+      width: 62,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Icon(icon, color: color, size: 32),
     );
   }
 

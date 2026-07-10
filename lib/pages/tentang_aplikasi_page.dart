@@ -7,60 +7,50 @@ class TentangAplikasiPage extends StatelessWidget {
 
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
+  static const Color deepGreen = Color(0xff0F3D24);
   static const Color softGreen = Color(0xffEAF7EC);
   static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffF59E0B);
   static const Color blueStatus = Color(0xff2563EB);
+  static const Color orangeStatus = Color(0xffF59E0B);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xffF6FAF7),
       body: AppBackground(
+        showPattern: false,
         child: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
             children: [
               _header(context),
+              const SizedBox(height: 14),
+              _identityCard(),
               const SizedBox(height: 16),
-              _appCard(),
-              const SizedBox(height: 18),
               _sectionTitle(
-                title: 'Fitur Utama',
-                subtitle: 'Layanan yang tersedia di aplikasi',
-              ),
-              const SizedBox(height: 12),
-              _featureCard(),
-              const SizedBox(height: 18),
-              _sectionTitle(
-                title: 'Informasi',
-                subtitle: 'Ringkasan sistem dan pengembang',
-              ),
-              const SizedBox(height: 12),
-              _infoTile(
-                icon: Icons.flag_rounded,
-                title: 'Tujuan Aplikasi',
-                content:
-                    'Membantu administrasi Kelompok Tani Desa Penataan melalui pendataan anggota, pengajuan bantuan pupuk, peminjaman alat, pengumuman, notifikasi, dan laporan.',
-                color: primaryGreen,
+                title: 'Ringkasan Aplikasi',
+                subtitle: 'Informasi singkat dan mudah dipahami',
               ),
               const SizedBox(height: 10),
-              _infoTile(
-                icon: Icons.code_rounded,
-                title: 'Teknologi',
-                content:
-                    'Dikembangkan menggunakan Flutter sebagai framework aplikasi dan Firebase Realtime Database sebagai penyimpanan data realtime.',
-                color: blueStatus,
+              _summaryCard(),
+              const SizedBox(height: 16),
+              _sectionTitle(
+                title: 'Keunggulan Sistem',
+                subtitle: 'Dibuat untuk mendukung administrasi digital',
               ),
               const SizedBox(height: 10),
-              _infoTile(
-                icon: Icons.school_rounded,
-                title: 'Pengembang',
-                content:
-                    'Mujaddiduz Zaman\nProgram Studi Teknik Informatika\nUniversitas Yudharta Pasuruan',
-                color: orangeStatus,
+              _valueCard(),
+              const SizedBox(height: 16),
+              _sectionTitle(
+                title: 'Informasi Pengembang',
+                subtitle: 'Identitas akademik aplikasi',
               ),
+              const SizedBox(height: 10),
+              _developerCard(),
+              const SizedBox(height: 16),
+              _footerCard(),
             ],
           ),
         ),
@@ -70,13 +60,13 @@ class TentangAplikasiPage extends StatelessWidget {
 
   Widget _header(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: darkGreen,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.20),
+            color: darkGreen.withValues(alpha: 0.22),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -88,37 +78,43 @@ class TentangAplikasiPage extends StatelessWidget {
             onTap: () => Navigator.pop(context),
             borderRadius: BorderRadius.circular(14),
             child: Container(
-              height: 42,
-              width: 42,
+              height: 43,
+              width: 43,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
+                color: Colors.white.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
               ),
-              child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              child: const Icon(
+                Icons.arrow_back_rounded,
+                color: Colors.white,
+                size: 23,
+              ),
             ),
           ),
           const SizedBox(width: 12),
           Container(
-            height: 48,
-            width: 48,
+            height: 47,
+            width: 47,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(15),
             ),
             child: const Icon(
               Icons.info_outline_rounded,
               color: Colors.white,
-              size: 28,
+              size: 27,
             ),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(width: 12),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Tentang Aplikasi',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 19,
@@ -127,11 +123,12 @@ class TentangAplikasiPage extends StatelessWidget {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Informasi singkat aplikasi TaniGo.',
+                  'Informasi resmi aplikasi TaniGo',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 12.2,
-                    height: 1.3,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -143,22 +140,22 @@ class TentangAplikasiPage extends StatelessWidget {
     );
   }
 
-  Widget _appCard() {
+  Widget _identityCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
       decoration: _cardDecoration(radius: 24),
       child: Column(
         children: [
           Container(
-            height: 78,
-            width: 78,
+            height: 82,
+            width: 82,
             decoration: BoxDecoration(
-              color: darkGreen,
-              borderRadius: BorderRadius.circular(24),
+              color: deepGreen,
+              borderRadius: BorderRadius.circular(26),
               boxShadow: [
                 BoxShadow(
-                  color: darkGreen.withValues(alpha: 0.18),
+                  color: deepGreen.withValues(alpha: 0.20),
                   blurRadius: 16,
                   offset: const Offset(0, 7),
                 ),
@@ -167,7 +164,7 @@ class TentangAplikasiPage extends StatelessWidget {
             child: const Icon(
               Icons.agriculture_rounded,
               color: Colors.white,
-              size: 42,
+              size: 43,
             ),
           ),
           const SizedBox(height: 14),
@@ -176,8 +173,9 @@ class TentangAplikasiPage extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: textDark,
-              fontSize: 25,
+              fontSize: 26,
               fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
             ),
           ),
           const SizedBox(height: 5),
@@ -186,32 +184,30 @@ class TentangAplikasiPage extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: textGrey,
-              fontSize: 12.8,
+              fontSize: 13,
               height: 1.4,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 15),
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
             decoration: BoxDecoration(
-              color: softGreen.withValues(alpha: 0.88),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: primaryGreen.withValues(alpha: 0.13)),
+              color: softGreen,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.15)),
             ),
             child: const Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.verified_rounded, color: primaryGreen, size: 22),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Aplikasi skripsi untuk membantu proses administrasi kelompok tani secara digital.',
-                    style: TextStyle(
-                      color: textGrey,
-                      fontSize: 12.4,
-                      height: 1.4,
-                      fontWeight: FontWeight.w700,
-                    ),
+                Icon(Icons.verified_rounded, color: primaryGreen, size: 18),
+                SizedBox(width: 7),
+                Text(
+                  'Aplikasi Administrasi Digital',
+                  style: TextStyle(
+                    color: primaryGreen,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ],
@@ -222,99 +218,186 @@ class TentangAplikasiPage extends StatelessWidget {
     );
   }
 
-  Widget _featureCard() {
-    final features = [
-      _FeatureItem(
-        icon: Icons.person_add_alt_1_rounded,
-        title: 'Pendaftaran Anggota',
-        subtitle: 'Calon anggota dapat mendaftar melalui aplikasi.',
+  Widget _summaryCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(radius: 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _infoRow(
+            icon: Icons.flag_rounded,
+            title: 'Tujuan',
+            content:
+                'TaniGo dibuat untuk membantu proses administrasi kelompok tani agar lebih tertata, mudah dipantau, dan efisien.',
+            color: primaryGreen,
+          ),
+          _divider(),
+          _infoRow(
+            icon: Icons.phone_android_rounded,
+            title: 'Penggunaan',
+            content:
+                'Aplikasi ini dirancang dengan tampilan sederhana sehingga dapat digunakan oleh admin dan anggota dengan mudah.',
+            color: blueStatus,
+          ),
+          _divider(),
+          _infoRow(
+            icon: Icons.security_rounded,
+            title: 'Pendekatan Sistem',
+            content:
+                'Data dikelola secara digital untuk mendukung proses pelayanan dan pencatatan yang lebih rapi.',
+            color: orangeStatus,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _valueCard() {
+    final values = [
+      _ValueItem(
+        icon: Icons.dashboard_customize_rounded,
+        title: 'Tampilan Sederhana',
+        subtitle: 'Menu dibuat ringkas dan mudah dikenali.',
         color: primaryGreen,
       ),
-      _FeatureItem(
-        icon: Icons.verified_user_rounded,
-        title: 'Verifikasi Admin',
-        subtitle: 'Admin memproses verifikasi data anggota dan pengajuan.',
+      _ValueItem(
+        icon: Icons.fact_check_rounded,
+        title: 'Data Lebih Tertata',
+        subtitle: 'Membantu admin memantau kebutuhan administrasi.',
         color: blueStatus,
       ),
-      _FeatureItem(
-        icon: Icons.eco_rounded,
-        title: 'Bantuan Pupuk',
-        subtitle: 'Anggota dapat mengajukan bantuan pupuk.',
-        color: primaryGreen,
-      ),
-      _FeatureItem(
-        icon: Icons.agriculture_rounded,
-        title: 'Peminjaman Alat',
-        subtitle: 'Anggota dapat mengajukan peminjaman alat pertanian.',
+      _ValueItem(
+        icon: Icons.notifications_active_rounded,
+        title: 'Informasi Cepat',
+        subtitle: 'Mendukung pemberitahuan secara langsung.',
         color: orangeStatus,
       ),
-      _FeatureItem(
-        icon: Icons.campaign_rounded,
-        title: 'Pengumuman',
-        subtitle: 'Admin dapat membagikan informasi kepada anggota.',
-        color: primaryGreen,
-      ),
-      _FeatureItem(
-        icon: Icons.notifications_rounded,
-        title: 'Notifikasi',
-        subtitle: 'Anggota menerima pemberitahuan status layanan.',
-        color: blueStatus,
-      ),
-      _FeatureItem(
+      _ValueItem(
         icon: Icons.description_rounded,
-        title: 'Laporan',
-        subtitle: 'Admin dapat melihat rekap data sistem.',
-        color: orangeStatus,
+        title: 'Rekap Digital',
+        subtitle: 'Mendukung pencatatan dan pelaporan aplikasi.',
+        color: primaryGreen,
       ),
     ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(radius: 24),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(radius: 22),
       child: Column(
         children: [
-          for (int i = 0; i < features.length; i++) ...[
-            _featureTile(features[i]),
-            if (i != features.length - 1)
-              Divider(height: 24, color: cardBorder.withValues(alpha: 0.85)),
+          for (int i = 0; i < values.length; i++) ...[
+            _valueTile(values[i]),
+            if (i != values.length - 1) _divider(),
           ],
         ],
       ),
     );
   }
 
-  Widget _featureTile(_FeatureItem item) {
-    return Row(
-      children: [
-        Container(
-          height: 46,
-          width: 46,
-          decoration: BoxDecoration(
-            color: item.color.withValues(alpha: 0.11),
-            borderRadius: BorderRadius.circular(16),
+  Widget _developerCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(radius: 22),
+      child: Column(
+        children: [
+          _infoRow(
+            icon: Icons.person_rounded,
+            title: 'Nama Pengembang',
+            content: 'Mujaddiduz Zaman',
+            color: primaryGreen,
           ),
-          child: Icon(item.icon, color: item.color, size: 24),
-        ),
-        const SizedBox(width: 13),
+          _divider(),
+          _infoRow(
+            icon: Icons.school_rounded,
+            title: 'Program Studi',
+            content: 'Teknik Informatika',
+            color: blueStatus,
+          ),
+          _divider(),
+          _infoRow(
+            icon: Icons.account_balance_rounded,
+            title: 'Perguruan Tinggi',
+            content: 'Universitas Yudharta Pasuruan',
+            color: orangeStatus,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _footerCard() {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: darkGreen,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withValues(alpha: 0.15),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 43,
+            width: 43,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.eco_rounded, color: Colors.white, size: 23),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Text(
+              'TaniGo dikembangkan sebagai media pendukung digitalisasi administrasi kelompok tani.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.82),
+                fontSize: 12.3,
+                height: 1.4,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow({
+    required IconData icon,
+    required String title,
+    required String content,
+    required Color color,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _iconBox(icon, color),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                item.title,
+                title,
                 style: const TextStyle(
                   color: textDark,
-                  fontSize: 14.5,
+                  fontSize: 14,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 4),
               Text(
-                item.subtitle,
+                content,
                 style: const TextStyle(
                   color: textGrey,
-                  fontSize: 12,
-                  height: 1.35,
+                  fontSize: 12.3,
+                  height: 1.45,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -325,47 +408,32 @@ class TentangAplikasiPage extends StatelessWidget {
     );
   }
 
-  Widget _infoTile({
-    required IconData icon,
-    required String title,
-    required String content,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: _cardDecoration(radius: 22),
+  Widget _valueTile(_ValueItem item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 11),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 48,
-            width: 48,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: color),
-          ),
-          const SizedBox(width: 13),
+          _iconBox(item.icon, item.color),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  item.title,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 14.5,
+                    fontSize: 13.8,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 3),
                 Text(
-                  content,
+                  item.subtitle,
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 12.5,
-                    height: 1.45,
+                    fontSize: 11.8,
+                    height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -381,7 +449,7 @@ class TentangAplikasiPage extends StatelessWidget {
     return Row(
       children: [
         Container(
-          height: 34,
+          height: 35,
           width: 5,
           decoration: BoxDecoration(
             color: primaryGreen,
@@ -397,7 +465,7 @@ class TentangAplikasiPage extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   color: textDark,
-                  fontSize: 16.5,
+                  fontSize: 16.3,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -406,7 +474,7 @@ class TentangAplikasiPage extends StatelessWidget {
                 subtitle,
                 style: const TextStyle(
                   color: textGrey,
-                  fontSize: 11.7,
+                  fontSize: 11.6,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -417,15 +485,31 @@ class TentangAplikasiPage extends StatelessWidget {
     );
   }
 
+  Widget _iconBox(IconData icon, Color color) {
+    return Container(
+      height: 45,
+      width: 45,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Icon(icon, color: color, size: 23),
+    );
+  }
+
+  Widget _divider() {
+    return Divider(height: 24, color: cardBorder.withValues(alpha: 0.85));
+  }
+
   BoxDecoration _cardDecoration({double radius = 20}) {
     return BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.96),
+      color: Colors.white.withValues(alpha: 0.98),
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 16,
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 15,
           offset: const Offset(0, 7),
         ),
       ],
@@ -433,13 +517,13 @@ class TentangAplikasiPage extends StatelessWidget {
   }
 }
 
-class _FeatureItem {
+class _ValueItem {
   final IconData icon;
   final String title;
   final String subtitle;
   final Color color;
 
-  const _FeatureItem({
+  const _ValueItem({
     required this.icon,
     required this.title,
     required this.subtitle,

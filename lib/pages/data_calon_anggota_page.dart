@@ -136,10 +136,6 @@ class _DataCalonAnggotaPageState extends State<DataCalonAnggotaPage> {
     return '•••• •••• •••• $last4';
   }
 
-  int _countStatus(List<Map<String, dynamic>> data, List<String> statuses) {
-    return data.where((item) => statuses.contains(_statusData(item))).length;
-  }
-
   Color _statusColor(String status) {
     if (status == 'disetujui' || status == 'aktif') return primaryGreen;
     if (status == 'ditolak') return redStatus;
@@ -153,9 +149,10 @@ class _DataCalonAnggotaPageState extends State<DataCalonAnggotaPage> {
   }
 
   String _statusText(String status) {
-    if (status == 'disetujui' || status == 'aktif') return 'Disetujui';
-    if (status == 'ditolak') return 'Ditolak';
-    return 'Menunggu';
+    if (status == 'disetujui') return 'Setuju';
+    if (status == 'aktif') return 'Aktif';
+    if (status == 'ditolak') return 'Tolak';
+    return 'Pengajuan';
   }
 
   List<Map<String, dynamic>> _filterData({
@@ -214,9 +211,6 @@ class _DataCalonAnggotaPageState extends State<DataCalonAnggotaPage> {
               }
 
               final semuaData = _ambilData(snapshot.data?.snapshot.value);
-              final menunggu = _countStatus(semuaData, ['menunggu']);
-              final disetujui = _countStatus(semuaData, ['disetujui', 'aktif']);
-              final ditolak = _countStatus(semuaData, ['ditolak']);
 
               return RefreshIndicator(
                 color: primaryGreen,
@@ -229,18 +223,11 @@ class _DataCalonAnggotaPageState extends State<DataCalonAnggotaPage> {
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
                   children: [
                     _header(total: semuaData.length),
-                    const SizedBox(height: 16),
-                    _summaryCard(
-                      total: semuaData.length,
-                      menunggu: menunggu,
-                      disetujui: disetujui,
-                      ditolak: ditolak,
-                    ),
                     const SizedBox(height: 14),
                     _searchBox(),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _filterChips(),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     ValueListenableBuilder<String>(
                       valueListenable: _keywordNotifier,
                       builder: (context, keyword, _) {
@@ -346,7 +333,7 @@ class _DataCalonAnggotaPageState extends State<DataCalonAnggotaPage> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Data pendaftaran anggota Kelompok Tani Desa Penataan',
+                  'Data pendaftaran anggota baru',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -385,97 +372,6 @@ class _DataCalonAnggotaPageState extends State<DataCalonAnggotaPage> {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryCard({
-    required int total,
-    required int menunggu,
-    required int disetujui,
-    required int ditolak,
-  }) {
-    return Row(
-      children: [
-        Expanded(
-          child: _summaryItem(
-            title: 'Total',
-            value: total.toString(),
-            icon: Icons.dataset_rounded,
-            color: primaryGreen,
-          ),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: _summaryItem(
-            title: 'Menunggu',
-            value: menunggu.toString(),
-            icon: Icons.pending_actions_rounded,
-            color: orangeStatus,
-          ),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: _summaryItem(
-            title: 'Ditolak',
-            value: ditolak.toString(),
-            icon: Icons.cancel_presentation_rounded,
-            color: redStatus,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _summaryItem({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      height: 74,
-      padding: const EdgeInsets.all(9),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.022),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 15, color: color),
-          const Spacer(),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              height: 1,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: textGrey,
-              fontSize: 9.2,
-              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -550,10 +446,10 @@ class _DataCalonAnggotaPageState extends State<DataCalonAnggotaPage> {
   Widget _filterChips() {
     final filters = [
       ['semua', 'Semua'],
-      ['menunggu', 'Menunggu'],
-      ['disetujui', 'Disetujui'],
+      ['menunggu', 'Pengajuan'],
+      ['disetujui', 'Setuju'],
       ['aktif', 'Aktif'],
-      ['ditolak', 'Ditolak'],
+      ['ditolak', 'Tolak'],
     ];
 
     return ValueListenableBuilder<String>(
@@ -568,16 +464,20 @@ class _DataCalonAnggotaPageState extends State<DataCalonAnggotaPage> {
                   final aktif = selected == item[0];
 
                   return Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: 6),
                     child: ChoiceChip(
                       selected: aktif,
                       showCheckmark: false,
-                      visualDensity: VisualDensity.compact,
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 7),
+                      visualDensity: const VisualDensity(
+                        horizontal: -3,
+                        vertical: -3,
+                      ),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 5),
                       selectedColor: primaryGreen,
                       backgroundColor: Colors.white,
                       side: BorderSide(
+                        width: 0.8,
                         color:
                             aktif
                                 ? primaryGreen.withValues(alpha: 0.85)
@@ -590,9 +490,11 @@ class _DataCalonAnggotaPageState extends State<DataCalonAnggotaPage> {
                       labelStyle: TextStyle(
                         color: aktif ? Colors.white : textGrey,
                         fontWeight: FontWeight.w800,
-                        fontSize: 11.5,
+                        fontSize: 10,
                       ),
-                      onSelected: (_) => _filterNotifier.value = item[0],
+                      onSelected: (_) {
+                        _filterNotifier.value = item[0];
+                      },
                     ),
                   );
                 }).toList(),

@@ -62,15 +62,15 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     return status == '-' ? 'menunggu' : status;
   }
 
-  String ambilNik(Map<dynamic, dynamic> item) {
-    return _text(
-      item['nik'] ??
-          item['nik_anggota'] ??
-          item['nik_user'] ??
-          item['nikUser'] ??
-          item['no_nik'],
-    );
-  }
+ String ambilNik(Map<dynamic, dynamic> item) {
+  return _text(
+    item['nik'] ??
+        item['nik_anggota'] ??
+        item['nik_user'] ??
+        item['nikUser'] ??
+        item['no_nik'],
+  ).replaceAll(RegExp(r'[^0-9]'), '');
+}
 
   String ambilNama(Map<dynamic, dynamic> item) {
     return _text(
@@ -95,8 +95,6 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
       item['jumlah_kg'] ??
           item['jumlah'] ??
           item['jumlah_pupuk'] ??
-          item['jatah_pupuk'] ??
-          item['jatah_pupuk_kg'] ??
           item['total_pupuk'],
     );
   }
@@ -242,13 +240,13 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
 
       _showSnackBar(
         status == 'disetujui'
-            ? 'Pengajuan bantuan pupuk berhasil disetujui'
-            : 'Pengajuan bantuan pupuk berhasil ditolak',
+            ? 'Pengajuan bantuan pupuk berhasil disetujui.'
+            : 'Pengajuan bantuan pupuk berhasil ditolak.',
         status == 'disetujui' ? primaryGreen : redStatus,
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-      _showSnackBar('Gagal mengubah status: $e', redStatus);
+      _showSnackBar('Gagal mengubah status pengajuan.', redStatus);
     } finally {
       if (mounted) setState(() => isProcessing = false);
     }
@@ -267,21 +265,23 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
       final jenisPupuk = ambilJenisPupuk(item);
 
       if (status != 'disetujui') {
-        throw Exception('Hanya pengajuan disetujui yang bisa ditandai diambil');
+        throw Exception(
+          'Hanya pengajuan disetujui yang bisa ditandai diambil.',
+        );
       }
 
       if (jumlahKg <= 0) {
-        throw Exception('Jumlah pupuk tidak valid');
+        throw Exception('Jumlah pupuk tidak valid.');
       }
 
       if (pupukId == '-') {
-        throw Exception('ID pupuk tidak ditemukan pada data pengajuan');
+        throw Exception('ID pupuk tidak ditemukan.');
       }
 
       final snapshot = await pupukRef.child(pupukId).get();
 
       if (!snapshot.exists || snapshot.value == null) {
-        throw Exception('Data pupuk tidak ditemukan');
+        throw Exception('Data pupuk tidak ditemukan.');
       }
 
       final dataPupuk = Map<dynamic, dynamic>.from(snapshot.value as Map);
@@ -299,7 +299,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
 
       if (stokSaatIni < jumlahKg) {
         throw Exception(
-          'Stok tidak cukup. Stok tersedia ${formatKg(stokSaatIni)} kg, kebutuhan ${formatKg(jumlahKg)} kg',
+          'Stok tidak cukup. Stok tersedia ${formatKg(stokSaatIni)} kg.',
         );
       }
 
@@ -324,12 +324,12 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
       if (!mounted) return;
 
       _showSnackBar(
-        'Pupuk berhasil ditandai sudah diambil dan stok berkurang',
+        'Pupuk berhasil ditandai sudah diambil dan stok berkurang.',
         primaryGreen,
       );
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Gagal memproses: $e', redStatus);
+      _showSnackBar(e.toString().replaceAll('Exception: ', ''), redStatus);
     } finally {
       if (mounted) setState(() => isProcessing = false);
     }
@@ -494,6 +494,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
   void _showSnackBar(String pesan, Color color) {
     if (!mounted) return;
 
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -654,16 +655,16 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                   'Verifikasi Bantuan Pupuk',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 19,
+                    fontSize: 18.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Kelola pengajuan pupuk anggota',
+                  'Kelola pengajuan bantuan anggota',
                   style: TextStyle(
                     color: Color(0xffD1FAE5),
-                    fontSize: 12,
+                    fontSize: 11.8,
                     height: 1.3,
                     fontWeight: FontWeight.w600,
                   ),
@@ -679,11 +680,11 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
 
   Widget _headerCounter(int total) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 48, minHeight: 44),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(13),
         border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
       ),
       child: Column(
@@ -692,17 +693,17 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
             total > 99 ? '99+' : total.toString(),
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 17,
+              fontSize: 16,
               height: 1,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             'baru',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.82),
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -757,73 +758,66 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(9),
       decoration: _cardDecoration(radius: 18),
-      child: GridView.builder(
-        itemCount: filters.length,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          childAspectRatio: 0.98,
-        ),
-        itemBuilder: (context, index) {
-          final item = filters[index];
-          final aktif = selectedFilter == item.value;
+      child: Wrap(
+        spacing: 7,
+        runSpacing: 7,
+        children:
+            filters.map((item) {
+              final aktif = selectedFilter == item.value;
 
-          return InkWell(
-            onTap: () => setState(() => selectedFilter = item.value),
-            borderRadius: BorderRadius.circular(15),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 170),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              decoration: BoxDecoration(
-                color: aktif ? item.color : item.color.withValues(alpha: 0.075),
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(
-                  color:
-                      aktif ? item.color : item.color.withValues(alpha: 0.13),
-                ),
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      item.icon,
-                      color: aktif ? Colors.white : item.color,
-                      size: 20,
+              return InkWell(
+                onTap: () => setState(() => selectedFilter = item.value),
+                borderRadius: BorderRadius.circular(999),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 170),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color:
+                        aktif ? item.color : item.color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color:
+                          aktif
+                              ? item.color
+                              : item.color.withValues(alpha: 0.16),
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      item.total > 99 ? '99+' : item.total.toString(),
-                      style: TextStyle(
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        item.icon,
                         color: aktif ? Colors.white : item.color,
-                        fontSize: 17,
-                        height: 1,
-                        fontWeight: FontWeight.w900,
+                        size: 15,
                       ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      item.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: aktif ? Colors.white : textDark,
-                        fontSize: 10.2,
-                        fontWeight: FontWeight.w900,
+                      const SizedBox(width: 5),
+                      Text(
+                        item.total > 99 ? '99+' : item.total.toString(),
+                        style: TextStyle(
+                          color: aktif ? Colors.white : item.color,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          color: aktif ? Colors.white : textDark,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          );
-        },
+              );
+            }).toList(),
       ),
     );
   }
@@ -916,7 +910,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     final tanggal = formatTanggal(
       _text(item['tanggal_pengajuan'] ?? item['created_at']),
     );
-    final alasan = _text(
+    final catatan = _text(
       item['alasan'] ?? item['keterangan'] ?? item['catatan'],
     );
     final status = normalStatus(item);
@@ -948,8 +942,8 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
                   'Diambil',
                   formatTanggal(_text(item['tanggal_diambil'])),
                 ),
-              if (alasan != '-')
-                _infoRow(Icons.notes_rounded, 'Catatan', alasan),
+              if (catatan != '-')
+                _infoRow(Icons.notes_rounded, 'Catatan', catatan),
             ],
           ),
           if (status == 'menunggu') ...[
@@ -1005,13 +999,13 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
     return Row(
       children: [
         Container(
-          height: 48,
-          width: 48,
+          height: 46,
+          width: 46,
           decoration: BoxDecoration(
             color: primaryGreen.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(15),
           ),
-          child: Icon(iconPupuk(title), color: primaryGreen, size: 25),
+          child: Icon(iconPupuk(title), color: primaryGreen, size: 24),
         ),
         const SizedBox(width: 11),
         Expanded(
@@ -1050,8 +1044,8 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
 
   Widget _statusBadge(String status) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 92),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      constraints: const BoxConstraints(maxWidth: 82),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: backgroundStatus(status),
         borderRadius: BorderRadius.circular(30),
@@ -1064,7 +1058,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: warnaStatus(status),
-          fontSize: 9.8,
+          fontSize: 9.2,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -1097,12 +1091,12 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
           Icon(icon, color: primaryGreen, size: 17),
           const SizedBox(width: 8),
           SizedBox(
-            width: 86,
+            width: 82,
             child: Text(
               label,
               style: const TextStyle(
                 color: textGrey,
-                fontSize: 11.8,
+                fontSize: 11.6,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1113,7 +1107,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: valueColor ?? textDark,
-                fontSize: 11.8,
+                fontSize: 11.6,
                 height: 1.35,
                 fontWeight: FontWeight.w900,
               ),
@@ -1132,7 +1126,7 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
   }) {
     return SizedBox(
       width: double.infinity,
-      height: 46,
+      height: 45,
       child: ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
@@ -1158,8 +1152,8 @@ class _VerifikasiPupukPageState extends State<VerifikasiPupukPage> {
       },
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        height: 42,
-        width: 42,
+        height: 41,
+        width: 41,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(14),

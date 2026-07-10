@@ -1,6 +1,5 @@
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../widgets/app_background.dart';
 import 'pupuk_konfirmasi_page.dart';
@@ -32,29 +31,9 @@ class _PupukFormPageState extends State<PupukFormPage> {
   static const Color textGrey = Color(0xff6B7280);
   static const Color borderColor = Color(0xffE5E7EB);
   static const Color redStatus = Color(0xffDC2626);
-  static const Color orangeStatus = Color(0xffF59E0B);
 
   final TextEditingController jumlahPupukController = TextEditingController();
   final TextEditingController catatanController = TextEditingController();
-
-  final DatabaseReference anggotaRef = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL:
-        'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
-  ).ref('anggota');
-
-  String nama = '';
-  String luasSawah = '';
-  double jatahPupuk = 0;
-
-  bool isLoading = true;
-  bool dataDitemukan = false;
-
-  @override
-  void initState() {
-    super.initState();
-    ambilDataAnggotaLogin();
-  }
 
   @override
   void dispose() {
@@ -63,100 +42,11 @@ class _PupukFormPageState extends State<PupukFormPage> {
     super.dispose();
   }
 
-  Future<void> ambilDataAnggotaLogin() async {
-    if (!mounted) return;
-
-    setState(() {
-      isLoading = true;
-      dataDitemukan = false;
-    });
-
-    try {
-      final snapshot = await anggotaRef.get().timeout(
-        const Duration(seconds: 10),
-      );
-
-      if (!mounted) return;
-
-      if (!snapshot.exists || snapshot.value == null) {
-        setState(() {
-          nama = widget.namaUser;
-          isLoading = false;
-        });
-        _showSnackBar('Data anggota masih kosong', redStatus);
-        return;
-      }
-
-      final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
-      Map<String, dynamic>? anggotaDitemukan;
-
-      final nikLogin = widget.nikUser.replaceAll(RegExp(r'[^0-9]'), '');
-
-      for (final item in data.values) {
-        if (item is Map) {
-          final anggota = Map<String, dynamic>.from(item);
-          final nikData = (anggota['nik'] ?? '').toString().replaceAll(
-            RegExp(r'[^0-9]'),
-            '',
-          );
-
-          if (nikData == nikLogin) {
-            anggotaDitemukan = anggota;
-            break;
-          }
-        }
-      }
-
-      if (!mounted) return;
-
-      if (anggotaDitemukan == null) {
-        setState(() {
-          nama = widget.namaUser;
-          isLoading = false;
-        });
-        _showSnackBar('Data anggota login tidak ditemukan', redStatus);
-        return;
-      }
-
-      final luasText = (anggotaDitemukan['luas_sawah'] ??
-              anggotaDitemukan['jumlah_petak_sawah'] ??
-              '0')
-          .toString()
-          .replaceAll(',', '.');
-
-      final luas = double.tryParse(luasText) ?? 0;
-
-      setState(() {
-        nama = (anggotaDitemukan!['nama'] ?? widget.namaUser).toString();
-        luasSawah = luasText;
-        jatahPupuk = luas / 2;
-        dataDitemukan = true;
-        isLoading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => isLoading = false);
-      _showSnackBar(
-        'Gagal mengambil data anggota. Periksa koneksi internet.',
-        redStatus,
-      );
-    }
-  }
-
   double jumlahDiajukan() {
     return double.tryParse(
           jumlahPupukController.text.trim().replaceAll(',', '.'),
         ) ??
         0;
-  }
-
-  bool melebihiJatah() {
-    return jumlahDiajukan() > jatahPupuk;
-  }
-
-  String formatAngka(double value) {
-    if (value % 1 == 0) return value.toInt().toString();
-    return value.toStringAsFixed(1);
   }
 
   String sensorNik(String nik) {
@@ -168,31 +58,24 @@ class _PupukFormPageState extends State<PupukFormPage> {
   void lanjutKonfirmasi() {
     FocusScope.of(context).unfocus();
 
-    if (!dataDitemukan) {
-      _showSnackBar('Data anggota belum ditemukan', redStatus);
-      return;
-    }
-
     if (widget.idPupuk.trim().isEmpty) {
-      _showSnackBar('Data pupuk tidak valid', redStatus);
+      _showSnackBar('Data pupuk tidak valid.', redStatus);
       return;
     }
 
     final jumlahText = jumlahPupukController.text.trim();
 
     if (jumlahText.isEmpty) {
-      _showSnackBar('Jumlah pupuk wajib diisi', redStatus);
+      _showSnackBar('Jumlah pupuk wajib diisi.', redStatus);
       return;
     }
 
     final jumlah = double.tryParse(jumlahText.replaceAll(',', '.'));
 
     if (jumlah == null || jumlah <= 0) {
-      _showSnackBar('Jumlah pupuk tidak valid', redStatus);
+      _showSnackBar('Jumlah pupuk tidak valid.', redStatus);
       return;
     }
-
-    if (!mounted) return;
 
     Navigator.push(
       context,
@@ -201,12 +84,9 @@ class _PupukFormPageState extends State<PupukFormPage> {
             (_) => PupukKonfirmasiPage(
               idPupuk: widget.idPupuk,
               namaPupuk: widget.namaPupuk,
-              nama: nama,
+              nama: widget.namaUser,
               nik: widget.nikUser.trim(),
-              jumlahPetakSawah: luasSawah,
               jumlahPupuk: jumlahText,
-              jatahPupuk: jatahPupuk.toStringAsFixed(1),
-              statusJatah: melebihiJatah() ? 'melebihi_jatah' : 'sesuai_jatah',
               catatan: catatanController.text.trim(),
             ),
       ),
@@ -216,6 +96,7 @@ class _PupukFormPageState extends State<PupukFormPage> {
   void _showSnackBar(String pesan, Color color) {
     if (!mounted) return;
 
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -232,42 +113,30 @@ class _PupukFormPageState extends State<PupukFormPage> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    final overLimit = dataDitemukan && melebihiJatah();
-
-    final bisaLanjut =
-        dataDitemukan &&
-        !isLoading &&
-        jumlahPupukController.text.trim().isNotEmpty;
+    final bisaLanjut = jumlahPupukController.text.trim().isNotEmpty;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: bgColor,
       body: AppBackground(
         showPattern: false,
-        child: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: SafeArea(
-            child: ListView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
-              padding: EdgeInsets.fromLTRB(16, 14, 16, bottomInset + 24),
-              children: [
-                _headerPage(),
-                const SizedBox(height: 14),
-                _pupukCard(),
-                const SizedBox(height: 12),
-                isLoading
-                    ? _loadingCard()
-                    : dataDitemukan
-                    ? _anggotaCard()
-                    : _errorCard(),
-                const SizedBox(height: 12),
-                _formCard(overLimit),
-                const SizedBox(height: 14),
-                _infoBox(),
-                const SizedBox(height: 18),
-                _submitButton(bisaLanjut),
-              ],
-            ),
+        child: SafeArea(
+          child: ListView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+            padding: EdgeInsets.fromLTRB(16, 14, 16, bottomInset + 24),
+            children: [
+              _headerPage(),
+              const SizedBox(height: 14),
+              _pupukCard(),
+              const SizedBox(height: 12),
+              _anggotaCard(),
+              const SizedBox(height: 12),
+              _formCard(),
+              const SizedBox(height: 14),
+              _infoBox(),
+              const SizedBox(height: 18),
+              _submitButton(bisaLanjut),
+            ],
           ),
         ),
       ),
@@ -397,72 +266,6 @@ class _PupukFormPageState extends State<PupukFormPage> {
     );
   }
 
-  Widget _loadingCard() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(radius: 18),
-      child: const Row(
-        children: [
-          SizedBox(
-            height: 21,
-            width: 21,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: primaryGreen,
-            ),
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Mengambil data anggota...',
-              style: TextStyle(
-                color: textGrey,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _errorCard() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: redStatus.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: redStatus.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 42,
-            width: 42,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.70),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: const Icon(Icons.error_outline_rounded, color: redStatus),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'Data anggota tidak ditemukan. Pastikan akun sudah disetujui admin.',
-              style: TextStyle(
-                color: redStatus,
-                fontSize: 12.5,
-                height: 1.4,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _anggotaCard() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -473,20 +276,13 @@ class _PupukFormPageState extends State<PupukFormPage> {
           _sectionTitle(
             icon: Icons.person_rounded,
             title: 'Data Pemohon',
-            subtitle: 'Data otomatis dari akun anggota',
+            subtitle: 'Data anggota yang mengajukan',
           ),
           const SizedBox(height: 13),
           _infoArea(
             children: [
-              _infoRow(Icons.person_outline_rounded, 'Nama', nama),
+              _infoRow(Icons.person_outline_rounded, 'Nama', widget.namaUser),
               _infoRow(Icons.badge_outlined, 'NIK', sensorNik(widget.nikUser)),
-              _infoRow(Icons.landscape_rounded, 'Luas Sawah', '$luasSawah Ha'),
-              _infoRow(
-                Icons.scale_rounded,
-                'Batas Acuan',
-                '${formatAngka(jatahPupuk)} Kg',
-                valueColor: primaryGreen,
-              ),
             ],
           ),
         ],
@@ -494,7 +290,7 @@ class _PupukFormPageState extends State<PupukFormPage> {
     );
   }
 
-  Widget _formCard(bool overLimit) {
+  Widget _formCard() {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(radius: 18),
@@ -504,35 +300,22 @@ class _PupukFormPageState extends State<PupukFormPage> {
           _sectionTitle(
             icon: Icons.edit_note_rounded,
             title: 'Form Pengajuan',
-            subtitle: 'Masukkan jumlah pupuk yang diajukan',
+            subtitle: 'Masukkan jumlah pupuk yang dibutuhkan',
           ),
           const SizedBox(height: 13),
           TextField(
             controller: jumlahPupukController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             textInputAction: TextInputAction.next,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            ],
             decoration: _inputDecoration(
               label: 'Jumlah Pupuk (Kg)',
               icon: Icons.scale_rounded,
             ),
             onChanged: (_) => setState(() {}),
           ),
-          if (overLimit) ...[
-            const SizedBox(height: 10),
-            _noteBox(
-              text:
-                  'Jumlah melebihi batas acuan. Pengajuan tetap bisa dikirim dan akan diperiksa admin.',
-              color: orangeStatus,
-              icon: Icons.info_outline_rounded,
-            ),
-          ] else if (jumlahPupukController.text.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _noteBox(
-              text: 'Jumlah yang diajukan masih sesuai dengan batas acuan.',
-              color: primaryGreen,
-              icon: Icons.check_circle_outline_rounded,
-            ),
-          ],
           const SizedBox(height: 12),
           TextField(
             controller: catatanController,
@@ -564,7 +347,7 @@ class _PupukFormPageState extends State<PupukFormPage> {
           SizedBox(width: 9),
           Expanded(
             child: Text(
-              'Pastikan jumlah pupuk sudah benar sebelum masuk ke halaman konfirmasi.',
+              'Jumlah pupuk yang diajukan akan diperiksa dan diverifikasi oleh admin kelompok tani. Pengajuan ini tidak dihitung otomatis berdasarkan luas lahan.',
               style: TextStyle(
                 color: primaryGreen,
                 fontSize: 12.2,
@@ -674,7 +457,7 @@ class _PupukFormPageState extends State<PupukFormPage> {
           Icon(icon, color: primaryGreen, size: 17),
           const SizedBox(width: 8),
           SizedBox(
-            width: 100,
+            width: 92,
             child: Text(
               label,
               style: const TextStyle(
@@ -692,40 +475,6 @@ class _PupukFormPageState extends State<PupukFormPage> {
                 color: valueColor ?? textDark,
                 fontSize: 11.8,
                 fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _noteBox({
-    required String text,
-    required Color color,
-    required IconData icon,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: color,
-                fontSize: 11.8,
-                height: 1.4,
-                fontWeight: FontWeight.w700,
               ),
             ),
           ),

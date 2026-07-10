@@ -15,8 +15,9 @@ class ResetPasswordAdminPage extends StatefulWidget {
 class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
+  static const Color deepGreen = Color(0xff0F3D25);
   static const Color bgColor = Color(0xffF6FAF7);
-  static const Color softGreen = Color(0xffEAF7EC);
+  static const Color softGreen = Color(0xffF3FBF5);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color borderColor = Color(0xffE6ECE8);
@@ -132,6 +133,7 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
     return Scaffold(
       backgroundColor: bgColor,
       body: AppBackground(
+        showPattern: false,
         child: SafeArea(
           child: StreamBuilder<DatabaseEvent>(
             stream: resetRef.onValue,
@@ -147,13 +149,13 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
                   children: [
                     _header(resetList.length),
-                    const SizedBox(height: 16),
-                    _summaryRow(resetList.length),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     _statusPanel(resetList.length),
+                    const SizedBox(height: 14),
+                    _summaryRow(resetList.length),
                     const SizedBox(height: 18),
                     _sectionTitle(
-                      title: 'Daftar Permintaan',
+                      title: 'Permintaan Reset',
                       subtitle: '${resetList.length} permintaan menunggu',
                     ),
                     const SizedBox(height: 12),
@@ -161,7 +163,7 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
                       Column(children: List.generate(3, (_) => _loadingCard()))
                     else if (snapshot.hasError)
                       _messageState(
-                        icon: Icons.fact_check_rounded,
+                        icon: Icons.error_outline_rounded,
                         title: 'Terjadi Kesalahan',
                         message: snapshot.error.toString(),
                       )
@@ -182,17 +184,17 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
   Widget _header(int total) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      padding: const EdgeInsets.fromLTRB(13, 13, 13, 15),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen],
+          colors: [deepGreen, darkGreen, primaryGreen],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.18),
+            color: darkGreen.withValues(alpha: 0.20),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -201,22 +203,22 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
       child: Row(
         children: [
           _backButton(),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Container(
             height: 42,
             width: 42,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: Colors.white.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.19)),
             ),
             child: const Icon(
-              Icons.lock_reset_rounded,
+              Icons.password_rounded,
               color: Colors.white,
               size: 22,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,26 +229,25 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 19,
+                    fontSize: 18.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Kelola permintaan reset password anggota',
-                  maxLines: 2,
+                  'Kelola permintaan anggota',
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Color(0xffDDEFE3),
-                    fontSize: 11.8,
-                    height: 1.3,
-                    fontWeight: FontWeight.w600,
+                    color: Color(0xffD1FAE5),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           _headerBadge(total),
         ],
       ),
@@ -255,112 +256,21 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
 
   Widget _headerBadge(int total) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      constraints: const BoxConstraints(minWidth: 38),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
+        color: Colors.white.withValues(alpha: 0.13),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.fact_check_rounded, color: Colors.white, size: 14),
-          const SizedBox(width: 5),
-          Text(
-            total > 99 ? '99+' : total.toString(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryRow(int total) {
-    return Row(
-      children: [
-        Expanded(
-          child: _summaryItem(
-            title: 'Menunggu',
-            value: total.toString(),
-            icon: Icons.pending_actions_rounded,
-            color: orangeStatus,
-          ),
+      child: Text(
+        total > 99 ? '99+' : total.toString(),
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w900,
         ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: _summaryItem(
-            title: 'Verifikasi',
-            value: total > 0 ? 'Perlu' : 'Aman',
-            icon: Icons.verified_user_rounded,
-            color: total > 0 ? orangeStatus : primaryGreen,
-          ),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: _summaryItem(
-            title: 'Prioritas',
-            value: total > 0 ? 'Tinggi' : 'Normal',
-            icon: Icons.fact_check_rounded,
-            color: total > 0 ? blueStatus : primaryGreen,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _summaryItem({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      height: 74,
-      padding: const EdgeInsets.all(9),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.022),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 15, color: color),
-          const Spacer(),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: value.length > 5 ? 13.5 : 18,
-              height: 1,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: textGrey,
-              fontSize: 9.2,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -371,11 +281,11 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
 
     return Container(
       padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(radius: 18),
+      decoration: _cardDecoration(radius: 20),
       child: Row(
         children: [
           _iconBox(
-            aman ? Icons.task_alt_rounded : Icons.schedule_rounded,
+            aman ? Icons.task_alt_rounded : Icons.pending_actions_outlined,
             color,
           ),
           const SizedBox(width: 11),
@@ -384,7 +294,9 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  aman ? 'Semua permintaan selesai' : 'Perlu diproses admin',
+                  aman ? 'Tidak ada permintaan' : 'Perlu diproses admin',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
                     fontSize: 13.8,
@@ -394,8 +306,10 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
                 const SizedBox(height: 3),
                 Text(
                   aman
-                      ? 'Belum ada permintaan reset password yang menunggu.'
-                      : '$total anggota menunggu password baru dari admin.',
+                      ? 'Semua reset password sudah selesai.'
+                      : '$total anggota menunggu password baru.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textGrey,
                     fontSize: 11.5,
@@ -411,21 +325,96 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
     );
   }
 
+  Widget _summaryRow(int total) {
+    return Row(
+      children: [
+        Expanded(
+          child: _summaryItem(
+            title: 'Menunggu',
+            value: total.toString(),
+            icon: Icons.hourglass_top_rounded,
+            color: orangeStatus,
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: _summaryItem(
+            title: 'Status',
+            value: total > 0 ? 'Proses' : 'Aman',
+            icon: Icons.verified_outlined,
+            color: total > 0 ? blueStatus : primaryGreen,
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: _summaryItem(
+            title: 'Aksi',
+            value: total > 0 ? 'Cek' : 'Selesai',
+            icon: Icons.manage_search_outlined,
+            color: total > 0 ? orangeStatus : primaryGreen,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _summaryItem({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      height: 74,
+      padding: const EdgeInsets.all(10),
+      decoration: _cardDecoration(radius: 17),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const Spacer(),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: value.length > 6 ? 12.5 : 17,
+              height: 1,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _resetCard(Map<String, dynamic> item) {
     final nama = (item['nama'] ?? 'Anggota').toString();
     final nik = (item['nik'] ?? '-').toString();
     final tanggal = formatTanggal(item['tanggal_pengajuan']);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      decoration: _cardDecoration(radius: 20),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(radius: 22),
       child: Column(
         children: [
           Row(
             children: [
               _avatarBox(),
-              const SizedBox(width: 11),
+              const SizedBox(width: 13),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -436,33 +425,21 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: textDark,
-                        fontSize: 14.2,
+                        fontSize: 16,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.badge_rounded,
-                          size: 13,
-                          color: textGrey,
-                        ),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            sensorNik(nik),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: textGrey,
-                              fontSize: 11.4,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 5),
+                    Text(
+                      sensorNik(nik),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textGrey,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
                     ),
                   ],
                 ),
@@ -471,15 +448,17 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
               _statusBadge(),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Row(
             children: [
-              _miniInfo(
-                icon: Icons.calendar_month_rounded,
-                text: tanggal,
-                color: blueStatus,
+              Expanded(
+                child: _miniInfo(
+                  icon: Icons.calendar_month_outlined,
+                  text: tanggal,
+                  color: blueStatus,
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 10),
               _processButton(item),
             ],
           ),
@@ -490,24 +469,24 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
 
   Widget _avatarBox() {
     return Container(
-      height: 42,
-      width: 42,
+      height: 52,
+      width: 52,
       decoration: BoxDecoration(
-        color: orangeStatus.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: orangeStatus.withValues(alpha: 0.11)),
+        color: orangeStatus.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: orangeStatus.withValues(alpha: 0.12)),
       ),
       child: const Icon(
-        Icons.assignment_ind_rounded,
+        Icons.person_search_outlined,
         color: orangeStatus,
-        size: 21,
+        size: 27,
       ),
     );
   }
 
   Widget _statusBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5.5),
       decoration: BoxDecoration(
         color: orangeStatus.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(999),
@@ -517,7 +496,7 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
         'MENUNGGU',
         style: TextStyle(
           color: orangeStatus,
-          fontSize: 8.8,
+          fontSize: 9.5,
           fontWeight: FontWeight.w900,
           letterSpacing: 0.25,
         ),
@@ -526,37 +505,35 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
   }
 
   Widget _miniInfo({
-    required IconData icon,
-    required String text,
-    required Color color,
-  }) {
-    return Flexible(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: color.withValues(alpha: 0.08)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 11.5, color: color),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 9.8,
-                  fontWeight: FontWeight.w800,
-                ),
+  required IconData icon,
+  required String text,
+  required Color color,
+}) {
+  return Container(
+    constraints: const BoxConstraints(
+      minHeight: 42,
+    ),
+    padding: const EdgeInsets.symmetric(
+      horizontal: 10,
+      vertical: 8,
+    ),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -564,25 +541,25 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
   Widget _processButton(Map<String, dynamic> item) {
     return InkWell(
       onTap: () => bukaProsesReset(item),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(15),
       child: Container(
-        height: 31,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: primaryGreen.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: primaryGreen.withValues(alpha: 0.11)),
+          color: primaryGreen.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: primaryGreen.withValues(alpha: 0.15)),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.lock_reset_rounded, color: primaryGreen, size: 15),
-            SizedBox(width: 5),
+            Icon(Icons.lock_reset_rounded, color: primaryGreen, size: 19),
+            SizedBox(width: 7),
             Text(
               'Proses',
               style: TextStyle(
                 color: primaryGreen,
-                fontSize: 10.5,
+                fontSize: 13,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -600,8 +577,8 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
       child: Column(
         children: [
           Container(
-            height: 76,
-            width: 76,
+            height: 74,
+            width: 74,
             decoration: BoxDecoration(
               color: softGreen,
               shape: BoxShape.circle,
@@ -619,17 +596,17 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: textDark,
-              fontSize: 16.5,
+              fontSize: 16.2,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 7),
           const Text(
-            'Semua permintaan reset password sudah diproses atau belum ada anggota yang mengajukan.',
+            'Permintaan reset password anggota akan tampil di halaman ini.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: textGrey,
-              fontSize: 12.4,
+              fontSize: 12.2,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -642,32 +619,32 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
   Widget _loadingCard() {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(radius: 20),
       child: Row(
         children: [
           Container(
-            height: 42,
-            width: 42,
+            height: 52,
+            width: 52,
             decoration: BoxDecoration(
               color: borderColor,
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(17),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 13),
           Expanded(
             child: Column(
               children: [
                 Container(
-                  height: 13,
+                  height: 14,
                   decoration: BoxDecoration(
                     color: borderColor,
                     borderRadius: BorderRadius.circular(99),
                   ),
                 ),
-                const SizedBox(height: 9),
+                const SizedBox(height: 10),
                 Container(
-                  height: 11,
+                  height: 12,
                   decoration: BoxDecoration(
                     color: borderColor,
                     borderRadius: BorderRadius.circular(99),
@@ -693,8 +670,8 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
       child: Column(
         children: [
           Container(
-            height: 76,
-            width: 76,
+            height: 74,
+            width: 74,
             decoration: BoxDecoration(
               color: softGreen,
               shape: BoxShape.circle,
@@ -708,7 +685,7 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textDark,
-              fontSize: 16.5,
+              fontSize: 16.2,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -718,7 +695,7 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 12.4,
+              fontSize: 12.2,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -776,8 +753,8 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
       },
       borderRadius: BorderRadius.circular(15),
       child: Container(
-        height: 42,
-        width: 42,
+        height: 41,
+        width: 41,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(15),
@@ -786,7 +763,7 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
         child: const Icon(
           Icons.arrow_back_ios_new_rounded,
           color: Colors.white,
-          size: 17,
+          size: 16,
         ),
       ),
     );
@@ -799,8 +776,9 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.08)),
       ),
-      child: Icon(icon, color: color, size: 22),
+      child: Icon(icon, color: color, size: 21),
     );
   }
 
@@ -811,8 +789,8 @@ class _ResetPasswordAdminPageState extends State<ResetPasswordAdminPage> {
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.026),
-          blurRadius: 12,
+          color: Colors.black.withValues(alpha: 0.028),
+          blurRadius: 13,
           offset: const Offset(0, 5),
         ),
       ],

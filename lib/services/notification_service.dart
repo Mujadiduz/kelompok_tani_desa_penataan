@@ -1,3 +1,4 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -9,10 +10,12 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
+  static final DatabaseReference _db = FirebaseDatabase.instance.ref();
+
   static Future<void> init() async {
     await _requestPermission();
     await _initLocalNotification();
-    await _listenForegroundMessage();
+    _listenForegroundMessage();
   }
 
   static Future<void> _requestPermission() async {
@@ -29,21 +32,59 @@ class NotificationService {
     await _localNotifications.initialize(initSettings);
   }
 
-  static Future<void> _listenForegroundMessage() async {
+  static void _listenForegroundMessage() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       final notification = message.notification;
 
-      if (notification == null) return;
+      final title =
+          notification?.title ??
+          message.data['title'] ??
+          'Kelompok Tani Desa Penataan';
 
-      showLocalNotification(
-        title: notification.title ?? 'Kelompok Tani Desa Penataan',
-        body: notification.body ?? '',
-      );
+      final body =
+          notification?.body ?? message.data['body'] ?? 'Ada notifikasi baru';
+
+      showLocalNotification(title: title, body: body);
     });
   }
 
   static Future<String?> getToken() async {
     return _messaging.getToken();
+  }
+
+  static Future<void> saveTokenForUser(String nik) async {
+    if (nik.trim().isEmpty) return;
+
+    final token = await _messaging.getToken();
+    if (token == null || token.isEmpty) return;
+
+    await _db.child('anggota/$nik').update({
+      'fcm_token': token,
+      'updated_token_at': DateTime.now().toIso8601String(),
+    });
+
+    await _db.child('fcm_tokens/$nik/$token').set({
+      'nik': nik,
+      'token': token,
+      'platform': 'android',
+      'updated_at': DateTime.now().toIso8601String(),
+    });
+
+    _messaging.onTokenRefresh.listen((newToken) async {
+      if (newToken.isEmpty) return;
+
+      await _db.child('anggota/$nik').update({
+        'fcm_token': newToken,
+        'updated_token_at': DateTime.now().toIso8601String(),
+      });
+
+      await _db.child('fcm_tokens/$nik/$newToken').set({
+        'nik': nik,
+        'token': newToken,
+        'platform': 'android',
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    });
   }
 
   static Future<void> showLocalNotification({

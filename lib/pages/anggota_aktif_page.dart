@@ -21,7 +21,6 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color blueTone = Color(0xff2563EB);
-  static const Color pinkTone = Color(0xffC24172);
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -134,16 +133,18 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
     }
   }
 
+  String _luasLahan(Map<String, dynamic> item) {
+    final luas = _text(item['luas_lahan'] ?? item['luas_sawah'], fallback: '');
+    if (luas.isEmpty) return '-';
+    return '$luas ha';
+  }
+
   String _maskNik(dynamic value) {
     final nik = _text(value, fallback: '').replaceAll(RegExp(r'\s+'), '');
     if (nik.isEmpty) return '•••• •••• •••• ----';
 
     final last4 = nik.length >= 4 ? nik.substring(nik.length - 4) : nik;
     return '•••• •••• •••• $last4';
-  }
-
-  int _countGender(List<Map<String, dynamic>> data, List<String> values) {
-    return data.where((item) => values.contains(_genderRaw(item))).length;
   }
 
   List<Map<String, dynamic>> _filterData({
@@ -182,6 +183,8 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
         item['nomor_hp'],
         item['jenis_kelamin'],
         item['jenisKelamin'],
+        item['luas_lahan'],
+        item['luas_sawah'],
       ].map((e) => _text(e, fallback: '').toLowerCase()).join(' ');
 
       return combined.contains(q);
@@ -213,15 +216,6 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
               }
 
               final semuaData = _ambilData(snapshot.data?.snapshot.value);
-              final laki = _countGender(semuaData, [
-                'laki-laki',
-                'laki laki',
-                'pria',
-              ]);
-              final perempuan = _countGender(semuaData, [
-                'perempuan',
-                'wanita',
-              ]);
 
               return RefreshIndicator(
                 color: primaryGreen,
@@ -234,17 +228,11 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
                   children: [
                     _header(total: semuaData.length),
-                    const SizedBox(height: 16),
-                    _summaryRow(
-                      total: semuaData.length,
-                      laki: laki,
-                      perempuan: perempuan,
-                    ),
                     const SizedBox(height: 14),
                     _searchBox(),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _filterChips(),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     ValueListenableBuilder<String>(
                       valueListenable: _keywordNotifier,
                       builder: (context, keyword, _) {
@@ -350,7 +338,7 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Data anggota resmi Kelompok Tani Desa Penataan',
+                  'Data anggota resmi kelompok tani',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -400,96 +388,6 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
     );
   }
 
-  Widget _summaryRow({
-    required int total,
-    required int laki,
-    required int perempuan,
-  }) {
-    return Row(
-      children: [
-        Expanded(
-          child: _summaryItem(
-            title: 'Total Anggota',
-            value: total.toString(),
-            icon: Icons.diversity_3_rounded,
-            color: primaryGreen,
-          ),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: _summaryItem(
-            title: 'Laki-laki',
-            value: laki.toString(),
-            icon: Icons.badge_rounded,
-            color: blueTone,
-          ),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: _summaryItem(
-            title: 'Perempuan',
-            value: perempuan.toString(),
-            icon: Icons.assignment_ind_rounded,
-            color: pinkTone,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _summaryItem({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      height: 80,
-      padding: const EdgeInsets.all(9),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.022),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 15, color: color),
-          const Spacer(),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              height: 1,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: textGrey,
-              fontSize: 9.2,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _searchBox() {
     return Container(
       height: 52,
@@ -513,7 +411,7 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
         keyboardType: TextInputType.text,
         onChanged: (value) => _keywordNotifier.value = value,
         decoration: InputDecoration(
-          hintText: 'Cari nama atau NIK anggota...',
+          hintText: 'Cari nama, NIK, alamat, atau nomor...',
           prefixIcon: const Icon(
             Icons.manage_search_rounded,
             color: primaryGreen,
@@ -573,16 +471,20 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
                   final aktif = selected == item[0];
 
                   return Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: 6),
                     child: ChoiceChip(
                       selected: aktif,
                       showCheckmark: false,
-                      visualDensity: VisualDensity.compact,
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 7),
+                      visualDensity: const VisualDensity(
+                        horizontal: -3,
+                        vertical: -3,
+                      ),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 5),
                       selectedColor: primaryGreen,
                       backgroundColor: Colors.white,
                       side: BorderSide(
+                        width: 0.8,
                         color:
                             aktif
                                 ? primaryGreen.withValues(alpha: 0.85)
@@ -595,9 +497,11 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
                       labelStyle: TextStyle(
                         color: aktif ? Colors.white : textGrey,
                         fontWeight: FontWeight.w800,
-                        fontSize: 11.5,
+                        fontSize: 10,
                       ),
-                      onSelected: (_) => _filterNotifier.value = item[0],
+                      onSelected: (_) {
+                        _filterNotifier.value = item[0];
+                      },
                     ),
                   );
                 }).toList(),
@@ -721,14 +625,19 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
                       color: primaryGreen,
                     ),
                     _miniInfo(
-                      icon: Icons.fact_check_rounded,
+                      icon: Icons.wc_rounded,
                       text: _genderText(item),
                       color: blueTone,
                     ),
                     _miniInfo(
+                      icon: Icons.landscape_rounded,
+                      text: _luasLahan(item),
+                      color: darkGreen,
+                    ),
+                    _miniInfo(
                       icon: Icons.calendar_month_rounded,
                       text: _tanggalDaftar(item),
-                      color: darkGreen,
+                      color: textGrey,
                     ),
                   ],
                 ),

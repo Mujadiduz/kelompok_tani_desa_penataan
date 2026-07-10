@@ -14,7 +14,8 @@ class StatusKeanggotaanPage extends StatefulWidget {
 class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
-  static const Color softGreen = Color(0xffEAF7EC);
+  static const Color deepGreen = Color(0xff0F3D25);
+  static const Color softGreen = Color(0xffF3FBF5);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
   static const Color borderColor = Color(0xffE5E7EB);
@@ -126,10 +127,12 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
       SnackBar(
         content: Text(
           pesan,
-          style: const TextStyle(fontWeight: FontWeight.w700),
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -141,25 +144,17 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   }
 
   Color backgroundStatus(String status) {
-    if (status == 'aktif' || status == 'disetujui') {
-      return primaryGreen.withValues(alpha: 0.10);
-    }
-
-    if (status == 'ditolak') {
-      return dangerColor.withValues(alpha: 0.10);
-    }
-
-    return warningColor.withValues(alpha: 0.12);
+    return warnaStatus(status).withValues(alpha: 0.10);
   }
 
   IconData iconStatus(String status) {
     if (status == 'aktif' || status == 'disetujui') {
-      return Icons.verified_rounded;
+      return Icons.verified_outlined;
     }
 
-    if (status == 'ditolak') return Icons.cancel_rounded;
+    if (status == 'ditolak') return Icons.cancel_outlined;
 
-    return Icons.schedule_rounded;
+    return Icons.hourglass_top_rounded;
   }
 
   String teksStatus(String status) {
@@ -219,16 +214,16 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
           onTap: () => FocusScope.of(context).unfocus(),
           child: SafeArea(
             child: ListView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               physics: const BouncingScrollPhysics(
                 parent: AlwaysScrollableScrollPhysics(),
               ),
-              padding: EdgeInsets.fromLTRB(20, 18, 20, bottomInset + 28),
+              padding: EdgeInsets.fromLTRB(18, 14, 18, bottomInset + 28),
               children: [
                 _header(),
-                const SizedBox(height: 16),
-                _inputCard(),
                 const SizedBox(height: 14),
+                _inputCard(),
+                const SizedBox(height: 13),
                 dataAnggota == null ? _emptyInfoCard() : _hasilCard(status),
               ],
             ),
@@ -240,49 +235,41 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
 
   Widget _header() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      padding: const EdgeInsets.fromLTRB(13, 13, 13, 15),
       decoration: BoxDecoration(
-        color: darkGreen,
-        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [deepGreen, darkGreen, primaryGreen],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: darkGreen.withValues(alpha: 0.20),
-            blurRadius: 16,
-            offset: const Offset(0, 7),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Row(
         children: [
-          InkWell(
-            onTap: () => Navigator.pop(context),
-            borderRadius: BorderRadius.circular(12),
-            child: const SizedBox(
-              height: 40,
-              width: 36,
-              child: Icon(
-                Icons.arrow_back_rounded,
-                color: Colors.white,
-                size: 25,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
+          _backButton(),
+          const SizedBox(width: 11),
           Container(
             height: 42,
             width: 42,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.19)),
             ),
             child: const Icon(
-              Icons.manage_search_rounded,
+              Icons.manage_search_outlined,
               color: Colors.white,
-              size: 24,
+              size: 22,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,25 +280,47 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 18.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 3),
+                SizedBox(height: 4),
                 Text(
                   'Cek proses pendaftaran',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Color(0xffD1FAE5),
-                    fontSize: 11.8,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
+          _headerBadge(),
         ],
+      ),
+    );
+  }
+
+  Widget _headerBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: const Text(
+        'CEK',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 9.8,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.2,
+        ),
       ),
     );
   }
@@ -319,17 +328,17 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   Widget _inputCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(radius: 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _cardTitle(
-            icon: Icons.badge_rounded,
+            icon: Icons.badge_outlined,
             title: 'Masukkan NIK',
             subtitle: 'Gunakan NIK yang sama saat pendaftaran.',
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           TextField(
             controller: nikController,
             focusNode: nikFocus,
@@ -341,59 +350,49 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
             },
             style: const TextStyle(
               color: textDark,
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              fontSize: 14.3,
             ),
             decoration: _inputDecoration(
               label: 'NIK',
               hint: 'Masukkan 16 digit NIK',
-              icon: Icons.badge_rounded,
+              icon: Icons.credit_card_rounded,
             ),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             height: 52,
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryGreen,
                 disabledBackgroundColor: primaryGreen.withValues(alpha: 0.45),
                 elevation: 0,
                 shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(17),
                 ),
               ),
               onPressed: isLoading ? null : cekStatus,
-              child:
+              icon:
                   isLoading
                       ? const SizedBox(
-                        width: 21,
-                        height: 21,
+                        width: 20,
+                        height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.4,
                           color: Colors.white,
                         ),
                       )
-                      : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.search_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Cek Status',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 14.5,
-                            ),
-                          ),
-                        ],
-                      ),
+                      : const Icon(Icons.search_rounded, color: Colors.white),
+              label: Text(
+                isLoading ? 'Mengecek...' : 'Cek Status',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14.3,
+                ),
+              ),
             ),
           ),
         ],
@@ -406,28 +405,21 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(radius: 22),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(13),
             decoration: BoxDecoration(
               color: backgroundStatus(status),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(19),
               border: Border.all(color: color.withValues(alpha: 0.14)),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  height: 52,
-                  width: 52,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.13),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(iconStatus(status), color: color, size: 29),
-                ),
+                _statusIcon(status),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -437,7 +429,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
                         teksStatus(status),
                         style: TextStyle(
                           color: color,
-                          fontSize: 18,
+                          fontSize: 17.5,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -446,7 +438,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
                         pesanStatus(status),
                         style: const TextStyle(
                           color: textGrey,
-                          fontSize: 12,
+                          fontSize: 11.8,
                           height: 1.4,
                           fontWeight: FontWeight.w600,
                         ),
@@ -457,12 +449,27 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 13),
           _profileMiniCard(status),
-          const SizedBox(height: 14),
+          const SizedBox(height: 13),
           _detailBox(),
         ],
       ),
+    );
+  }
+
+  Widget _statusIcon(String status) {
+    final color = warnaStatus(status);
+
+    return Container(
+      height: 52,
+      width: 52,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: color.withValues(alpha: 0.10)),
+      ),
+      child: Icon(iconStatus(status), color: color, size: 28),
     );
   }
 
@@ -471,20 +478,24 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     final nama = (dataAnggota!['nama'] ?? '-').toString();
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(19),
         border: Border.all(color: borderColor),
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 23,
-            backgroundColor: color.withValues(alpha: 0.12),
-            child: Icon(Icons.person_rounded, color: color, size: 25),
+          Container(
+            height: 46,
+            width: 46,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(Icons.person_outline_rounded, color: color, size: 24),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Expanded(
             child: Text(
               nama,
@@ -492,62 +503,79 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: textDark,
-                fontSize: 15.5,
+                fontSize: 14.8,
                 fontWeight: FontWeight.w900,
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              teksStatus(status).toUpperCase(),
-              style: TextStyle(
-                color: color,
-                fontSize: 9.8,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
+          const SizedBox(width: 8),
+          _statusBadge(status),
         ],
+      ),
+    );
+  }
+
+  Widget _statusBadge(String status) {
+    final color = warnaStatus(status);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.12)),
+      ),
+      child: Text(
+        teksStatus(status).toUpperCase(),
+        style: TextStyle(
+          color: color,
+          fontSize: 8.8,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.2,
+        ),
       ),
     );
   }
 
   Widget _detailBox() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(19),
         border: Border.all(color: borderColor),
       ),
       child: Column(
         children: [
-          _infoRow(Icons.badge_rounded, 'NIK', dataAnggota!['nik'] ?? '-'),
+          _infoRow(Icons.badge_outlined, 'NIK', dataAnggota!['nik'] ?? '-'),
           _infoRow(
-            Icons.phone_rounded,
+            Icons.call_outlined,
             'Telepon',
-            dataAnggota!['telepon'] ?? '-',
+            dataAnggota!['telepon'] ??
+                dataAnggota!['no_hp'] ??
+                dataAnggota!['nomor_hp'] ??
+                '-',
           ),
-          _infoRow(Icons.home_rounded, 'Alamat', dataAnggota!['alamat'] ?? '-'),
           _infoRow(
-            Icons.wc_rounded,
+            Icons.home_outlined,
+            'Alamat',
+            dataAnggota!['alamat'] ?? '-',
+          ),
+          _infoRow(
+            Icons.wc_outlined,
             'Jenis Kelamin',
             dataAnggota!['jenis_kelamin'] ?? '-',
           ),
           _infoRow(
-            Icons.area_chart_rounded,
+            Icons.landscape_outlined,
             'Luas Lahan',
             '${ambilLuasSawah()} Ha',
           ),
           _infoRow(
-            Icons.event_rounded,
+            Icons.event_note_outlined,
             'Tanggal Daftar',
             formatTanggal(dataAnggota!['tanggal_daftar']),
+            isLast: true,
           ),
         ],
       ),
@@ -557,23 +585,23 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   Widget _emptyInfoCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: softGreen.withValues(alpha: 0.82),
+        color: softGreen,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.13)),
+        border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 22),
-          SizedBox(width: 10),
-          Expanded(
+          _iconBox(Icons.info_outline_rounded, primaryGreen),
+          const SizedBox(width: 11),
+          const Expanded(
             child: Text(
               'Hasil status akan tampil setelah NIK dicek. Pastikan NIK sesuai dengan data pendaftaran.',
               style: TextStyle(
                 color: textGrey,
-                fontSize: 12.4,
+                fontSize: 11.8,
                 height: 1.45,
                 fontWeight: FontWeight.w700,
               ),
@@ -591,15 +619,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
   }) {
     return Row(
       children: [
-        Container(
-          height: 42,
-          width: 42,
-          decoration: BoxDecoration(
-            color: primaryGreen.withValues(alpha: 0.11),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(icon, color: primaryGreen, size: 22),
-        ),
+        _iconBox(icon, primaryGreen),
         const SizedBox(width: 11),
         Expanded(
           child: Column(
@@ -609,7 +629,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
                 title,
                 style: const TextStyle(
                   color: textDark,
-                  fontSize: 18,
+                  fontSize: 16.2,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -618,7 +638,7 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
                 subtitle,
                 style: const TextStyle(
                   color: textGrey,
-                  fontSize: 12,
+                  fontSize: 11.6,
                   height: 1.35,
                   fontWeight: FontWeight.w600,
                 ),
@@ -630,23 +650,39 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     );
   }
 
-  Widget _infoRow(IconData icon, String label, dynamic value) {
+  Widget _infoRow(
+    IconData icon,
+    String label,
+    dynamic value, {
+    bool isLast = false,
+  }) {
     final text = value.toString().trim().isEmpty ? '-' : value.toString();
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+    return Container(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
+      margin: EdgeInsets.only(bottom: isLast ? 0 : 10),
+      decoration: BoxDecoration(
+        border:
+            isLast
+                ? null
+                : Border(
+                  bottom: BorderSide(
+                    color: borderColor.withValues(alpha: 0.75),
+                  ),
+                ),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: primaryGreen, size: 17),
           const SizedBox(width: 8),
           SizedBox(
-            width: 105,
+            width: 104,
             child: Text(
               label,
               style: const TextStyle(
                 color: textGrey,
-                fontSize: 12,
+                fontSize: 11.8,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -656,7 +692,8 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
               text,
               style: const TextStyle(
                 color: textDark,
-                fontSize: 12,
+                fontSize: 11.9,
+                height: 1.3,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -674,25 +711,64 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      prefixIcon: Icon(icon, color: primaryGreen),
+      prefixIcon: Icon(icon, color: primaryGreen, size: 20),
       counterText: '',
       filled: true,
       fillColor: const Color(0xffF9FAFB),
-      labelStyle: const TextStyle(color: textGrey, fontWeight: FontWeight.w700),
+      labelStyle: const TextStyle(
+        color: textGrey,
+        fontSize: 12.5,
+        fontWeight: FontWeight.w700,
+      ),
       hintStyle: TextStyle(
-        color: Colors.black.withValues(alpha: 0.35),
+        color: Colors.black.withValues(alpha: 0.34),
+        fontSize: 12.5,
         fontWeight: FontWeight.w600,
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(15),
         borderSide: const BorderSide(color: borderColor),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: primaryGreen, width: 1.5),
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(color: primaryGreen, width: 1.4),
       ),
+    );
+  }
+
+  Widget _backButton() {
+    return InkWell(
+      onTap: () => Navigator.pop(context),
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        height: 41,
+        width: 41,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+        ),
+        child: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          color: Colors.white,
+          size: 16,
+        ),
+      ),
+    );
+  }
+
+  Widget _iconBox(IconData icon, Color color) {
+    return Container(
+      height: 42,
+      width: 42,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.08)),
+      ),
+      child: Icon(icon, color: color, size: 21),
     );
   }
 
@@ -703,9 +779,9 @@ class _StatusKeanggotaanPageState extends State<StatusKeanggotaanPage> {
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.045),
-          blurRadius: 14,
-          offset: const Offset(0, 6),
+          color: Colors.black.withValues(alpha: 0.028),
+          blurRadius: 13,
+          offset: const Offset(0, 5),
         ),
       ],
     );

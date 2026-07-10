@@ -69,11 +69,14 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     return status == '-' ? 'menunggu' : status;
   }
 
-  String ambilNik(Map<dynamic, dynamic> item) {
-    return _text(
-      item['nik'] ?? item['nik_anggota'] ?? item['nik_user'] ?? item['nikUser'],
-    );
-  }
+String ambilNik(Map<dynamic, dynamic> item) {
+  return _text(
+    item['nik'] ??
+        item['nik_anggota'] ??
+        item['nik_user'] ??
+        item['nikUser'],
+  ).replaceAll(RegExp(r'[^0-9]'), '');
+}
 
   String ambilNama(Map<dynamic, dynamic> item) {
     return _text(
@@ -893,7 +896,7 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
         'semua',
         totalSemua,
         Icons.dashboard_customize_rounded,
-        blueStatus,
+        primaryGreen,
       ),
       _FilterItem(
         'Menunggu',
@@ -913,14 +916,14 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
         'Dipinjam',
         'dipinjam',
         totalDipinjam,
-        Icons.inventory_2_rounded,
-        purpleStatus,
+        Icons.agriculture_rounded,
+        primaryGreen,
       ),
       _FilterItem(
         'Kembali',
         'dikembalikan',
         totalDikembalikan,
-        Icons.assignment_turned_in_rounded,
+        Icons.assignment_return_rounded,
         primaryGreen,
       ),
       _FilterItem(
@@ -933,73 +936,67 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(9),
       decoration: _cardDecoration(radius: 18),
-      child: GridView.builder(
-        itemCount: filters.length,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          childAspectRatio: 0.98,
-        ),
-        itemBuilder: (context, index) {
-          final item = filters[index];
-          final aktif = selectedFilter == item.value;
+      child: Wrap(
+        spacing: 7,
+        runSpacing: 7,
+        children:
+            filters.map((item) {
+              final aktif = selectedFilter == item.value;
 
-          return InkWell(
-            onTap: () => setState(() => selectedFilter = item.value),
-            borderRadius: BorderRadius.circular(15),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 170),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              decoration: BoxDecoration(
-                color: aktif ? item.color : item.color.withValues(alpha: 0.075),
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(
-                  color:
-                      aktif ? item.color : item.color.withValues(alpha: 0.13),
-                ),
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      item.icon,
-                      color: aktif ? Colors.white : item.color,
-                      size: 20,
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    selectedFilter = item.value;
+                  });
+                },
+                borderRadius: BorderRadius.circular(999),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color:
+                        aktif ? item.color : item.color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: item.color.withValues(alpha: 0.18),
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      item.total > 99 ? '99+' : item.total.toString(),
-                      style: TextStyle(
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        item.icon,
+                        size: 14,
                         color: aktif ? Colors.white : item.color,
-                        fontSize: 17,
-                        height: 1,
-                        fontWeight: FontWeight.w900,
                       ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      item.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: aktif ? Colors.white : textDark,
-                        fontSize: 10.2,
-                        fontWeight: FontWeight.w900,
+                      const SizedBox(width: 5),
+                      Text(
+                        item.total > 99 ? '99+' : item.total.toString(),
+                        style: TextStyle(
+                          color: aktif ? Colors.white : item.color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          color: aktif ? Colors.white : textDark,
+                          fontSize: 10.8,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          );
-        },
+              );
+            }).toList(),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/notification_helper.dart';
 import '../widgets/app_background.dart';
@@ -53,6 +54,11 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     return result.isEmpty ? '-' : result;
   }
 
+  double _number(dynamic value) {
+    if (value == null) return 0;
+    return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0;
+  }
+
   String ambilNik(Map<String, dynamic> item) {
     return _text(item['nik'] ?? item['nik_anggota'] ?? item['nik_user']);
   }
@@ -61,9 +67,294 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     return _text(item['nama'] ?? item['nama_anggota'] ?? item['nama_user']);
   }
 
+  String ambilTelepon(Map<String, dynamic> item) {
+    return _text(
+      item['telepon'] ??
+          item['no_hp'] ??
+          item['nomor_hp'] ??
+          item['nomor_telepon'],
+    );
+  }
+
+  String ambilPassword(Map<String, dynamic> item) {
+    final password = item['password']?.toString().trim() ?? '';
+    return password;
+  }
+
   String normalStatus(Map<String, dynamic> item) {
     final status = _text(item['status']).toLowerCase();
     return status == '-' ? 'menunggu' : status;
+  }
+
+  String luasLahanText(Map<String, dynamic> item) {
+    final luasBaru = item['luas_lahan'];
+    final luasLama = item['luas_sawah'];
+
+    if (luasBaru != null && _text(luasBaru) != '-') {
+      final angka = _number(luasBaru);
+      if (angka > 0) return '${angka.toStringAsFixed(3)} ha';
+      return '${_text(luasBaru)} ha';
+    }
+
+    if (luasLama != null && _text(luasLama) != '-') {
+      return '${_text(luasLama)} ha';
+    }
+
+    return '-';
+  }
+
+  String keteranganLahanText(Map<String, dynamic> item) {
+    final ket = _text(item['keterangan_luas_lahan']);
+    if (ket != '-') return ket;
+
+    final mode = _text(item['mode_lahan']);
+    if (mode != '-') return 'Input menggunakan satuan $mode';
+
+    return '-';
+  }
+
+  String formatNomorTujuan(String nomor) {
+    var clean = nomor.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (clean.startsWith('0')) {
+      clean = '62${clean.substring(1)}';
+    } else if (clean.startsWith('8')) {
+      clean = '62$clean';
+    }
+
+    return clean;
+  }
+
+  String buatPesanVerifikasi({
+    required String nama,
+    required String nik,
+    required String password,
+  }) {
+    return 'Yth. Bapak/Ibu $nama,\n\n'
+        'Kami informasikan bahwa pengajuan Anda sebagai Anggota Kelompok Tani Desa Penataan telah disetujui.\n\n'
+        'Silakan login ke aplikasi TaniGo menggunakan data berikut:\n\n'
+        'NIK      : $nik\n'
+        'Password : $password\n\n'
+        'Demi keamanan akun, kami menyarankan Anda untuk segera mengganti password setelah berhasil login.\n\n'
+        'Terima kasih.\n\n'
+        'Salam,\n'
+        'Admin TaniGo\n'
+        'Kelompok Tani Desa Penataan';
+  }
+
+  Future<void> bukaWhatsAppAnggota({
+    required String nama,
+    required String nik,
+    required String password,
+    required String telepon,
+  }) async {
+    final nomor = formatNomorTujuan(telepon);
+
+    if (nomor.length < 10) {
+      _showSnackBar('Nomor WhatsApp anggota tidak valid.', redStatus);
+      return;
+    }
+
+    final pesan = Uri.encodeComponent(
+      buatPesanVerifikasi(nama: nama, nik: nik, password: password),
+    );
+
+    final uri = Uri.parse('https://wa.me/$nomor?text=$pesan');
+    final berhasil = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!berhasil && mounted) {
+      _showSnackBar('WhatsApp tidak dapat dibuka.', redStatus);
+    }
+  }
+
+  Future<void> bukaSmsAnggota({
+    required String nama,
+    required String nik,
+    required String password,
+    required String telepon,
+  }) async {
+    final nomor = telepon.replaceAll(RegExp(r'[^0-9+]'), '');
+
+    if (nomor.length < 10) {
+      _showSnackBar('Nomor SMS anggota tidak valid.', redStatus);
+      return;
+    }
+
+    final pesan = Uri.encodeComponent(
+      buatPesanVerifikasi(nama: nama, nik: nik, password: password),
+    );
+
+    final uri = Uri.parse('sms:$nomor?body=$pesan');
+    final berhasil = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!berhasil && mounted) {
+      _showSnackBar('Aplikasi SMS tidak dapat dibuka.', redStatus);
+    }
+  }
+
+  Future<void> tampilkanDialogKirimPesan({
+    required String nama,
+    required String nik,
+    required String password,
+    required String telepon,
+  }) async {
+    final hasil = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _dialogIcon(Icons.verified_user_rounded, primaryGreen),
+                const SizedBox(height: 15),
+                const Text(
+                  'Anggota Berhasil Diverifikasi',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: textDark,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  'Pilih media pemberitahuan untuk mengirim informasi login kepada $nama.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 12.7,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _dialogActionButton(
+                  title: 'Kirim WhatsApp',
+                  subtitle: 'Buka WhatsApp admin ke nomor anggota',
+                  icon: Icons.chat_rounded,
+                  color: primaryGreen,
+                  onTap: () => Navigator.pop(dialogContext, 'wa'),
+                ),
+                const SizedBox(height: 10),
+                _dialogActionButton(
+                  title: 'Kirim SMS',
+                  subtitle: 'Gunakan jika nomor tidak memiliki WhatsApp',
+                  icon: Icons.sms_rounded,
+                  color: blueStatus,
+                  onTap: () => Navigator.pop(dialogContext, 'sms'),
+                ),
+                const SizedBox(height: 13),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: textDark,
+                      side: const BorderSide(color: borderColor),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(dialogContext, 'lewati'),
+                    child: const Text(
+                      'Lewati',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (hasil == 'wa') {
+      await bukaWhatsAppAnggota(
+        nama: nama,
+        nik: nik,
+        password: password,
+        telepon: telepon,
+      );
+    } else if (hasil == 'sms') {
+      await bukaSmsAnggota(
+        nama: nama,
+        nik: nik,
+        password: password,
+        telepon: telepon,
+      );
+    }
+  }
+
+  Widget _dialogActionButton({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.075),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.16)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 42,
+              width: 42,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: Colors.white, size: 21),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: textDark,
+                      fontSize: 13.2,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: textGrey,
+                      fontSize: 11.4,
+                      height: 1.25,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, color: color, size: 15),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> setujuiAnggota(String id, Map<String, dynamic> anggota) async {
@@ -71,21 +362,57 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
     setState(() => isProcessing = true);
 
-    try {
-      final nik = ambilNik(anggota);
-      final nama = ambilNama(anggota);
+    String nik = '';
+    String nama = '-';
+    String password = '';
+    String telepon = '-';
+    bool berhasil = false;
 
-      await anggotaRef.child(id).set({
+    try {
+      nik = ambilNik(anggota).replaceAll(RegExp(r'[^0-9]'), '');
+      nama = ambilNama(anggota);
+      password = ambilPassword(anggota);
+      telepon = ambilTelepon(anggota);
+
+      if (nik.length != 16) {
+        _showSnackBar('NIK calon anggota tidak valid.', redStatus);
+        return;
+      }
+
+      if (password.isEmpty) {
+        _showSnackBar('Password calon anggota belum tersimpan.', redStatus);
+        return;
+      }
+
+      await anggotaRef.child(nik).set({
         'nama': nama,
         'nik': nik,
-        'telepon': _text(anggota['telepon']),
+        'telepon': telepon,
         'alamat': _text(anggota['alamat']),
         'jenis_kelamin': _text(anggota['jenis_kelamin']),
-        'luas_sawah': _text(anggota['luas_sawah']),
+
+        'luas_lahan': anggota['luas_lahan'] ?? anggota['luas_sawah'] ?? 0,
+
+        'satuan_lahan': anggota['satuan_lahan'] ?? 'ha',
+
+        'mode_lahan': anggota['mode_lahan'] ?? '-',
+
+        'jumlah_petak': anggota['jumlah_petak'] ?? 0,
+
+        'luas_per_petak_m2': anggota['luas_per_petak_m2'] ?? 0,
+
+        'luas_meter_m2': anggota['luas_meter_m2'] ?? 0,
+
+        'keterangan_luas_lahan':
+            anggota['keterangan_luas_lahan'] ?? keteranganLahanText(anggota),
+
         'foto_ktp_base64': _text(anggota['foto_ktp_base64']),
+
         'tanggal_daftar': _text(anggota['tanggal_daftar']),
+
         'tanggal_verifikasi': DateTime.now().toIso8601String(),
-        'password': _text(anggota['password']),
+
+        'password': password,
         'status': 'aktif',
       });
 
@@ -93,13 +420,26 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
       unawaited(NotificationHelper.anggotaDisetujui(nik: nik, nama: nama));
 
-      if (!mounted) return;
-      _showSnackBar('Anggota berhasil disetujui.', primaryGreen);
+      berhasil = true;
     } catch (_) {
       if (!mounted) return;
+
       _showSnackBar('Gagal menyetujui anggota.', redStatus);
     } finally {
-      if (mounted) setState(() => isProcessing = false);
+      if (mounted) {
+        setState(() => isProcessing = false);
+      }
+    }
+
+    if (!mounted) return;
+
+    if (berhasil) {
+      await tampilkanDialogKirimPesan(
+        nama: nama,
+        nik: nik,
+        password: password,
+        telepon: telepon,
+      );
     }
   }
 
@@ -152,19 +492,9 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  height: 62,
-                  width: 62,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: color.withValues(alpha: 0.16)),
-                  ),
-                  child: Icon(
-                    isSetuju ? Icons.verified_rounded : Icons.block_rounded,
-                    color: color,
-                    size: 32,
-                  ),
+                _dialogIcon(
+                  isSetuju ? Icons.verified_rounded : Icons.block_rounded,
+                  color,
                 ),
                 const SizedBox(height: 15),
                 Text(
@@ -538,8 +868,8 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
             onTap: isProcessing ? null : () => Navigator.pop(context),
             borderRadius: BorderRadius.circular(14),
             child: Container(
-              height: 42,
-              width: 42,
+              height: 41,
+              width: 41,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(14),
@@ -557,7 +887,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                   'Verifikasi Anggota',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 19,
+                    fontSize: 18.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -566,7 +896,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
                   'Kelola calon anggota baru',
                   style: TextStyle(
                     color: Color(0xffD1FAE5),
-                    fontSize: 12,
+                    fontSize: 11.8,
                     height: 1.3,
                     fontWeight: FontWeight.w600,
                   ),
@@ -582,11 +912,11 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
   Widget _headerCounter(int total) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 48, minHeight: 44),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(13),
         border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
       ),
       child: Column(
@@ -595,17 +925,17 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
             total > 99 ? '99+' : total.toString(),
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 17,
+              fontSize: 16,
               height: 1,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             'baru',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.82),
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -652,73 +982,66 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(9),
       decoration: _cardDecoration(radius: 18),
-      child: GridView.builder(
-        itemCount: filters.length,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          childAspectRatio: 0.78,
-        ),
-        itemBuilder: (context, index) {
-          final item = filters[index];
-          final aktif = selectedFilter == item.value;
+      child: Wrap(
+        spacing: 7,
+        runSpacing: 7,
+        children:
+            filters.map((item) {
+              final aktif = selectedFilter == item.value;
 
-          return InkWell(
-            onTap: () => setState(() => selectedFilter = item.value),
-            borderRadius: BorderRadius.circular(15),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 170),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              decoration: BoxDecoration(
-                color: aktif ? item.color : item.color.withValues(alpha: 0.075),
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(
-                  color:
-                      aktif ? item.color : item.color.withValues(alpha: 0.13),
-                ),
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      item.icon,
-                      color: aktif ? Colors.white : item.color,
-                      size: 20,
+              return InkWell(
+                onTap: () => setState(() => selectedFilter = item.value),
+                borderRadius: BorderRadius.circular(999),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 170),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color:
+                        aktif ? item.color : item.color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color:
+                          aktif
+                              ? item.color
+                              : item.color.withValues(alpha: 0.16),
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      item.total > 99 ? '99+' : item.total.toString(),
-                      style: TextStyle(
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        item.icon,
                         color: aktif ? Colors.white : item.color,
-                        fontSize: 17,
-                        height: 1,
-                        fontWeight: FontWeight.w900,
+                        size: 15,
                       ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      item.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: aktif ? Colors.white : textDark,
-                        fontSize: 10.2,
-                        fontWeight: FontWeight.w900,
+                      const SizedBox(width: 5),
+                      Text(
+                        item.total > 99 ? '99+' : item.total.toString(),
+                        style: TextStyle(
+                          color: aktif ? Colors.white : item.color,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          color: aktif ? Colors.white : textDark,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          );
-        },
+              );
+            }).toList(),
       ),
     );
   }
@@ -823,8 +1146,8 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     return Row(
       children: [
         Container(
-          height: 48,
-          width: 48,
+          height: 46,
+          width: 46,
           decoration: BoxDecoration(
             color: primaryGreen.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(15),
@@ -832,7 +1155,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
           child: const Icon(
             Icons.person_search_rounded,
             color: primaryGreen,
-            size: 25,
+            size: 24,
           ),
         ),
         const SizedBox(width: 11),
@@ -883,10 +1206,16 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
           _infoRow(Icons.wc_rounded, 'Kelamin', anggota['jenis_kelamin']),
           _infoRow(
             Icons.landscape_rounded,
-            'Luas Sawah',
-            '${_text(anggota['luas_sawah'])} Ha',
+            'Luas Lahan',
+            luasLahanText(anggota),
             valueColor: primaryGreen,
           ),
+          if (keteranganLahanText(anggota) != '-')
+            _infoRow(
+              Icons.info_outline_rounded,
+              'Keterangan',
+              keteranganLahanText(anggota),
+            ),
           _infoRow(
             Icons.calendar_month_rounded,
             'Daftar',
@@ -911,12 +1240,12 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
           Icon(icon, color: primaryGreen, size: 17),
           const SizedBox(width: 8),
           SizedBox(
-            width: 86,
+            width: 84,
             child: Text(
               label,
               style: const TextStyle(
                 color: textGrey,
-                fontSize: 11.8,
+                fontSize: 11.6,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -927,7 +1256,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: valueColor ?? textDark,
-                fontSize: 11.8,
+                fontSize: 11.6,
                 height: 1.35,
                 fontWeight: FontWeight.w900,
               ),
@@ -941,7 +1270,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
   Widget _ktpButton(String fotoKtpBase64) {
     return SizedBox(
       width: double.infinity,
-      height: 44,
+      height: 43,
       child: OutlinedButton.icon(
         style: OutlinedButton.styleFrom(
           foregroundColor: primaryGreen,
@@ -962,8 +1291,8 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
   Widget _statusBadge(String status) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 92),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      constraints: const BoxConstraints(maxWidth: 84),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: backgroundStatus(status),
         borderRadius: BorderRadius.circular(30),
@@ -976,7 +1305,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: warnaStatus(status),
-          fontSize: 9.8,
+          fontSize: 9.3,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -990,7 +1319,7 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
     required VoidCallback onPressed,
   }) {
     return SizedBox(
-      height: 46,
+      height: 45,
       child: ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
@@ -1052,6 +1381,19 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _dialogIcon(IconData icon, Color color) {
+    return Container(
+      height: 64,
+      width: 64,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Icon(icon, color: color, size: 34),
     );
   }
 

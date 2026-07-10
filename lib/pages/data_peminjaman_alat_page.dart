@@ -120,10 +120,6 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
     return '•••• •••• •••• $last4';
   }
 
-  int _countStatus(List<Map<String, dynamic>> data, List<String> statuses) {
-    return data.where((item) => statuses.contains(_statusData(item))).length;
-  }
-
   Color _statusColor(String status) {
     if (status == 'disetujui') return blueStatus;
     if (status == 'ditolak') return redStatus;
@@ -153,16 +149,16 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
   }
 
   String _statusText(String status) {
-    if (status == 'disetujui') return 'Disetujui';
-    if (status == 'ditolak') return 'Ditolak';
-    if (status == 'dipinjam' || status == 'diambil') return 'Dipinjam';
+    if (status == 'disetujui') return 'Setuju';
+    if (status == 'ditolak') return 'Tolak';
+    if (status == 'dipinjam' || status == 'diambil') return 'Dipakai';
     if (status == 'selesai' ||
         status == 'dikembalikan' ||
         status == 'sudah_dikembalikan') {
       return 'Selesai';
     }
 
-    return 'Menunggu';
+    return 'Pengajuan';
   }
 
   List<Map<String, dynamic>> _filterData({
@@ -237,16 +233,6 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
 
               final semuaData = _ambilData(snapshot.data?.snapshot.value);
 
-              final menunggu = _countStatus(semuaData, ['menunggu']);
-              final disetujui = _countStatus(semuaData, ['disetujui']);
-              final dipinjam = _countStatus(semuaData, ['dipinjam', 'diambil']);
-              final selesai = _countStatus(semuaData, [
-                'selesai',
-                'dikembalikan',
-                'sudah_dikembalikan',
-              ]);
-              final ditolak = _countStatus(semuaData, ['ditolak']);
-
               return RefreshIndicator(
                 color: primaryGreen,
                 backgroundColor: Colors.white,
@@ -258,20 +244,11 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
                   children: [
                     _header(total: semuaData.length),
-                    const SizedBox(height: 16),
-                    _summaryCard(
-                      total: semuaData.length,
-                      menunggu: menunggu,
-                      disetujui: disetujui,
-                      dipinjam: dipinjam,
-                      selesai: selesai,
-                      ditolak: ditolak,
-                    ),
                     const SizedBox(height: 14),
                     _searchBox(),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _filterChips(),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     ValueListenableBuilder<String>(
                       valueListenable: _keywordNotifier,
                       builder: (context, keyword, _) {
@@ -377,7 +354,7 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Riwayat pengajuan peminjaman alat pertanian',
+                  'Riwayat pengajuan dan penggunaan alat',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -420,134 +397,6 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryCard({
-    required int total,
-    required int menunggu,
-    required int disetujui,
-    required int dipinjam,
-    required int selesai,
-    required int ditolak,
-  }) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _summaryItem(
-                title: 'Total',
-                value: total.toString(),
-                icon: Icons.dataset_rounded,
-                color: primaryGreen,
-              ),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: _summaryItem(
-                title: 'Menunggu',
-                value: menunggu.toString(),
-                icon: Icons.pending_actions_rounded,
-                color: orangeStatus,
-              ),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: _summaryItem(
-                title: 'Disetujui',
-                value: disetujui.toString(),
-                icon: Icons.verified_user_rounded,
-                color: blueStatus,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 9),
-        Row(
-          children: [
-            Expanded(
-              child: _summaryItem(
-                title: 'Dipinjam',
-                value: dipinjam.toString(),
-                icon: Icons.handyman_rounded,
-                color: orangeStatus,
-              ),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: _summaryItem(
-                title: 'Selesai',
-                value: selesai.toString(),
-                icon: Icons.task_alt_rounded,
-                color: primaryGreen,
-              ),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: _summaryItem(
-                title: 'Ditolak',
-                value: ditolak.toString(),
-                icon: Icons.cancel_presentation_rounded,
-                color: redStatus,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _summaryItem({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      height: 74,
-      padding: const EdgeInsets.all(9),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.022),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 15, color: color),
-          const Spacer(),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              height: 1,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: textGrey,
-              fontSize: 9.2,
-              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -622,11 +471,11 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
   Widget _filterChips() {
     final filters = [
       ['semua', 'Semua'],
-      ['menunggu', 'Menunggu'],
-      ['disetujui', 'Disetujui'],
-      ['dipinjam', 'Dipinjam'],
+      ['menunggu', 'Pengajuan'],
+      ['disetujui', 'Setuju'],
+      ['dipinjam', 'Dipakai'],
       ['selesai', 'Selesai'],
-      ['ditolak', 'Ditolak'],
+      ['ditolak', 'Tolak'],
     ];
 
     return ValueListenableBuilder<String>(
@@ -641,16 +490,20 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
                   final aktif = selected == item[0];
 
                   return Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: 6),
                     child: ChoiceChip(
                       selected: aktif,
                       showCheckmark: false,
-                      visualDensity: VisualDensity.compact,
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 7),
+                      visualDensity: const VisualDensity(
+                        horizontal: -3,
+                        vertical: -3,
+                      ),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 5),
                       selectedColor: primaryGreen,
                       backgroundColor: Colors.white,
                       side: BorderSide(
+                        width: 0.8,
                         color:
                             aktif
                                 ? primaryGreen.withValues(alpha: 0.85)
@@ -663,9 +516,11 @@ class _DataPeminjamanAlatPageState extends State<DataPeminjamanAlatPage> {
                       labelStyle: TextStyle(
                         color: aktif ? Colors.white : textGrey,
                         fontWeight: FontWeight.w800,
-                        fontSize: 11.5,
+                        fontSize: 10,
                       ),
-                      onSelected: (_) => _filterNotifier.value = item[0],
+                      onSelected: (_) {
+                        _filterNotifier.value = item[0];
+                      },
                     ),
                   );
                 }).toList(),

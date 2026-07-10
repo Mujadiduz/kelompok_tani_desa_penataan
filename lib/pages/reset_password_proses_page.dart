@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/notification_helper.dart';
 import '../widgets/app_background.dart';
@@ -27,7 +28,8 @@ class ResetPasswordProsesPage extends StatefulWidget {
 class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
-  static const Color softGreen = Color(0xffEAF7EC);
+  static const Color deepGreen = Color(0xff0F3D25);
+  static const Color softGreen = Color(0xffF3FBF5);
   static const Color bgColor = Color(0xffF6FAF7);
   static const Color textDark = Color(0xff1F2937);
   static const Color textGrey = Color(0xff6B7280);
@@ -51,6 +53,9 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
   bool isLoading = false;
   bool obscurePassword = false;
 
+  String nomorAnggota = '';
+  String passwordTersimpan = '';
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +75,71 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
     final random = Random();
     final angka = List.generate(6, (_) => random.nextInt(10)).join();
     return 'TG$angka';
+  }
+
+ String _ambilNomor(Map<String, dynamic> data) {
+  final raw = data['telepon'] ?? data['no_hp'] ?? data['nomor_hp'] ?? '';
+  return raw.toString().trim();
+}
+
+  String _formatNomorIndonesia(String nomor) {
+    var clean = nomor.replaceAll(RegExp(r'[^0-9+]'), '');
+
+    if (clean.startsWith('+')) {
+      clean = clean.substring(1);
+    }
+
+    if (clean.startsWith('0')) {
+      clean = '62${clean.substring(1)}';
+    }
+
+    if (!clean.startsWith('62') && clean.length >= 10) {
+      clean = '62$clean';
+    }
+
+    return clean;
+  }
+
+  String _pesanPassword(String passwordBaru) {
+    return 'Halo ${widget.nama}, password akun TaniGo Anda sudah direset oleh admin.\n\n'
+        'Password baru: $passwordBaru\n\n'
+        'Silakan login menggunakan password tersebut. Setelah berhasil masuk, disarankan mengganti password kembali melalui menu profil.\n\n'
+        'Terima kasih.';
+  }
+
+  Future<void> _kirimWhatsApp(String passwordBaru) async {
+    final nomor = _formatNomorIndonesia(nomorAnggota);
+
+    if (nomor.isEmpty || nomor.length < 10) {
+      _showMessage('Nomor WhatsApp anggota tidak tersedia.', dangerColor);
+      return;
+    }
+
+    final pesan = Uri.encodeComponent(_pesanPassword(passwordBaru));
+    final uri = Uri.parse('https://wa.me/$nomor?text=$pesan');
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      _showMessage('WhatsApp tidak dapat dibuka.', dangerColor);
+    }
+  }
+
+  Future<void> _kirimSms(String passwordBaru) async {
+    final nomor = _formatNomorIndonesia(nomorAnggota);
+
+    if (nomor.isEmpty || nomor.length < 10) {
+      _showMessage('Nomor SMS anggota tidak tersedia.', dangerColor);
+      return;
+    }
+
+    final uri = Uri(
+      scheme: 'sms',
+      path: nomor,
+      queryParameters: {'body': _pesanPassword(passwordBaru)},
+    );
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      _showMessage('Aplikasi SMS tidak dapat dibuka.', dangerColor);
+    }
   }
 
   Future<void> simpanPasswordBaru() async {
@@ -105,6 +175,10 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
 
       final data = Map<dynamic, dynamic>.from(anggotaSnapshot.value as Map);
       final idAnggota = data.keys.first.toString();
+      final anggota = Map<String, dynamic>.from(data.values.first as Map);
+
+      nomorAnggota = _ambilNomor(anggota);
+      passwordTersimpan = passwordBaru;
 
       await anggotaRef
           .child(idAnggota)
@@ -128,9 +202,8 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
       );
 
       if (!mounted) return;
-
-      _showSuccessDialog();
-    } catch (e) {
+      _showSuccessDialog(passwordBaru);
+    } catch (_) {
       if (!mounted) return;
       _showMessage(
         'Gagal reset password. Periksa koneksi internet.',
@@ -157,17 +230,20 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
       SnackBar(
         content: Text(
           message,
-          style: const TextStyle(fontWeight: FontWeight.w700),
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
 
-  void _showSuccessDialog() {
+  void _showSuccessDialog(String passwordBaru) {
     if (!mounted) return;
+
+    final nomorAda = _formatNomorIndonesia(nomorAnggota).length >= 10;
 
     showDialog(
       context: context,
@@ -175,72 +251,148 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
       builder: (dialogContext) {
         return Dialog(
           backgroundColor: Colors.white,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 22),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  height: 72,
-                  width: 72,
+                  height: 70,
+                  width: 70,
                   decoration: BoxDecoration(
                     color: primaryGreen.withValues(alpha: 0.10),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: primaryGreen.withValues(alpha: 0.12),
+                      color: primaryGreen.withValues(alpha: 0.13),
                     ),
                   ),
                   child: const Icon(
-                    Icons.verified_user_rounded,
+                    Icons.verified_outlined,
                     color: primaryGreen,
                     size: 36,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 15),
                 const Text(
                   'Password Berhasil Direset',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: textDark,
-                    fontSize: 18,
+                    fontSize: 17.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Password baru berhasil dibuat dan dikirim ke notifikasi anggota.',
+                Text(
+                  nomorAda
+                      ? 'Password sudah disimpan. Admin dapat mengirim password baru melalui WhatsApp atau SMS.'
+                      : 'Password sudah disimpan dan masuk ke notifikasi anggota. Nomor anggota tidak terdeteksi.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: textGrey,
-                    fontSize: 12.8,
+                    fontSize: 12.5,
                     height: 1.45,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 22),
-                SizedBox(
+                const SizedBox(height: 16),
+                Container(
                   width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryGreen,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: softGreen,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: primaryGreen.withValues(alpha: 0.11),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Password Baru',
+                        style: TextStyle(
+                          color: textGrey,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        passwordBaru,
+                        style: const TextStyle(
+                          color: primaryGreen,
+                          fontSize: 20,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                if (nomorAda) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    height: 45,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _kirimWhatsApp(passwordBaru),
+                      icon: const Icon(Icons.chat_outlined, size: 18),
+                      label: const Text(
+                        'Kirim via WhatsApp',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryGreen,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 9),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 45,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _kirimSms(passwordBaru),
+                      icon: const Icon(Icons.sms_outlined, size: 18),
+                      label: const Text(
+                        'Kirim via SMS',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: blueStatus,
+                        side: BorderSide(
+                          color: blueStatus.withValues(alpha: 0.38),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 9),
+                ],
+                SizedBox(
+                  width: double.infinity,
+                  height: 45,
+                  child: TextButton(
                     onPressed: () {
                       Navigator.pop(dialogContext);
                       Navigator.pop(context);
                     },
                     child: const Text(
                       'Selesai',
-                      style: TextStyle(fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        color: textGrey,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                 ),
@@ -264,15 +416,16 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
           onTap: () => FocusScope.of(context).unfocus(),
           child: SafeArea(
             child: ListView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+              physics: const BouncingScrollPhysics(),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: EdgeInsets.fromLTRB(18, 14, 18, bottomInset + 28),
               children: [
                 _header(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 _userCard(),
-                const SizedBox(height: 14),
+                const SizedBox(height: 13),
                 _passwordPanel(),
-                const SizedBox(height: 14),
+                const SizedBox(height: 13),
                 _securityInfoCard(),
                 const SizedBox(height: 18),
                 _submitButton(),
@@ -286,17 +439,17 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
 
   Widget _header() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      padding: const EdgeInsets.fromLTRB(13, 13, 13, 15),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen],
+          colors: [deepGreen, darkGreen, primaryGreen],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.18),
+            color: darkGreen.withValues(alpha: 0.20),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -305,22 +458,22 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
       child: Row(
         children: [
           _backButton(),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Container(
             height: 42,
             width: 42,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: Colors.white.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.19)),
             ),
             child: const Icon(
-              Icons.lock_reset_rounded,
+              Icons.password_rounded,
               color: Colors.white,
               size: 22,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,26 +484,25 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 19,
+                    fontSize: 18.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Buat password sementara untuk anggota',
-                  maxLines: 2,
+                  'Buat password sementara anggota',
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Color(0xffDDEFE3),
-                    fontSize: 11.8,
-                    height: 1.3,
-                    fontWeight: FontWeight.w600,
+                    color: Color(0xffD1FAE5),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           _headerBadge(),
         ],
       ),
@@ -359,50 +511,31 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
 
   Widget _headerBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
+        color: Colors.white.withValues(alpha: 0.13),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.fact_check_rounded, color: Colors.white, size: 14),
-          SizedBox(width: 5),
-          Text(
-            'Proses',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
+      child: const Text(
+        'PROSES',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 9.8,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.2,
+        ),
       ),
     );
   }
 
   Widget _userCard() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      decoration: _cardDecoration(radius: 20),
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(radius: 21),
       child: Row(
         children: [
-          Container(
-            height: 42,
-            width: 42,
-            decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: primaryGreen.withValues(alpha: 0.11)),
-            ),
-            child: const Icon(
-              Icons.assignment_ind_rounded,
-              color: primaryGreen,
-              size: 21,
-            ),
-          ),
+          _iconBox(Icons.badge_outlined, primaryGreen),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
@@ -414,29 +547,21 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 14.2,
+                    fontSize: 14.4,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.badge_rounded, size: 13, color: textGrey),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        sensorNik(widget.nik),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: textGrey,
-                          fontSize: 11.4,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  sensorNik(widget.nik),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 11.6,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.15,
+                  ),
                 ),
               ],
             ),
@@ -454,7 +579,7 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
       decoration: BoxDecoration(
         color: orangeStatus.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: orangeStatus.withValues(alpha: 0.12)),
+        border: Border.all(color: orangeStatus.withValues(alpha: 0.13)),
       ),
       child: const Text(
         'RESET',
@@ -471,23 +596,23 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
   Widget _passwordPanel() {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(radius: 20),
+      decoration: _cardDecoration(radius: 21),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionHeader(
-            icon: Icons.password_rounded,
+            icon: Icons.key_rounded,
             title: 'Password Sementara',
-            subtitle: 'Gunakan password otomatis atau ubah manual',
+            subtitle: 'Bisa pakai otomatis atau diubah manual',
             color: primaryGreen,
           ),
           const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: softGreen.withValues(alpha: 0.75),
+              color: softGreen,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.10)),
             ),
             child: Column(
               children: [
@@ -501,22 +626,22 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
                   },
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 18,
-                    letterSpacing: 1.2,
+                    fontSize: 17.5,
+                    letterSpacing: 1.1,
                     fontWeight: FontWeight.w900,
                   ),
                   decoration: _inputDecoration(
                     label: 'Password Baru',
                     hint: 'Contoh: TG482913',
-                    icon: Icons.lock_rounded,
+                    icon: Icons.lock_outline_rounded,
                     suffixIcon: IconButton(
                       onPressed: () {
                         setState(() => obscurePassword = !obscurePassword);
                       },
                       icon: Icon(
                         obscurePassword
-                            ? Icons.visibility_off_rounded
-                            : Icons.visibility_rounded,
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
                         color: primaryGreen,
                         size: 20,
                       ),
@@ -537,7 +662,7 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
                                 obscurePassword = false;
                               });
                             },
-                    icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                    icon: const Icon(Icons.autorenew_rounded, size: 18),
                     label: const Text(
                       'Generate Password Baru',
                       style: TextStyle(fontWeight: FontWeight.w900),
@@ -545,7 +670,7 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: primaryGreen,
                       side: BorderSide(
-                        color: primaryGreen.withValues(alpha: 0.45),
+                        color: primaryGreen.withValues(alpha: 0.42),
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
@@ -564,10 +689,11 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
   Widget _securityInfoCard() {
     return Container(
       padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(radius: 18),
+      decoration: _cardDecoration(radius: 19),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _iconBox(Icons.verified_user_rounded, blueStatus),
+          _iconBox(Icons.shield_outlined, blueStatus),
           const SizedBox(width: 11),
           const Expanded(
             child: Column(
@@ -583,7 +709,7 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
                 ),
                 SizedBox(height: 3),
                 Text(
-                  'Password dikirim ke notifikasi anggota. Setelah login, anggota disarankan mengganti password.',
+                  'Password dikirim ke notifikasi anggota. Admin juga dapat mengirim pesan melalui WhatsApp atau SMS.',
                   style: TextStyle(
                     color: textGrey,
                     fontSize: 11.5,
@@ -624,7 +750,7 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
                     color: Colors.white,
                   ),
                 )
-                : const Icon(Icons.save_as_rounded),
+                : const Icon(Icons.check_circle_outline_rounded),
         label: Text(
           isLoading ? 'Menyimpan...' : 'Simpan Password Baru',
           style: const TextStyle(fontSize: 14.2, fontWeight: FontWeight.w900),
@@ -658,6 +784,8 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
               const SizedBox(height: 3),
               Text(
                 subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: textGrey,
                   fontSize: 11.5,
@@ -691,7 +819,7 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
         fontWeight: FontWeight.w700,
       ),
       hintStyle: TextStyle(
-        color: Colors.black.withValues(alpha: 0.35),
+        color: Colors.black.withValues(alpha: 0.34),
         fontSize: 12.5,
         fontWeight: FontWeight.w600,
       ),
@@ -710,17 +838,11 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
 
   Widget _backButton() {
     return InkWell(
-      onTap:
-          isLoading
-              ? null
-              : () {
-                if (!mounted) return;
-                Navigator.pop(context);
-              },
+      onTap: isLoading ? null : () => Navigator.pop(context),
       borderRadius: BorderRadius.circular(15),
       child: Container(
-        height: 42,
-        width: 42,
+        height: 41,
+        width: 41,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(15),
@@ -729,7 +851,7 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
         child: const Icon(
           Icons.arrow_back_ios_new_rounded,
           color: Colors.white,
-          size: 17,
+          size: 16,
         ),
       ),
     );
@@ -742,8 +864,9 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.08)),
       ),
-      child: Icon(icon, color: color, size: 22),
+      child: Icon(icon, color: color, size: 21),
     );
   }
 
@@ -754,8 +877,8 @@ class _ResetPasswordProsesPageState extends State<ResetPasswordProsesPage> {
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.026),
-          blurRadius: 12,
+          color: Colors.black.withValues(alpha: 0.028),
+          blurRadius: 13,
           offset: const Offset(0, 5),
         ),
       ],

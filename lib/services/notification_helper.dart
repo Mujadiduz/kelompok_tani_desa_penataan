@@ -1,8 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 
-import 'notification_service.dart';
-
 class NotificationHelper {
   NotificationHelper._();
 
@@ -22,7 +20,6 @@ class NotificationHelper {
     required String tipe,
   }) async {
     final cleanNik = nik.trim();
-
     if (cleanNik.isEmpty || cleanNik == '-') return;
 
     await _notifRef
@@ -71,11 +68,6 @@ class NotificationHelper {
         tipe: 'pengumuman',
       );
     }
-
-    await NotificationService.showLocalNotification(
-      title: 'Pengumuman Baru',
-      body: judul,
-    );
   }
 
   static Future<void> pupukDisetujui({
@@ -87,11 +79,6 @@ class NotificationHelper {
         'Pengajuan bantuan pupuk $jenisPupuk Anda telah disetujui admin. Silakan menunggu arahan pengambilan.';
 
     await _simpan(nik: nik, judul: judul, pesan: pesan, tipe: 'bantuan_pupuk');
-
-    await NotificationService.showLocalNotification(
-      title: judul,
-      body: 'Pengajuan bantuan pupuk $jenisPupuk telah disetujui.',
-    );
   }
 
   static Future<void> pupukDitolak({
@@ -103,11 +90,6 @@ class NotificationHelper {
         'Pengajuan bantuan pupuk $jenisPupuk Anda ditolak oleh admin. Silakan cek kembali data pengajuan.';
 
     await _simpan(nik: nik, judul: judul, pesan: pesan, tipe: 'bantuan_pupuk');
-
-    await NotificationService.showLocalNotification(
-      title: judul,
-      body: 'Pengajuan bantuan pupuk $jenisPupuk telah ditolak.',
-    );
   }
 
   static Future<void> pupukSudahDiambil({
@@ -120,8 +102,6 @@ class NotificationHelper {
         'Bantuan pupuk $jenisPupuk sebanyak $jumlahKg Kg telah ditandai sudah diambil.';
 
     await _simpan(nik: nik, judul: judul, pesan: pesan, tipe: 'bantuan_pupuk');
-
-    await NotificationService.showLocalNotification(title: judul, body: pesan);
   }
 
   static Future<void> alatDisetujui({
@@ -138,11 +118,6 @@ class NotificationHelper {
       pesan: pesan,
       tipe: 'peminjaman_alat',
     );
-
-    await NotificationService.showLocalNotification(
-      title: judul,
-      body: 'Pengajuan peminjaman $namaAlat telah disetujui.',
-    );
   }
 
   static Future<void> alatDitolak({
@@ -158,11 +133,6 @@ class NotificationHelper {
       judul: judul,
       pesan: pesan,
       tipe: 'peminjaman_alat',
-    );
-
-    await NotificationService.showLocalNotification(
-      title: judul,
-      body: 'Pengajuan peminjaman $namaAlat telah ditolak.',
     );
   }
 
@@ -181,8 +151,6 @@ class NotificationHelper {
       pesan: pesan,
       tipe: 'peminjaman_alat',
     );
-
-    await NotificationService.showLocalNotification(title: judul, body: pesan);
   }
 
   static Future<void> alatDikembalikan({
@@ -200,8 +168,6 @@ class NotificationHelper {
       pesan: pesan,
       tipe: 'peminjaman_alat',
     );
-
-    await NotificationService.showLocalNotification(title: judul, body: pesan);
   }
 
   static Future<void> anggotaDisetujui({
@@ -213,11 +179,6 @@ class NotificationHelper {
         'Selamat $nama, pendaftaran Anda telah disetujui sebagai anggota Kelompok Tani Desa Penataan. Silakan login menggunakan NIK Anda.';
 
     await _simpan(nik: nik, judul: judul, pesan: pesan, tipe: 'keanggotaan');
-
-    await NotificationService.showLocalNotification(
-      title: judul,
-      body: 'Pendaftaran Anda telah disetujui.',
-    );
   }
 
   static Future<void> anggotaDitolak({
@@ -229,11 +190,6 @@ class NotificationHelper {
         'Maaf $nama, pendaftaran anggota belum dapat disetujui. Silakan hubungi pengurus Kelompok Tani untuk informasi lebih lanjut.';
 
     await _simpan(nik: nik, judul: judul, pesan: pesan, tipe: 'keanggotaan');
-
-    await NotificationService.showLocalNotification(
-      title: judul,
-      body: 'Pendaftaran Anda belum dapat disetujui.',
-    );
   }
 
   static Future<void> passwordBerhasilDireset({
@@ -245,10 +201,5 @@ class NotificationHelper {
         'Password sementara Anda adalah: $passwordBaru. Silakan login dan segera ubah password Anda melalui menu Profil.';
 
     await _simpan(nik: nik, judul: judul, pesan: pesan, tipe: 'reset_password');
-
-    await NotificationService.showLocalNotification(
-      title: judul,
-      body: 'Password akun Anda telah direset oleh admin.',
-    );
   }
 }

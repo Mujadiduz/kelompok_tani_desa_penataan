@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
+import '../services/notification_service.dart';
 import '../widgets/app_background.dart';
 import 'alat_page.dart';
 import 'notifikasi_page.dart';
@@ -25,7 +26,8 @@ class UserHomePage extends StatefulWidget {
 class _UserHomePageState extends State<UserHomePage> {
   static const Color primaryGreen = Color(0xff2E7D32);
   static const Color darkGreen = Color(0xff14532D);
-  static const Color softGreen = Color(0xffEAF7EC);
+  static const Color deepGreen = Color(0xff0F3D25);
+  static const Color softGreen = Color(0xffF3FBF5);
   static const Color bgColor = Color(0xffF6FAF7);
   static const Color cardBorder = Color(0xffE5E7EB);
   static const Color textDark = Color(0xff1F2937);
@@ -40,6 +42,8 @@ class _UserHomePageState extends State<UserHomePage> {
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
+  final Set<String> shownNotificationIds = {};
+  bool listenerSiap = false;
 
   late final DatabaseReference bantuanRef;
   late final DatabaseReference peminjamanRef;
@@ -68,6 +72,7 @@ class _UserHomePageState extends State<UserHomePage> {
     pengumumanRef = db.ref('pengumuman');
 
     listenDashboardData();
+    listenNotifikasiMasuk();
   }
 
   @override
@@ -80,6 +85,59 @@ class _UserHomePageState extends State<UserHomePage> {
 
     dashboardController.close();
     super.dispose();
+  }
+
+  void listenNotifikasiMasuk() {
+    subscriptions.add(
+      notifikasiRef.onChildAdded.listen((event) {
+        // cegah notifikasi lama muncul ulang saat login
+        if (!listenerSiap) {
+          return;
+        }
+
+        if (event.snapshot.value == null) return;
+        if (event.snapshot.value is! Map) return;
+
+        final id = event.snapshot.key ?? '';
+
+        if (shownNotificationIds.contains(id)) {
+          return;
+        }
+
+        final item = Map<dynamic, dynamic>.from(event.snapshot.value as Map);
+
+        final status = (item['status'] ?? '').toString().toLowerCase();
+
+        final dibaca = item['dibaca'];
+
+        if (status == 'belum_dibaca' || dibaca == false) {
+          shownNotificationIds.add(id);
+
+          NotificationService.showLocalNotification(
+            title: (item['judul'] ?? 'TaniGo').toString(),
+            body: (item['pesan'] ?? '').toString(),
+          );
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text((item['judul'] ?? 'Notifikasi baru').toString()),
+                backgroundColor: darkGreen,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      }),
+    );
+
+    // Firebase pertama kali mengirim semua notif lama.
+    // Tunggu selesai dulu, baru aktifkan listener.
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!isDisposed) {
+        listenerSiap = true;
+      }
+    });
   }
 
   void listenDashboardData() {
@@ -285,10 +343,7 @@ class _UserHomePageState extends State<UserHomePage> {
   String informationLabel(String category) {
     final clean = category.toLowerCase().trim();
 
-    if (clean == 'pupuk' || clean == 'penyaluran_pupuk') {
-      return 'Penyaluran';
-    }
-
+    if (clean == 'pupuk' || clean == 'penyaluran_pupuk') return 'Penyaluran';
     if (clean == 'alat' || clean == 'jadwal_alat') return 'Jadwal';
     if (clean == 'rapat' || clean == 'agenda') return 'Agenda';
     if (clean == 'panen') return 'Panen';
@@ -301,18 +356,18 @@ class _UserHomePageState extends State<UserHomePage> {
     final clean = category.toLowerCase().trim();
 
     if (clean == 'pupuk' || clean == 'penyaluran_pupuk') {
-      return Icons.inventory_2_rounded;
+      return Icons.inventory_2_outlined;
     }
 
     if (clean == 'alat' || clean == 'jadwal_alat') {
-      return Icons.construction_rounded;
+      return Icons.handyman_outlined;
     }
 
-    if (clean == 'rapat' || clean == 'agenda') return Icons.groups_2_rounded;
-    if (clean == 'panen') return Icons.spa_rounded;
-    if (clean == 'gotong_royong') return Icons.handshake_rounded;
+    if (clean == 'rapat' || clean == 'agenda') return Icons.diversity_3_rounded;
+    if (clean == 'panen') return Icons.grass_outlined;
+    if (clean == 'gotong_royong') return Icons.volunteer_activism_outlined;
 
-    return Icons.campaign_rounded;
+    return Icons.campaign_outlined;
   }
 
   Color informationColor(String category) {
@@ -384,24 +439,22 @@ class _UserHomePageState extends State<UserHomePage> {
                   children: [
                     headerCard(data),
                     const SizedBox(height: 12),
-                    memberCard(),
-                    const SizedBox(height: 12),
-                    summaryCard(data),
-                    const SizedBox(height: 18),
+                    quickStatusPanel(data),
+                    const SizedBox(height: 16),
                     sectionTitle('Layanan Utama'),
                     const SizedBox(height: 10),
                     serviceList(),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     sectionTitleWithAction(
-                      title: 'Status Pengajuan Terbaru',
+                      title: 'Status Pengajuan',
                       actionText: 'Riwayat',
                       onTap: () => openPage(RiwayatPage(nik: widget.nik)),
                     ),
                     const SizedBox(height: 10),
                     latestSubmission(data.pengajuanTerbaru),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     sectionTitleWithAction(
-                      title: 'Informasi Kelompok Tani',
+                      title: 'Informasi Terbaru',
                       actionText: 'Lihat Semua',
                       onTap: () => openPage(const PengumumanPage()),
                     ),
@@ -420,62 +473,145 @@ class _UserHomePageState extends State<UserHomePage> {
   Widget headerCard(_UserDashboardData data) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.fromLTRB(15, 15, 15, 14),
       decoration: BoxDecoration(
-        color: darkGreen,
-        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [deepGreen, darkGreen, primaryGreen],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.20),
-            blurRadius: 16,
-            offset: const Offset(0, 7),
+            color: darkGreen.withValues(alpha: 0.23),
+            blurRadius: 20,
+            offset: const Offset(0, 9),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          avatarUser(),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            children: [
+              avatarUser(),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      greeting(),
+                      style: const TextStyle(
+                        color: Color(0xffD1FAE5),
+                        fontSize: 11.7,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      widget.nama,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      'Silakan pilih layanan yang dibutuhkan',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              notifButton(data.totalNotif),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(19),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            ),
+            child: Row(
               children: [
-                Text(
-                  greeting(),
-                  style: const TextStyle(
-                    color: Color(0xffD1FAE5),
-                    fontSize: 11.8,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: _headerMiniInfo(
+                    label: 'Status Akun',
+                    value: 'Aktif',
+                    icon: Icons.verified_outlined,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  widget.nama,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w900,
-                  ),
+                Container(
+                  height: 34,
+                  width: 1,
+                  color: Colors.white.withValues(alpha: 0.18),
                 ),
-                const SizedBox(height: 3),
-                const Text(
-                  'Akses layanan kelompok tani',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: _headerMiniInfo(
+                    label: 'Menunggu',
+                    value: data.totalMenunggu.toString(),
+                    icon: Icons.pending_actions_outlined,
                   ),
                 ),
               ],
             ),
           ),
-          notifButton(data.totalNotif),
         ],
       ),
+    );
+  }
+
+  Widget _headerMiniInfo({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return Row(
+      children: [
+        const SizedBox(width: 3),
+        Icon(icon, color: Colors.white, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xffD1FAE5),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13.8,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -484,12 +620,12 @@ class _UserHomePageState extends State<UserHomePage> {
         widget.nama.trim().isEmpty ? 'A' : widget.nama.trim()[0].toUpperCase();
 
     return Container(
-      height: 50,
-      width: 50,
+      height: 51,
+      width: 51,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.23)),
       ),
       child: Center(
         child: Text(
@@ -507,32 +643,32 @@ class _UserHomePageState extends State<UserHomePage> {
   Widget notifButton(int totalNotif) {
     return InkWell(
       onTap: () => openPage(NotifikasiPage(nik: widget.nik)),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        width: 58,
-        height: 54,
+        width: 54,
+        height: 52,
         child: Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.center,
           children: [
             Container(
-              height: 44,
-              width: 44,
+              height: 43,
+              width: 43,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(15),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
               ),
               child: const Icon(
-                Icons.notifications_none_rounded,
+                Icons.notifications_active_outlined,
                 color: Colors.white,
-                size: 24,
+                size: 22,
               ),
             ),
             if (totalNotif > 0)
               Positioned(
-                right: 1,
-                top: 1,
+                right: 0,
+                top: 0,
                 child: notificationBadge(totalNotif),
               ),
           ],
@@ -545,7 +681,7 @@ class _UserHomePageState extends State<UserHomePage> {
     final text = total > 99 ? '99+' : total.toString();
 
     return Container(
-      constraints: const BoxConstraints(minWidth: 24, minHeight: 21),
+      constraints: const BoxConstraints(minWidth: 23, minHeight: 20),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         color: redStatus,
@@ -557,7 +693,7 @@ class _UserHomePageState extends State<UserHomePage> {
         textAlign: TextAlign.center,
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 10,
+          fontSize: 9.5,
           height: 1,
           fontWeight: FontWeight.w900,
         ),
@@ -565,64 +701,94 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  Widget memberCard() {
+  Widget quickStatusPanel(_UserDashboardData data) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: cardDecoration(radius: 18),
+      padding: const EdgeInsets.all(13),
+      decoration: cardDecoration(radius: 22),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _miniSummaryBox(
+                  title: 'Pupuk',
+                  value: data.bantuanMenunggu.length.toString(),
+                  subtitle: 'menunggu',
+                  icon: Icons.inventory_2_outlined,
+                  color: primaryGreen,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _miniSummaryBox(
+                  title: 'Alat',
+                  value: data.peminjamanMenunggu.length.toString(),
+                  subtitle: 'menunggu',
+                  icon: Icons.handyman_outlined,
+                  color: orangeStatus,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 11),
+          summaryCard(data),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniSummaryBox({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.075),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.12)),
+      ),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            height: 37,
+            width: 37,
             decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(13),
             ),
-            child: const Icon(
-              Icons.verified_rounded,
-              color: primaryGreen,
-              size: 24,
-            ),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 11),
-          const Expanded(
+          const SizedBox(width: 9),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Status Keanggotaan',
-                  style: TextStyle(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     color: textDark,
-                    fontSize: 14.5,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
-                  'Akun aktif dan terverifikasi.',
+                  '$value $subtitle',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: textGrey,
-                    fontSize: 11.8,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(99),
-            ),
-            child: const Text(
-              'AKTIF',
-              style: TextStyle(
-                color: primaryGreen,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-              ),
             ),
           ),
         ],
@@ -634,26 +800,35 @@ class _UserHomePageState extends State<UserHomePage> {
     final totalMenunggu = data.totalMenunggu;
 
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: cardDecoration(radius: 18),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color:
+            totalMenunggu == 0
+                ? primaryGreen.withValues(alpha: 0.065)
+                : orangeStatus.withValues(alpha: 0.075),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color:
+              totalMenunggu == 0
+                  ? primaryGreen.withValues(alpha: 0.12)
+                  : orangeStatus.withValues(alpha: 0.14),
+        ),
+      ),
       child: Row(
         children: [
           Container(
-            height: 42,
-            width: 42,
+            height: 41,
+            width: 41,
             decoration: BoxDecoration(
-              color:
-                  totalMenunggu == 0
-                      ? primaryGreen.withValues(alpha: 0.10)
-                      : orangeStatus.withValues(alpha: 0.12),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
               totalMenunggu == 0
                   ? Icons.task_alt_rounded
-                  : Icons.schedule_rounded,
+                  : Icons.hourglass_top_rounded,
               color: totalMenunggu == 0 ? primaryGreen : orangeStatus,
-              size: 23,
+              size: 22,
             ),
           ),
           const SizedBox(width: 11),
@@ -663,52 +838,31 @@ class _UserHomePageState extends State<UserHomePage> {
               children: [
                 Text(
                   totalMenunggu == 0
-                      ? 'Tidak ada pengajuan menunggu'
-                      : 'Pengajuan sedang menunggu',
+                      ? 'Semua pengajuan aman'
+                      : 'Ada pengajuan menunggu',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 14,
+                    fontSize: 13.7,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   totalMenunggu == 0
-                      ? 'Semua pengajuan sudah diproses.'
-                      : '$totalMenunggu data menunggu proses admin.',
+                      ? 'Belum ada data yang menunggu admin.'
+                      : '$totalMenunggu pengajuan sedang diproses admin.',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 11.7,
+                    fontSize: 11.5,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            constraints: const BoxConstraints(minWidth: 34),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color:
-                  totalMenunggu == 0
-                      ? primaryGreen.withValues(alpha: 0.10)
-                      : orangeStatus.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              totalMenunggu.toString(),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: totalMenunggu == 0 ? primaryGreen : orangeStatus,
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-              ),
             ),
           ),
         ],
@@ -720,72 +874,99 @@ class _UserHomePageState extends State<UserHomePage> {
     final menus = [
       _HomeMenu(
         title: 'Bantuan Pupuk',
-        subtitle: 'Ajukan kebutuhan pupuk.',
-        icon: Icons.inventory_2_rounded,
+        subtitle: 'Ajukan kebutuhan pupuk dengan mudah.',
+        icon: Icons.inventory_2_outlined,
         color: primaryGreen,
         page: PupukPage(nama: widget.nama, nik: widget.nik),
       ),
       _HomeMenu(
         title: 'Peminjaman Alat',
-        subtitle: 'Ajukan peminjaman alat.',
-        icon: Icons.construction_rounded,
+        subtitle: 'Ajukan alat pertanian sesuai jadwal.',
+        icon: Icons.handyman_outlined,
         color: orangeStatus,
         page: AlatPage(nama: widget.nama, nik: widget.nik),
       ),
     ];
 
-    return Column(children: menus.map((menu) => serviceCard(menu)).toList());
+    return Row(
+      children: [
+        Expanded(child: serviceCard(menus[0])),
+        const SizedBox(width: 11),
+        Expanded(child: serviceCard(menus[1])),
+      ],
+    );
   }
 
   Widget serviceCard(_HomeMenu menu) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        onTap: () => openPage(menu.page),
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: cardDecoration(radius: 18),
-          child: Row(
-            children: [
-              Container(
-                height: 46,
-                width: 46,
-                decoration: BoxDecoration(
-                  color: menu.color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(menu.icon, color: menu.color, size: 24),
+    return InkWell(
+      onTap: () => openPage(menu.page),
+      borderRadius: BorderRadius.circular(22),
+      child: Container(
+        height: 145,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: menu.color.withValues(alpha: 0.12)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.035),
+              blurRadius: 13,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 45,
+              width: 45,
+              decoration: BoxDecoration(
+                color: menu.color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(16),
               ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      menu.title,
-                      style: const TextStyle(
-                        color: textDark,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      menu.subtitle,
-                      style: const TextStyle(
-                        color: textGrey,
-                        fontSize: 11.8,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+              child: Icon(menu.icon, color: menu.color, size: 24),
+            ),
+            const Spacer(),
+            Text(
+              menu.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: textDark,
+                fontSize: 14.5,
+                fontWeight: FontWeight.w900,
               ),
-              Icon(Icons.chevron_right_rounded, color: menu.color, size: 25),
-            ],
-          ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              menu.subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: textGrey,
+                fontSize: 11.5,
+                height: 1.32,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                Text(
+                  'Buka',
+                  style: TextStyle(
+                    color: menu.color,
+                    fontSize: 11.8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_rounded, color: menu.color, size: 16),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -794,9 +975,9 @@ class _UserHomePageState extends State<UserHomePage> {
   Widget latestSubmission(List<Map<String, dynamic>> list) {
     if (list.isEmpty) {
       return emptyCard(
-        icon: Icons.fact_check_rounded,
+        icon: Icons.fact_check_outlined,
         title: 'Belum Ada Pengajuan',
-        message: 'Riwayat pengajuan akan tampil setelah data dikirim.',
+        message: 'Pengajuan pupuk dan alat akan tampil di sini.',
       );
     }
 
@@ -818,27 +999,27 @@ class _UserHomePageState extends State<UserHomePage> {
     final subtitle =
         isPupuk
             ? '${item['jumlah_pupuk'] ?? item['jumlah_kg'] ?? item['jumlah'] ?? '-'} Kg'
-            : 'Tanggal pinjam: ${item['tanggal_pinjam'] ?? '-'}';
+            : 'Pinjam: ${item['tanggal_pinjam'] ?? '-'}';
 
     final status = (item['status'] ?? 'menunggu').toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: cardDecoration(radius: 18),
+      padding: const EdgeInsets.all(13),
+      decoration: cardDecoration(radius: 19),
       child: Row(
         children: [
           Container(
-            height: 46,
-            width: 46,
+            height: 43,
+            width: 43,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(
-              isPupuk ? Icons.inventory_2_rounded : Icons.construction_rounded,
+              isPupuk ? Icons.inventory_2_outlined : Icons.handyman_outlined,
               color: color,
-              size: 24,
+              size: 22,
             ),
           ),
           const SizedBox(width: 11),
@@ -850,7 +1031,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   isPupuk ? 'Bantuan Pupuk' : 'Peminjaman Alat',
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 10.8,
+                    fontSize: 10.6,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -861,22 +1042,25 @@ class _UserHomePageState extends State<UserHomePage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 14.5,
+                    fontSize: 14.2,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 11.8,
+                    fontSize: 11.6,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
           statusBadge(status),
         ],
       ),
@@ -886,21 +1070,24 @@ class _UserHomePageState extends State<UserHomePage> {
   Widget informationSection(List<Map<String, dynamic>> list) {
     if (list.isEmpty) {
       return emptyCard(
-        icon: Icons.campaign_rounded,
+        icon: Icons.campaign_outlined,
         title: 'Belum Ada Informasi',
-        message: 'Informasi terbaru akan tampil di halaman ini.',
+        message: 'Pengumuman terbaru dari admin akan tampil di sini.',
       );
     }
 
     final shown = list.take(3).toList();
 
     return Container(
-      decoration: cardDecoration(radius: 18),
+      decoration: cardDecoration(radius: 20),
       child: Column(
         children: [
           ...shown.map((item) => informationItem(item)),
           InkWell(
             onTap: () => openPage(const PengumumanPage()),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(20),
+            ),
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: const BoxDecoration(
@@ -913,7 +1100,7 @@ class _UserHomePageState extends State<UserHomePage> {
                       'Lihat semua informasi',
                       style: TextStyle(
                         color: primaryGreen,
-                        fontSize: 13,
+                        fontSize: 12.8,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -937,7 +1124,7 @@ class _UserHomePageState extends State<UserHomePage> {
     final color = informationColor(category);
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(13),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: cardBorder)),
       ),
@@ -945,13 +1132,13 @@ class _UserHomePageState extends State<UserHomePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            height: 42,
-            width: 42,
+            height: 41,
+            width: 41,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(informationIcon(category), color: color, size: 22),
+            child: Icon(informationIcon(category), color: color, size: 21),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -962,7 +1149,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   informationLabel(category).toUpperCase(),
                   style: TextStyle(
                     color: color,
-                    fontSize: 10.2,
+                    fontSize: 10,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -973,7 +1160,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 14,
+                    fontSize: 13.8,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -984,7 +1171,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 11.8,
+                    fontSize: 11.5,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -994,7 +1181,7 @@ class _UserHomePageState extends State<UserHomePage> {
                   informationDate(item),
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 10.8,
+                    fontSize: 10.6,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1008,7 +1195,7 @@ class _UserHomePageState extends State<UserHomePage> {
 
   Widget statusBadge(String status) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5.5),
       decoration: BoxDecoration(
         color: statusBg(status),
         borderRadius: BorderRadius.circular(999),
@@ -1017,7 +1204,7 @@ class _UserHomePageState extends State<UserHomePage> {
         statusText(status),
         style: TextStyle(
           color: statusColor(status),
-          fontSize: 10.2,
+          fontSize: 9.8,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -1029,7 +1216,7 @@ class _UserHomePageState extends State<UserHomePage> {
       title,
       style: const TextStyle(
         color: textDark,
-        fontSize: 16.5,
+        fontSize: 16.2,
         fontWeight: FontWeight.w900,
       ),
     );
@@ -1049,15 +1236,15 @@ class _UserHomePageState extends State<UserHomePage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
             decoration: BoxDecoration(
-              color: softGreen.withValues(alpha: 0.82),
+              color: softGreen,
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.14)),
             ),
             child: Text(
               actionText,
               style: const TextStyle(
                 color: primaryGreen,
-                fontSize: 11.8,
+                fontSize: 11.6,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -1075,24 +1262,25 @@ class _UserHomePageState extends State<UserHomePage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: cardDecoration(radius: 18),
+      decoration: cardDecoration(radius: 20),
       child: Column(
         children: [
           Container(
-            height: 58,
-            width: 58,
+            height: 57,
+            width: 57,
             decoration: BoxDecoration(
-              color: softGreen.withValues(alpha: 0.82),
+              color: softGreen,
               borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: primaryGreen.withValues(alpha: 0.10)),
             ),
-            child: Icon(icon, color: primaryGreen, size: 30),
+            child: Icon(icon, color: primaryGreen, size: 29),
           ),
           const SizedBox(height: 12),
           Text(
             title,
             style: const TextStyle(
               color: textDark,
-              fontSize: 15,
+              fontSize: 14.8,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1102,7 +1290,7 @@ class _UserHomePageState extends State<UserHomePage> {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 12.2,
+              fontSize: 12,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -1132,10 +1320,10 @@ class _UserHomePageState extends State<UserHomePage> {
         unselectedItemColor: const Color(0xff9CA3AF),
         selectedLabelStyle: const TextStyle(
           fontSize: 11.5,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w900,
         ),
         unselectedLabelStyle: const TextStyle(
-          fontSize: 11.5,
+          fontSize: 11.3,
           fontWeight: FontWeight.w600,
         ),
         type: BottomNavigationBarType.fixed,
@@ -1148,15 +1336,18 @@ class _UserHomePageState extends State<UserHomePage> {
         },
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.grid_view_rounded),
+            icon: Icon(Icons.space_dashboard_outlined),
+            activeIcon: Icon(Icons.space_dashboard_rounded),
             label: 'Beranda',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long_rounded),
+            icon: Icon(Icons.receipt_long_outlined),
+            activeIcon: Icon(Icons.receipt_long_rounded),
             label: 'Riwayat',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.account_circle_rounded),
+            icon: Icon(Icons.person_outline_rounded),
+            activeIcon: Icon(Icons.person_rounded),
             label: 'Profil',
           ),
         ],
@@ -1171,8 +1362,8 @@ class _UserHomePageState extends State<UserHomePage> {
       border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.035),
-          blurRadius: 12,
+          color: Colors.black.withValues(alpha: 0.034),
+          blurRadius: 13,
           offset: const Offset(0, 5),
         ),
       ],
