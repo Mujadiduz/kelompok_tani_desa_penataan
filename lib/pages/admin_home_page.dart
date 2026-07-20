@@ -11,7 +11,6 @@ import 'kelola_alat_page.dart';
 import 'kelola_pengumuman_page.dart';
 import 'kelola_pupuk_page.dart';
 import 'laporan_page.dart';
-import 'notifikasi_admin_page.dart';
 import 'profil_admin_page.dart';
 import 'reset_password_admin_page.dart';
 import 'riwayat_admin_page.dart';
@@ -23,27 +22,43 @@ class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
 
   @override
-  State<AdminHomePage> createState() => _AdminHomePageState();
+  State<AdminHomePage> createState() =>
+      _AdminHomePageState();
 }
 
 class _AdminHomePageState extends State<AdminHomePage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff14532D);
-  static const Color softGreen = Color(0xffEAF7EC);
-  static const Color bgColor = Color(0xffF6FAF7);
-  static const Color cardBorder = Color(0xffE5E7EB);
-  static const Color textDark = Color(0xff1F2937);
-  static const Color textGrey = Color(0xff6B7280);
-  static const Color redStatus = Color(0xffDC2626);
-  static const Color orangeStatus = Color(0xffF59E0B);
-  static const Color blueStatus = Color(0xff2563EB);
-  static const Color purpleStatus = Color(0xff7C3AED);
 
-  final FirebaseDatabase _db = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL:
-        'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
-  );
+  static const Color adminNavy = Color(0xff172A46);
+  static const Color adminNavyLight = Color(0xff294762);
+  static const Color adminPurple = Color(0xff6256A4);
+
+  static const Color softGreen = Color(0xffE9F5EB);
+  static const Color softBlue = Color(0xffE9F2FA);
+  static const Color softAmber = Color(0xffFFF3DD);
+  static const Color softPurple = Color(0xffF0ECFA);
+  static const Color softRed = Color(0xffFBEAEA);
+
+  static const Color pageBackground = Color(0xffF2F4F8);
+  static const Color cardBorder = Color(0xffE0E5EC);
+  static const Color textDark = Color(0xff18212B);
+  static const Color textGrey = Color(0xff66727F);
+  static const Color textSoft = Color(0xff8B96A2);
+
+  static const Color redStatus = Color(0xffC83B3B);
+  static const Color orangeStatus = Color(0xffD98212);
+  static const Color blueStatus = Color(0xff326CA3);
+  static const Color purpleStatus = Color(0xff725BB4);
+
+  final GlobalKey<ScaffoldState> _scaffoldKey =
+      GlobalKey<ScaffoldState>();
+
+  final FirebaseDatabase _db =
+      FirebaseDatabase.instanceFor(
+        app: Firebase.app(),
+        databaseURL:
+            'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
+      );
 
   late final DatabaseReference _anggotaRef;
   late final DatabaseReference _calonAnggotaRef;
@@ -52,10 +67,12 @@ class _AdminHomePageState extends State<AdminHomePage> {
   late final DatabaseReference _resetPasswordRef;
   late final DatabaseReference _notifikasiAdminRef;
 
-  final StreamController<_DashboardData> _dashboardController =
+  final StreamController<_DashboardData>
+      _dashboardController =
       StreamController<_DashboardData>.broadcast();
 
-  final List<StreamSubscription<DatabaseEvent>> _subscriptions = [];
+  final List<StreamSubscription<DatabaseEvent>>
+      _subscriptions = [];
 
   final Set<String> _knownAdminNotifKeys = {};
   final Set<String> _shownAdminNotifKeys = {};
@@ -89,11 +106,12 @@ class _AdminHomePageState extends State<AdminHomePage> {
   void dispose() {
     _isDisposed = true;
 
-    for (final sub in _subscriptions) {
-      sub.cancel();
+    for (final subscription in _subscriptions) {
+      subscription.cancel();
     }
 
     _dashboardController.close();
+
     super.dispose();
   }
 
@@ -125,59 +143,87 @@ class _AdminHomePageState extends State<AdminHomePage> {
       }),
     ]);
 
-    _emitDashboard();
+    Future<void>.delayed(
+      const Duration(milliseconds: 450),
+      () {
+        if (!_isDisposed) {
+          _emitDashboard();
+        }
+      },
+    );
   }
 
   void _listenLocalAdminNotification() {
     _subscriptions.add(
-      _notifikasiAdminRef.onChildAdded.listen((event) async {
-        if (_isDisposed) return;
+      _notifikasiAdminRef.onChildAdded.listen(
+        (event) async {
+          if (_isDisposed) return;
 
-        final key = event.snapshot.key;
-        final value = event.snapshot.value;
+          final key = event.snapshot.key;
+          final value = event.snapshot.value;
 
-        if (key == null || key.trim().isEmpty) return;
+          if (key == null || key.trim().isEmpty) {
+            return;
+          }
 
-        if (!_adminNotifInitialLoaded) {
+          if (!_adminNotifInitialLoaded) {
+            _knownAdminNotifKeys.add(key);
+            return;
+          }
+
+          if (_knownAdminNotifKeys.contains(key)) {
+            return;
+          }
+
+          if (_shownAdminNotifKeys.contains(key)) {
+            return;
+          }
+
           _knownAdminNotifKeys.add(key);
-          return;
-        }
+          _shownAdminNotifKeys.add(key);
 
-        if (_knownAdminNotifKeys.contains(key)) return;
-        if (_shownAdminNotifKeys.contains(key)) return;
+          if (value is! Map) return;
 
-        _knownAdminNotifKeys.add(key);
-        _shownAdminNotifKeys.add(key);
+          final data =
+              Map<dynamic, dynamic>.from(value);
 
-        if (value is! Map) return;
+          final judul = _text(
+            data['judul'],
+            fallback: _adminNotificationTitle(
+              data['tipe'],
+            ),
+          );
 
-        final data = Map<dynamic, dynamic>.from(value);
+          final pesan = _text(
+            data['pesan'],
+            fallback:
+                'Ada pemberitahuan admin baru di aplikasi TaniGo.',
+          );
 
-        final judul = _text(
-          data['judul'],
-          fallback: _adminNotificationTitle(data['tipe']),
-        );
-
-        final pesan = _text(
-          data['pesan'],
-          fallback: 'Ada pemberitahuan admin baru di aplikasi TaniGo.',
-        );
-
-        await NotificationService.showLocalNotification(
-          title: judul,
-          body: pesan,
-        );
-      }),
+          await NotificationService
+              .showLocalNotification(
+            title: judul,
+            body: pesan,
+          );
+        },
+      ),
     );
 
-    Future.delayed(const Duration(milliseconds: 900), () {
-      if (_isDisposed) return;
-      _adminNotifInitialLoaded = true;
-    });
+    Future<void>.delayed(
+      const Duration(milliseconds: 900),
+      () {
+        if (_isDisposed) return;
+
+        _adminNotifInitialLoaded = true;
+      },
+    );
   }
 
   String _adminNotificationTitle(dynamic tipe) {
-    final cleanType = (tipe ?? '').toString().toLowerCase().trim();
+    final cleanType = (tipe ?? '')
+        .toString()
+        .toLowerCase()
+        .trim();
 
     if (cleanType.contains('anggota')) {
       return 'Calon Anggota Baru';
@@ -187,11 +233,13 @@ class _AdminHomePageState extends State<AdminHomePage> {
       return 'Pengajuan Bantuan Pupuk Baru';
     }
 
-    if (cleanType.contains('alat') || cleanType.contains('peminjaman')) {
+    if (cleanType.contains('alat') ||
+        cleanType.contains('peminjaman')) {
       return 'Pengajuan Peminjaman Alat Baru';
     }
 
-    if (cleanType.contains('reset') || cleanType.contains('password')) {
+    if (cleanType.contains('reset') ||
+        cleanType.contains('password')) {
       return 'Permintaan Reset Password Baru';
     }
 
@@ -199,15 +247,26 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 
   void _emitDashboard() {
-    if (_isDisposed || _dashboardController.isClosed) return;
+    if (_isDisposed ||
+        _dashboardController.isClosed) {
+      return;
+    }
 
     final data = _DashboardData(
-      totalAnggotaAktif: _countAnggotaAktif(_anggotaValue),
-      verifikasiAnggotaMenunggu: _countStatus(_calonAnggotaValue, 'menunggu'),
-      bantuanPupukMenunggu: _countStatus(_bantuanPupukValue, 'menunggu'),
-      peminjamanAlatMenunggu: _countStatus(_peminjamanAlatValue, 'menunggu'),
-      resetPasswordMenunggu: _countStatus(_resetPasswordValue, 'menunggu'),
-      notifikasiBelumDibaca: _countUnreadNotification(_notifikasiAdminValue),
+      totalAnggotaAktif:
+          _countAnggotaAktif(_anggotaValue),
+      verifikasiAnggotaMenunggu:
+          _countPendingCalonAnggota(),
+      bantuanPupukMenunggu:
+          _countPending(_bantuanPupukValue),
+      peminjamanAlatMenunggu:
+          _countPending(_peminjamanAlatValue),
+      resetPasswordMenunggu:
+          _countPending(_resetPasswordValue),
+      notifikasiBelumDibaca:
+          _countUnreadNotification(
+        _notifikasiAdminValue,
+      ),
       latestNotices: _buildLatestNotices(),
     );
 
@@ -215,18 +274,103 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 
   Map<dynamic, dynamic> _asMap(dynamic value) {
-    if (value == null || value is! Map) return {};
+    if (value == null || value is! Map) {
+      return {};
+    }
+
     return Map<dynamic, dynamic>.from(value);
+  }
+
+  String _cleanStatus(dynamic value) {
+    return (value ?? '')
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replaceAll('-', '_');
+  }
+
+  bool _isPendingStatus(dynamic value) {
+    final status = _cleanStatus(value);
+
+    if (status.isEmpty) {
+      return true;
+    }
+
+    const pendingStatuses = {
+      'menunggu',
+      'pending',
+      'diajukan',
+      'pengajuan',
+      'proses',
+      'diproses',
+      'sedang_diproses',
+      'sedang diproses',
+      'verifikasi',
+      'diverifikasi',
+      'menunggu_verifikasi',
+      'menunggu verifikasi',
+      'belum_diproses',
+      'belum diproses',
+    };
+
+    return pendingStatuses.contains(status);
+  }
+
+  String _normalisasiNik(dynamic value) {
+    return (value ?? '')
+        .toString()
+        .replaceAll(RegExp(r'[^0-9]'), '')
+        .trim();
+  }
+
+  Set<String> _nikAnggotaAktif() {
+    final result = <String>{};
+    final data = _asMap(_anggotaValue);
+
+    for (final value in data.values) {
+      if (value is! Map) continue;
+
+      final detail =
+          Map<dynamic, dynamic>.from(value);
+
+      final nik = _normalisasiNik(
+        detail['nik'],
+      );
+
+      if (nik.isNotEmpty) {
+        result.add(nik);
+      }
+    }
+
+    return result;
+  }
+
+  bool _sudahMenjadiAnggota(
+    Map<dynamic, dynamic> calon,
+  ) {
+    final nikCalon =
+        _normalisasiNik(calon['nik']);
+
+    if (nikCalon.isEmpty) {
+      return false;
+    }
+
+    return _nikAnggotaAktif().contains(nikCalon);
   }
 
   int _countAnggotaAktif(dynamic value) {
     final data = _asMap(value);
+
     int total = 0;
 
     for (final item in data.values) {
       if (item is! Map) continue;
-      final detail = Map<dynamic, dynamic>.from(item);
-      final status = _cleanStatus(detail['status']);
+
+      final detail =
+          Map<dynamic, dynamic>.from(item);
+
+      final status =
+          _cleanStatus(detail['status']);
 
       if (status.isEmpty ||
           status == 'aktif' ||
@@ -239,17 +383,50 @@ class _AdminHomePageState extends State<AdminHomePage> {
     return total;
   }
 
-  int _countStatus(dynamic value, String targetStatus) {
+  int _countPending(dynamic value) {
     final data = _asMap(value);
+
     int total = 0;
-    final target = targetStatus.toLowerCase().trim();
 
     for (final item in data.values) {
       if (item is! Map) continue;
-      final detail = Map<dynamic, dynamic>.from(item);
-      final status = _cleanStatus(detail['status']);
 
-      if (status == target) total++;
+      final detail =
+          Map<dynamic, dynamic>.from(item);
+
+      if (_isPendingStatus(detail['status'])) {
+        total++;
+      }
+    }
+
+    return total;
+  }
+
+  int _countPendingCalonAnggota() {
+    final data = _asMap(_calonAnggotaValue);
+
+    int total = 0;
+
+    for (final item in data.values) {
+      if (item is! Map) continue;
+
+      final detail =
+          Map<dynamic, dynamic>.from(item);
+
+      if (!_isPendingStatus(detail['status'])) {
+        continue;
+      }
+
+      /*
+       * Walaupun data lama pada calon_anggota
+       * masih berstatus menunggu, data tidak lagi
+       * muncul jika NIK sudah berada pada node anggota.
+       */
+      if (_sudahMenjadiAnggota(detail)) {
+        continue;
+      }
+
+      total++;
     }
 
     return total;
@@ -257,15 +434,24 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   int _countUnreadNotification(dynamic value) {
     final data = _asMap(value);
+
     int total = 0;
 
     for (final item in data.values) {
       if (item is! Map) continue;
-      final detail = Map<dynamic, dynamic>.from(item);
-      final status = _cleanStatus(detail['status']);
+
+      final detail =
+          Map<dynamic, dynamic>.from(item);
+
+      final status =
+          _cleanStatus(detail['status']);
+
       final dibaca = detail['dibaca'];
 
-      if (dibaca == false || status == 'belum_dibaca') total++;
+      if (dibaca == false ||
+          status == 'belum_dibaca') {
+        total++;
+      }
     }
 
     return total;
@@ -277,30 +463,46 @@ class _AdminHomePageState extends State<AdminHomePage> {
     void addItems({
       required dynamic source,
       required String title,
-      required String Function(Map<dynamic, dynamic> data) subtitleBuilder,
+      required String Function(
+        Map<dynamic, dynamic> data,
+      ) subtitleBuilder,
       required IconData icon,
       required Color color,
       required Widget page,
-      required _NoticeType type,
+      bool Function(
+        Map<dynamic, dynamic> data,
+      )? additionalFilter,
     }) {
       final data = _asMap(source);
 
       for (final entry in data.entries) {
         final value = entry.value;
+
         if (value is! Map) continue;
 
-        final detail = Map<dynamic, dynamic>.from(value);
-        final status = _cleanStatus(detail['status']);
-        if (status != 'menunggu') continue;
+        final detail =
+            Map<dynamic, dynamic>.from(value);
+
+        if (!_isPendingStatus(
+          detail['status'],
+        )) {
+          continue;
+        }
+
+        if (additionalFilter != null &&
+            !additionalFilter(detail)) {
+          continue;
+        }
 
         items.add(
           _NoticeItem(
+            id: entry.key.toString(),
             title: title,
-            subtitle: subtitleBuilder(detail),
+            subtitle:
+                subtitleBuilder(detail),
             icon: icon,
             color: color,
             page: page,
-            type: type,
             date: _readDate(detail),
           ),
         );
@@ -311,106 +513,177 @@ class _AdminHomePageState extends State<AdminHomePage> {
       source: _calonAnggotaValue,
       title: 'Verifikasi Anggota',
       subtitleBuilder: (data) {
-        final nama = _text(data['nama'], fallback: 'Calon anggota baru');
-        final nik = _text(data['nik'], fallback: '-');
+        final nama = _text(
+          data['nama'],
+          fallback: 'Calon anggota baru',
+        );
+
+        final nik = _text(
+          data['nik'],
+          fallback: '-',
+        );
+
         return '$nama • NIK $nik';
       },
-      icon: Icons.assignment_ind_rounded,
-      color: primaryGreen,
+      icon: Icons.assignment_ind_outlined,
+      color: blueStatus,
       page: const VerifikasiAnggotaPage(),
-      type: _NoticeType.anggota,
+      additionalFilter: (data) {
+        return !_sudahMenjadiAnggota(data);
+      },
     );
 
     addItems(
       source: _bantuanPupukValue,
       title: 'Bantuan Pupuk',
       subtitleBuilder: (data) {
-        final nama = _text(data['nama'], fallback: 'Pengajuan pupuk');
+        final nama = _text(
+          data['nama'],
+          fallback: 'Pengajuan pupuk',
+        );
+
         final jenis = _text(
-          data['jenis_pupuk'] ?? data['nama_pupuk'],
+          data['jenis_pupuk'] ??
+              data['nama_pupuk'],
           fallback: 'Menunggu verifikasi',
         );
+
         return '$nama • $jenis';
       },
-      icon: Icons.inventory_2_rounded,
+      icon: Icons.inventory_2_outlined,
       color: primaryGreen,
       page: const VerifikasiPupukPage(),
-      type: _NoticeType.pupuk,
     );
 
     addItems(
       source: _peminjamanAlatValue,
       title: 'Peminjaman Alat',
       subtitleBuilder: (data) {
-        final nama = _text(data['nama'], fallback: 'Pengajuan alat');
+        final nama = _text(
+          data['nama'],
+          fallback: 'Pengajuan alat',
+        );
+
         final alat = _text(
           data['nama_alat'] ?? data['alat'],
           fallback: 'Menunggu verifikasi',
         );
+
         return '$nama • $alat';
       },
-      icon: Icons.handyman_rounded,
+      icon: Icons.handyman_outlined,
       color: orangeStatus,
       page: const VerifikasiPeminjamanPage(),
-      type: _NoticeType.alat,
     );
 
     addItems(
       source: _resetPasswordValue,
       title: 'Reset Password',
       subtitleBuilder: (data) {
-        final nama = _text(data['nama'], fallback: 'Permintaan reset');
-        final nik = _text(data['nik'], fallback: '-');
+        final nama = _text(
+          data['nama'],
+          fallback: 'Permintaan reset',
+        );
+
+        final nik = _text(
+          data['nik'],
+          fallback: '-',
+        );
+
         return '$nama • NIK $nik';
       },
-      icon: Icons.lock_reset_rounded,
-      color: blueStatus,
+      icon: Icons.lock_reset_outlined,
+      color: purpleStatus,
       page: const ResetPasswordAdminPage(),
-      type: _NoticeType.reset,
     );
 
-    items.sort((a, b) => b.date.compareTo(a.date));
+    items.sort(
+      (a, b) => b.date.compareTo(a.date),
+    );
+
     return items.take(6).toList();
   }
 
-  DateTime _readDate(Map<dynamic, dynamic> data) {
+  DateTime _readDate(
+    Map<dynamic, dynamic> data,
+  ) {
     final raw =
         data['tanggal_pengajuan'] ??
+        data['tanggal_daftar'] ??
         data['created_at'] ??
+        data['createdAt'] ??
         data['tanggal'] ??
         data['tanggal_reset'] ??
         data['tanggal_permintaan'] ??
         data['timestamp'] ??
         data['updated_at'];
 
-    if (raw == null) return DateTime.fromMillisecondsSinceEpoch(0);
+    if (raw == null) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
 
     if (raw is int) {
       if (raw.toString().length >= 13) {
-        return DateTime.fromMillisecondsSinceEpoch(raw);
+        return DateTime.fromMillisecondsSinceEpoch(
+          raw,
+        );
       }
-      return DateTime.fromMillisecondsSinceEpoch(raw * 1000);
+
+      return DateTime.fromMillisecondsSinceEpoch(
+        raw * 1000,
+      );
     }
 
-    final parsed = DateTime.tryParse(raw.toString());
-    return parsed ?? DateTime.fromMillisecondsSinceEpoch(0);
+    if (raw is double) {
+      final number = raw.toInt();
+
+      if (number.toString().length >= 13) {
+        return DateTime.fromMillisecondsSinceEpoch(
+          number,
+        );
+      }
+
+      return DateTime.fromMillisecondsSinceEpoch(
+        number * 1000,
+      );
+    }
+
+    final parsed =
+        DateTime.tryParse(raw.toString());
+
+    return parsed ??
+        DateTime.fromMillisecondsSinceEpoch(0);
   }
 
-  String _cleanStatus(dynamic value) {
-    return (value ?? '').toString().toLowerCase().trim();
-  }
+  String _text(
+    dynamic value, {
+    String fallback = '-',
+  }) {
+    final text =
+        (value ?? '').toString().trim();
 
-  String _text(dynamic value, {String fallback = '-'}) {
-    final text = (value ?? '').toString().trim();
-    if (text.isEmpty) return fallback;
+    if (text.isEmpty) {
+      return fallback;
+    }
+
     return text;
   }
 
   String _greeting() {
     final hour = DateTime.now().hour;
-    if (hour < 11) return 'Selamat pagi';
-    if (hour < 15) return 'Selamat siang';
-    if (hour < 18) return 'Selamat sore';
+
+    if (hour < 11) {
+      return 'Selamat pagi';
+    }
+
+    if (hour < 15) {
+      return 'Selamat siang';
+    }
+
+    if (hour < 18) {
+      return 'Selamat sore';
+    }
+
     return 'Selamat malam';
   }
 
@@ -442,464 +715,452 @@ class _AdminHomePageState extends State<AdminHomePage> {
       'Des',
     ];
 
-    return '${days[now.weekday - 1]}, ${now.day} ${months[now.month - 1]} ${now.year}';
+    return '${days[now.weekday - 1]}, '
+        '${now.day} '
+        '${months[now.month - 1]} '
+        '${now.year}';
   }
 
-  void _openPage(Widget page) {
-    if (!mounted) return;
-    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+  String _relativeTime(DateTime date) {
+    if (date.millisecondsSinceEpoch <= 0) {
+      return 'Menunggu verifikasi';
+    }
+
+    final difference =
+        DateTime.now().difference(date);
+
+    if (difference.isNegative ||
+        difference.inMinutes < 1) {
+      return 'Baru saja';
+    }
+
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} menit lalu';
+    }
+
+    if (difference.inHours < 24) {
+      return '${difference.inHours} jam lalu';
+    }
+
+    if (difference.inDays == 1) {
+      return 'Kemarin';
+    }
+
+    if (difference.inDays < 7) {
+      return '${difference.inDays} hari lalu';
+    }
+
+    return '${date.day.toString().padLeft(2, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.year}';
   }
 
-  void _openManagementSheet() {
-    if (!mounted) return;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) {
-        return _premiumSheet(
-          title: 'Menu Manajemen',
-          subtitle: 'Kelola data utama aplikasi TaniGo',
-          icon: Icons.grid_view_rounded,
-          children: [
-            _sheetMenuTile(
-              title: 'Kelola Pupuk',
-              subtitle: 'Stok dan jenis pupuk',
-              icon: Icons.inventory_2_rounded,
-              color: primaryGreen,
-              page: const KelolaPupukPage(),
-            ),
-            _divider(),
-            _sheetMenuTile(
-              title: 'Kelola Alat',
-              subtitle: 'Data alat pertanian',
-              icon: Icons.precision_manufacturing_rounded,
-              color: orangeStatus,
-              page: const KelolaAlatPage(),
-            ),
-            _divider(),
-            _sheetMenuTile(
-              title: 'Jadwal Alat',
-              subtitle: 'Jadwal peminjaman alat',
-              icon: Icons.calendar_month_rounded,
-              color: blueStatus,
-              page: const JadwalAlatAdminPage(),
-            ),
-            _divider(),
-            _sheetMenuTile(
-              title: 'Kelola Pengumuman',
-              subtitle: 'Informasi untuk anggota',
-              icon: Icons.campaign_rounded,
-              color: purpleStatus,
-              page: const KelolaPengumumanPage(),
-            ),
-          ],
-        );
-      },
-    );
+  void _openDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
   }
 
-  void _openPengajuanSheet(_DashboardData data) {
+  void _closeDrawer() {
+    if (_scaffoldKey.currentState?.isDrawerOpen ??
+        false) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _openPage(Widget page) async {
     if (!mounted) return;
 
-    final totalPengajuan =
-        data.verifikasiAnggotaMenunggu +
-        data.bantuanPupukMenunggu +
-        data.peminjamanAlatMenunggu;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) {
-        return _premiumSheet(
-          title: 'Pilih Pengajuan',
-          subtitle:
-              totalPengajuan == 0
-                  ? 'Tidak ada pengajuan yang menunggu verifikasi'
-                  : '$totalPengajuan pengajuan belum diverifikasi',
-          icon: Icons.fact_check_rounded,
-          trailing: _sheetTotalBadge(totalPengajuan, orangeStatus),
-          children: [
-            _sheetMenuTile(
-              title: 'Verifikasi Anggota',
-              subtitle:
-                  data.verifikasiAnggotaMenunggu == 0
-                      ? 'Tidak ada calon anggota baru'
-                      : '${data.verifikasiAnggotaMenunggu} calon anggota menunggu',
-              icon: Icons.assignment_ind_rounded,
-              color: blueStatus,
-              page: const VerifikasiAnggotaPage(),
-              count: data.verifikasiAnggotaMenunggu,
-            ),
-            _divider(),
-            _sheetMenuTile(
-              title: 'Verifikasi Bantuan Pupuk',
-              subtitle:
-                  data.bantuanPupukMenunggu == 0
-                      ? 'Tidak ada pengajuan pupuk'
-                      : '${data.bantuanPupukMenunggu} bantuan pupuk menunggu',
-              icon: Icons.inventory_2_rounded,
-              color: primaryGreen,
-              page: const VerifikasiPupukPage(),
-              count: data.bantuanPupukMenunggu,
-            ),
-            _divider(),
-            _sheetMenuTile(
-              title: 'Verifikasi Peminjaman Alat',
-              subtitle:
-                  data.peminjamanAlatMenunggu == 0
-                      ? 'Tidak ada peminjaman alat'
-                      : '${data.peminjamanAlatMenunggu} peminjaman alat menunggu',
-              icon: Icons.handyman_rounded,
-              color: orangeStatus,
-              page: const VerifikasiPeminjamanPage(),
-              count: data.peminjamanAlatMenunggu,
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _premiumSheet({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required List<Widget> children,
-    Widget? trailing,
-  }) {
-    return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: cardBorder),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
-              blurRadius: 22,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 42,
-              height: 5,
-              decoration: BoxDecoration(
-                color: const Color(0xffD1D5DB),
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                _iconBox(icon, primaryGreen),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: textDark,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          color: textGrey,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (trailing != null) ...[const SizedBox(width: 8), trailing],
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => page,
       ),
     );
   }
 
-  Widget _sheetMenuTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required Widget page,
-    int? count,
-  }) {
-    return InkWell(
-      onTap: () {
-        if (!mounted) return;
-        Navigator.pop(context);
-        _openPage(page);
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        child: Row(
-          children: [
-            _iconBox(icon, color),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: textDark,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: textGrey,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (count != null) ...[
-              _sheetCountBadge(count, color),
-              const SizedBox(width: 8),
-            ],
-            Icon(Icons.chevron_right_rounded, color: color),
-          ],
-        ),
+  Future<void> _openManagementPage(
+    Widget page,
+  ) async {
+    if (!mounted) return;
+
+    final drawerOpen =
+        _scaffoldKey.currentState?.isDrawerOpen ??
+        false;
+
+    if (drawerOpen) {
+      Navigator.of(context).pop();
+
+      await Future<void>.delayed(
+        const Duration(milliseconds: 170),
+      );
+    }
+
+    if (!mounted) return;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => page,
       ),
     );
-  }
 
-  Widget _sheetTotalBadge(int total, Color color) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 38, minHeight: 32),
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.16)),
-      ),
-      child: Text(
-        total > 99 ? '99+' : total.toString(),
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: color,
-          fontSize: 13,
-          height: 1,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
+    if (!mounted) return;
+
+    /*
+     * Setelah admin kembali dari halaman kelola,
+     * drawer dibuka lagi supaya posisi menu tetap
+     * berada di bagian Kelola Data.
+     */
+    await Future<void>.delayed(
+      const Duration(milliseconds: 180),
     );
-  }
 
-  Widget _sheetCountBadge(int total, Color color) {
-    final hasData = total > 0;
+    if (!mounted) return;
 
-    return Container(
-      constraints: const BoxConstraints(minWidth: 28, minHeight: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: hasData ? color : const Color(0xffF3F4F6),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color:
-              hasData ? color.withValues(alpha: 0.18) : const Color(0xffE5E7EB),
-        ),
-      ),
-      child: Text(
-        total > 99 ? '99+' : total.toString(),
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: hasData ? Colors.white : textGrey,
-          fontSize: 10,
-          height: 1,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
+    _scaffoldKey.currentState?.openDrawer();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: bgColor,
-      bottomNavigationBar: _bottomNavigationBar(),
-      body: AppBackground(
-        showPattern: false,
-        child: SafeArea(
-          child: StreamBuilder<_DashboardData>(
-            stream: _dashboardController.stream,
-            initialData: _DashboardData.empty(),
-            builder: (context, snapshot) {
-              final data = snapshot.data ?? _DashboardData.empty();
+    final mediaQuery = MediaQuery.of(context);
 
-              return RefreshIndicator(
-                color: primaryGreen,
-                onRefresh: () async => _emitDashboard(),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+    final screenWidth = mediaQuery.size.width;
+
+    final horizontalPadding =
+        screenWidth < 340 ? 13.0 : 17.0;
+
+    final drawerWidth =
+        (screenWidth * 0.84)
+            .clamp(270.0, 330.0)
+            .toDouble();
+
+    return StreamBuilder<_DashboardData>(
+      stream: _dashboardController.stream,
+      initialData: _DashboardData.empty(),
+      builder: (context, snapshot) {
+        final data =
+            snapshot.data ??
+            _DashboardData.empty();
+
+        return Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: pageBackground,
+          drawerEnableOpenDragGesture: true,
+          drawerEdgeDragWidth: 34,
+          drawer: SizedBox(
+            width: drawerWidth,
+            child: _managementDrawer(data),
+          ),
+          bottomNavigationBar:
+              _bottomNavigationBar(),
+          body: SizedBox.expand(
+            child: AppBackground(
+              showPattern: false,
+              child: SizedBox.expand(
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    _header(data),
-                    const SizedBox(height: 12),
-                    _compactSummary(data),
-                    const SizedBox(height: 14),
-                    _taskStatusCard(data),
-                    const SizedBox(height: 16),
-                    _sectionTitle(
-                      title: 'Tugas Admin',
-                      actionText: 'Menu',
-                      onTap: _openManagementSheet,
+                    const _AdminDashboardBackground(),
+                    SafeArea(
+                      bottom: false,
+                      child: RefreshIndicator(
+                        color: adminPurple,
+                        backgroundColor:
+                            Colors.white,
+                        onRefresh: () async {
+                          _emitDashboard();
+
+                          await Future<void>.delayed(
+                            const Duration(
+                              milliseconds: 450,
+                            ),
+                          );
+                        },
+                        child: ListView(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior
+                                  .manual,
+                          physics:
+                              const AlwaysScrollableScrollPhysics(),
+                          padding: EdgeInsets.fromLTRB(
+                            horizontalPadding,
+                            12,
+                            horizontalPadding,
+                            28,
+                          ),
+                          children: [
+                            Center(
+                              child: ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(
+                                  maxWidth: 760,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment
+                                          .stretch,
+                                  children: [
+                                    _header(data),
+                                    const SizedBox(
+                                      height: 15,
+                                    ),
+                                    _compactOperationalSummary(
+                                      data,
+                                    ),
+                                    const SizedBox(
+                                      height: 12,
+                                    ),
+                                    _statusBanner(data),
+                                    const SizedBox(
+                                      height: 14,
+                                    ),
+                                    _verificationCard(
+                                      data,
+                                    ),
+                                    const SizedBox(
+                                      height: 14,
+                                    ),
+                                    _latestPendingCard(
+                                      data.latestNotices,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 10),
-                    _taskList(data),
-                    const SizedBox(height: 16),
-                    _sectionTitle(
-                      title: 'Pemberitahuan Terbaru',
-                      actionText: 'Pengajuan',
-                      onTap: () => _openPengajuanSheet(data),
-                    ),
-                    const SizedBox(height: 10),
-                    _latestNoticeCard(data.latestNotices),
                   ],
                 ),
-              );
-            },
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   Widget _header(_DashboardData data) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.fromLTRB(
+        13,
+        13,
+        13,
+        13,
+      ),
       decoration: BoxDecoration(
-        color: darkGreen,
-        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            adminNavy,
+            adminNavyLight,
+            adminPurple,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(23),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.20),
-            blurRadius: 16,
-            offset: const Offset(0, 7),
+            color: adminNavy.withValues(
+              alpha: 0.23,
+            ),
+            blurRadius: 22,
+            offset: const Offset(0, 9),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: _openManagementSheet,
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              height: 44,
-              width: 44,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
-              ),
-              child: const Icon(
-                Icons.menu_rounded,
-                color: Colors.white,
-                size: 25,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(23),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -42,
+              top: -58,
+              child: Container(
+                height: 140,
+                width: 140,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(
+                    alpha: 0.07,
+                  ),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Positioned(
+              right: 42,
+              bottom: -62,
+              child: Container(
+                height: 105,
+                width: 105,
+                decoration: BoxDecoration(
+                  color: const Color(
+                    0xffB9ACFF,
+                  ).withValues(alpha: 0.09),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Row(
               children: [
-                Text(
-                  _greeting(),
-                  style: const TextStyle(
-                    color: Color(0xffD1FAE5),
-                    fontSize: 11.8,
-                    fontWeight: FontWeight.w700,
+                Material(
+                  color: Colors.transparent,
+                  borderRadius:
+                      BorderRadius.circular(15),
+                  child: InkWell(
+                    onTap: _openDrawer,
+                    borderRadius:
+                        BorderRadius.circular(15),
+                    child: Container(
+                      height: 45,
+                      width: 45,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(
+                          alpha: 0.13,
+                        ),
+                        borderRadius:
+                            BorderRadius.circular(15),
+                        border: Border.all(
+                          color:
+                              Colors.white.withValues(
+                            alpha: 0.19,
+                          ),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.menu_rounded,
+                        color: Colors.white,
+                        size: 25,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 3),
-                const Text(
-                  'Admin Desa',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w900,
+                const SizedBox(width: 10),
+                Container(
+                  height: 47,
+                  width: 47,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(
+                      alpha: 0.95,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons
+                        .admin_panel_settings_rounded,
+                    color: adminNavy,
+                    size: 25,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  _todayText(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.74),
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _greeting(),
+                        maxLines: 1,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color:
+                              Colors.white.withValues(
+                            alpha: 0.77,
+                          ),
+                          fontSize: 10.6,
+                          fontWeight:
+                              FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Administrator TaniGo',
+                        maxLines: 1,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 17.2,
+                          fontWeight:
+                              FontWeight.w900,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _todayText(),
+                        maxLines: 1,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color:
+                              Colors.white.withValues(
+                            alpha: 0.69,
+                          ),
+                          fontSize: 9.5,
+                          fontWeight:
+                              FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                const SizedBox(width: 7),
+
+                /*
+                 * Indikator notifikasi hanya menjadi
+                 * tampilan informasi, tidak dapat ditekan.
+                 */
+                _notificationIndicator(
+                  data.notifikasiBelumDibaca,
                 ),
               ],
             ),
-          ),
-          _notificationButton(data.notifikasiBelumDibaca),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _notificationButton(int total) {
-    return InkWell(
-      onTap: () => _openPage(const NotifikasiAdminPage()),
-      borderRadius: BorderRadius.circular(14),
+  Widget _notificationIndicator(int total) {
+    return IgnorePointer(
       child: SizedBox(
-        width: 58,
-        height: 54,
+        height: 46,
+        width: 48,
         child: Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.center,
           children: [
             Container(
-              height: 44,
-              width: 44,
+              height: 42,
+              width: 42,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+                color: Colors.white.withValues(
+                  alpha: 0.13,
+                ),
+                borderRadius:
+                    BorderRadius.circular(14),
+                border: Border.all(
+                  color: Colors.white.withValues(
+                    alpha: 0.19,
+                  ),
+                ),
               ),
               child: const Icon(
                 Icons.notifications_none_rounded,
                 color: Colors.white,
-                size: 24,
+                size: 23,
               ),
             ),
             if (total > 0)
-              Positioned(right: 1, top: 1, child: _notificationBadge(total)),
+              Positioned(
+                right: -1,
+                top: -2,
+                child: _notificationBadge(total),
+              ),
           ],
         ),
       ),
@@ -907,22 +1168,32 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 
   Widget _notificationBadge(int total) {
-    final text = total > 99 ? '99+' : total.toString();
+    final text =
+        total > 99 ? '99+' : total.toString();
 
     return Container(
-      constraints: const BoxConstraints(minWidth: 24, minHeight: 21),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      constraints: const BoxConstraints(
+        minWidth: 20,
+        minHeight: 19,
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 5,
+        vertical: 3,
+      ),
       decoration: BoxDecoration(
         color: redStatus,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white, width: 2),
+        border: Border.all(
+          color: Colors.white,
+          width: 2,
+        ),
       ),
       child: Text(
         text,
-        textAlign: TextAlign.center,
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 10,
+          fontSize: 8.5,
           height: 1,
           fontWeight: FontWeight.w900,
         ),
@@ -930,134 +1201,224 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  Widget _compactSummary(_DashboardData data) {
-    final totalPengajuan =
-        data.verifikasiAnggotaMenunggu +
-        data.bantuanPupukMenunggu +
-        data.peminjamanAlatMenunggu;
-
-    final items = [
-      _SummaryItem(
-        title: 'Anggota',
-        value: data.totalAnggotaAktif,
-        icon: Icons.verified_user_rounded,
-        color: primaryGreen,
-        onTap: () => _openPage(const VerifikasiAnggotaPage()),
-      ),
-      _SummaryItem(
-        title: 'Pengajuan',
-        value: totalPengajuan,
-        icon: Icons.fact_check_rounded,
-        color: orangeStatus,
-        onTap: () => _openPengajuanSheet(data),
-      ),
-      _SummaryItem(
-        title: 'Reset',
-        value: data.resetPasswordMenunggu,
-        icon: Icons.lock_person_rounded,
-        color: blueStatus,
-        onTap: () => _openPage(const ResetPasswordAdminPage()),
-      ),
-      _SummaryItem(
-        title: 'Notifikasi',
-        value: data.notifikasiBelumDibaca,
-        icon: Icons.notifications_none_rounded,
-        color: redStatus,
-        onTap: () => _openPage(const NotifikasiAdminPage()),
-      ),
-    ];
+  Widget _compactOperationalSummary(
+    _DashboardData data,
+  ) {
+    final totalVerifikasi =
+        data.totalVerifikasiMenunggu;
 
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: _cardDecoration(radius: 18),
-      child: Row(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        11,
+        10,
+        11,
+        10,
+      ),
+      decoration: _cardDecoration(radius: 20),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          for (int i = 0; i < items.length; i++) ...[
-            Expanded(child: _compactSummaryItem(items[i])),
-            if (i != items.length - 1) const SizedBox(width: 8),
-          ],
+          const Padding(
+            padding: EdgeInsets.only(
+              left: 2,
+              bottom: 9,
+            ),
+            child: Text(
+              'Ringkasan',
+              style: TextStyle(
+                color: textDark,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: _smallSummaryItem(
+                  title: 'Anggota',
+                  value: data.totalAnggotaAktif,
+                  icon:
+                      Icons.verified_user_outlined,
+                  color: primaryGreen,
+                  backgroundColor: softGreen,
+                ),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: _smallSummaryItem(
+                  title: 'Verifikasi',
+                  value: totalVerifikasi,
+                  icon:
+                      Icons.fact_check_outlined,
+                  color: orangeStatus,
+                  backgroundColor: softAmber,
+                ),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: _smallSummaryItem(
+                  title: 'Reset',
+                  value:
+                      data.resetPasswordMenunggu,
+                  icon:
+                      Icons.lock_reset_outlined,
+                  color: purpleStatus,
+                  backgroundColor: softPurple,
+                ),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: _smallSummaryItem(
+                  title: 'Notif',
+                  value:
+                      data.notifikasiBelumDibaca,
+                  icon:
+                      Icons.notifications_outlined,
+                  color: redStatus,
+                  backgroundColor: softRed,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _compactSummaryItem(_SummaryItem item) {
-    return InkWell(
-      onTap: item.onTap,
-      borderRadius: BorderRadius.circular(15),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-        decoration: BoxDecoration(
-          color: item.color.withValues(alpha: 0.075),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: item.color.withValues(alpha: 0.13)),
+  Widget _smallSummaryItem({
+    required String title,
+    required int value,
+    required IconData icon,
+    required Color color,
+    required Color backgroundColor,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(
+        minHeight: 72,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 5,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: color.withValues(alpha: 0.10),
         ),
-        child: Column(
-          children: [
-            Icon(item.icon, color: item.color, size: 21),
-            const SizedBox(height: 7),
-            Text(
-              item.value > 99 ? '99+' : item.value.toString(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: item.color,
-                fontSize: 17,
-                height: 1,
-                fontWeight: FontWeight.w900,
-              ),
+      ),
+      child: Column(
+        mainAxisAlignment:
+            MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: color,
+            size: 18,
+          ),
+          const SizedBox(height: 5),
+          Text(
+            value > 99 ? '99+' : value.toString(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 15,
+              height: 1,
+              fontWeight: FontWeight.w900,
             ),
-            const SizedBox(height: 5),
-            Text(
-              item.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: textDark,
-                fontSize: 10.2,
-                fontWeight: FontWeight.w900,
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: textDark,
+              fontSize: 8.3,
+              fontWeight: FontWeight.w800,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _taskStatusCard(_DashboardData data) {
-    final clear = data.totalTugasMenunggu == 0;
-    final color = clear ? primaryGreen : orangeStatus;
+  Widget _statusBanner(_DashboardData data) {
+    final clear =
+        data.totalTugasMenunggu == 0;
+
+    final color =
+        clear ? primaryGreen : orangeStatus;
+
+    final backgroundColor =
+        clear ? softGreen : softAmber;
 
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(radius: 18),
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color:
+            backgroundColor.withValues(alpha: 0.97),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: color.withValues(alpha: 0.13),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: adminNavy.withValues(
+              alpha: 0.045,
+            ),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          _iconBox(
-            clear ? Icons.task_alt_rounded : Icons.schedule_rounded,
-            color,
+          Container(
+            height: 40,
+            width: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(
+              clear
+                  ? Icons.task_alt_rounded
+                  : Icons.hourglass_top_rounded,
+              color: color,
+              size: 21,
+            ),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
-                  clear ? 'Semua tugas selesai.' : 'Status Hari Ini',
+                  clear
+                      ? 'Semua tugas telah diproses'
+                      : 'Ada tugas menunggu verifikasi',
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 14,
+                    fontSize: 12.8,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   clear
-                      ? 'Tidak ada data yang perlu diverifikasi saat ini.'
-                      : '${data.totalTugasMenunggu} data masih menunggu verifikasi admin.',
+                      ? 'Data selesai tersedia di halaman Riwayat.'
+                      : '${data.totalTugasMenunggu} data perlu diperiksa admin.',
                   style: const TextStyle(
                     color: textGrey,
-                    fontSize: 11.8,
+                    fontSize: 10.3,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1065,21 +1426,30 @@ class _AdminHomePageState extends State<AdminHomePage> {
               ],
             ),
           ),
+          const SizedBox(width: 7),
           Container(
-            constraints: const BoxConstraints(minWidth: 34),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            constraints: const BoxConstraints(
+              minWidth: 32,
+              minHeight: 30,
+            ),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 6,
+            ),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
+              color: Colors.white.withValues(
+                alpha: 0.88,
+              ),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
               data.totalTugasMenunggu > 99
                   ? '99+'
                   : data.totalTugasMenunggu.toString(),
-              textAlign: TextAlign.center,
               style: TextStyle(
                 color: color,
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -1089,46 +1459,133 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  Widget _taskList(_DashboardData data) {
+  Widget _verificationCard(_DashboardData data) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-      decoration: _cardDecoration(radius: 18),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        15,
+        15,
+        15,
+        5,
+      ),
+      decoration: _cardDecoration(radius: 23),
       child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tugas Verifikasi',
+                      style: TextStyle(
+                        color: textDark,
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Hanya data yang belum selesai.',
+                      style: TextStyle(
+                        color: textGrey,
+                        fontSize: 10.1,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: softAmber,
+                  borderRadius:
+                      BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${data.totalTugasMenunggu} TUGAS',
+                  style: const TextStyle(
+                    color: orangeStatus,
+                    fontSize: 7.8,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           _taskTile(
             title: 'Verifikasi Anggota',
-            subtitle: 'Calon anggota baru',
-            count: data.verifikasiAnggotaMenunggu,
-            icon: Icons.assignment_ind_rounded,
-            color: primaryGreen,
-            page: const VerifikasiAnggotaPage(),
+            subtitle:
+                'Calon anggota yang mendaftar online',
+            count:
+                data.verifikasiAnggotaMenunggu,
+            icon: Icons.assignment_ind_outlined,
+            color: blueStatus,
+            backgroundColor: softBlue,
+            onTap: () {
+              _openPage(
+                const VerifikasiAnggotaPage(),
+              );
+            },
           ),
           _divider(),
           _taskTile(
             title: 'Bantuan Pupuk',
-            subtitle: 'Pengajuan bantuan pupuk',
-            count: data.bantuanPupukMenunggu,
-            icon: Icons.inventory_2_rounded,
+            subtitle:
+                'Pengajuan bantuan pupuk anggota',
+            count:
+                data.bantuanPupukMenunggu,
+            icon: Icons.inventory_2_outlined,
             color: primaryGreen,
-            page: const VerifikasiPupukPage(),
+            backgroundColor: softGreen,
+            onTap: () {
+              _openPage(
+                const VerifikasiPupukPage(),
+              );
+            },
           ),
           _divider(),
           _taskTile(
             title: 'Peminjaman Alat',
-            subtitle: 'Pengajuan alat pertanian',
-            count: data.peminjamanAlatMenunggu,
-            icon: Icons.handyman_rounded,
+            subtitle:
+                'Pengajuan alat pertanian anggota',
+            count:
+                data.peminjamanAlatMenunggu,
+            icon: Icons.handyman_outlined,
             color: orangeStatus,
-            page: const VerifikasiPeminjamanPage(),
+            backgroundColor: softAmber,
+            onTap: () {
+              _openPage(
+                const VerifikasiPeminjamanPage(),
+              );
+            },
           ),
           _divider(),
           _taskTile(
             title: 'Reset Password',
-            subtitle: 'Permintaan pemulihan akun',
-            count: data.resetPasswordMenunggu,
-            icon: Icons.lock_person_rounded,
-            color: blueStatus,
-            page: const ResetPasswordAdminPage(),
+            subtitle:
+                'Permintaan pemulihan akun anggota',
+            count:
+                data.resetPasswordMenunggu,
+            icon: Icons.lock_reset_outlined,
+            color: purpleStatus,
+            backgroundColor: softPurple,
+            onTap: () {
+              _openPage(
+                const ResetPasswordAdminPage(),
+              );
+            },
           ),
         ],
       ),
@@ -1141,93 +1598,266 @@ class _AdminHomePageState extends State<AdminHomePage> {
     required int count,
     required IconData icon,
     required Color color,
-    required Widget page,
+    required Color backgroundColor,
+    required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: () => _openPage(page),
+    return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        child: Row(
-          children: [
-            _iconBox(icon, color),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: textDark,
-                      fontSize: 13.8,
-                      fontWeight: FontWeight.w900,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: 11,
+          ),
+          child: Row(
+            children: [
+              Container(
+                height: 42,
+                width: 42,
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius:
+                      BorderRadius.circular(14),
+                  border: Border.all(
+                    color: color.withValues(
+                      alpha: 0.09,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: textGrey,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 21,
+                ),
               ),
-            ),
-            if (count > 0) _smallBadge(count, color),
-            const SizedBox(width: 8),
-            Icon(Icons.chevron_right_rounded, color: color),
-          ],
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: textDark,
+                        fontSize: 12.8,
+                        fontWeight:
+                            FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textGrey,
+                        fontSize: 10.2,
+                        fontWeight:
+                            FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 7),
+              _countBadge(count, color),
+              const SizedBox(width: 6),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: color,
+                size: 21,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _latestNoticeCard(List<_NoticeItem> notices) {
+  Widget _countBadge(int count, Color color) {
+    final hasData = count > 0;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-      decoration: _cardDecoration(radius: 18),
-      child:
-          notices.isEmpty
-              ? _emptyLatestNotice()
-              : Column(
-                children: [
-                  for (int i = 0; i < notices.length; i++) ...[
-                    _latestNoticeTile(notices[i]),
-                    if (i != notices.length - 1) _divider(),
+      constraints: const BoxConstraints(
+        minWidth: 27,
+        minHeight: 25,
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 7,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: hasData
+            ? color
+            : const Color(0xffF0F2F4),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        count > 99 ? '99+' : count.toString(),
+        style: TextStyle(
+          color: hasData
+              ? Colors.white
+              : textGrey,
+          fontSize: 9.5,
+          height: 1,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget _latestPendingCard(
+    List<_NoticeItem> notices,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        15,
+        15,
+        15,
+        5,
+      ),
+      decoration: _cardDecoration(radius: 23),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pengajuan Terbaru',
+                      style: TextStyle(
+                        color: textDark,
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Data baru yang menunggu proses.',
+                      style: TextStyle(
+                        color: textGrey,
+                        fontSize: 10.1,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
-                ],
+                ),
               ),
+              Material(
+                color: softBlue,
+                borderRadius:
+                    BorderRadius.circular(999),
+                child: InkWell(
+                  onTap: () {
+                    _openPage(
+                      const RiwayatAdminPage(),
+                    );
+                  },
+                  borderRadius:
+                      BorderRadius.circular(999),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius:
+                          BorderRadius.circular(999),
+                      border: Border.all(
+                        color: blueStatus.withValues(
+                          alpha: 0.11,
+                        ),
+                      ),
+                    ),
+                    child: const Text(
+                      'RIWAYAT',
+                      style: TextStyle(
+                        color: blueStatus,
+                        fontSize: 8.3,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.35,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (notices.isEmpty)
+            _emptyLatestNotice()
+          else
+            for (int index = 0;
+                index < notices.length;
+                index++) ...[
+              _latestNoticeTile(
+                notices[index],
+              ),
+              if (index != notices.length - 1)
+                _divider(),
+            ],
+        ],
+      ),
     );
   }
 
   Widget _emptyLatestNotice() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 18),
-      child: Row(
+    return Container(
+      margin: const EdgeInsets.only(
+        bottom: 11,
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: softGreen,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(
+          color: primaryGreen.withValues(
+            alpha: 0.11,
+          ),
+        ),
+      ),
+      child: const Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          _iconBox(Icons.done_all_rounded, primaryGreen),
-          const SizedBox(width: 11),
-          const Expanded(
+          _SmallContainerIcon(
+            icon: Icons.done_all_rounded,
+            color: primaryGreen,
+            backgroundColor: Colors.white,
+          ),
+          SizedBox(width: 10),
+          Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Belum ada pemberitahuan baru',
+                  'Tidak ada pengajuan menunggu',
                   style: TextStyle(
                     color: textDark,
-                    fontSize: 14,
+                    fontSize: 12.3,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 SizedBox(height: 3),
                 Text(
-                  'Semua pengajuan menunggu akan tampil di sini.',
+                  'Data yang telah diverifikasi tersedia di halaman Riwayat.',
                   style: TextStyle(
                     color: textGrey,
-                    fontSize: 11.8,
+                    fontSize: 10.1,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1240,55 +1870,116 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  Widget _latestNoticeTile(_NoticeItem item) {
-    return InkWell(
-      onTap: () => _openPage(item.page),
+  Widget _latestNoticeTile(
+    _NoticeItem item,
+  ) {
+    return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        child: Row(
-          children: [
-            _iconBox(item.icon, item.color),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          item.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: textDark,
-                            fontSize: 13.8,
-                            fontWeight: FontWeight.w900,
+      child: InkWell(
+        onTap: () {
+          _openPage(item.page);
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: 11,
+          ),
+          child: Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 42,
+                width: 42,
+                decoration: BoxDecoration(
+                  color: item.color.withValues(
+                    alpha: 0.10,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  item.icon,
+                  color: item.color,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            item.title,
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: textDark,
+                              fontSize: 12.7,
+                              fontWeight:
+                                  FontWeight.w900,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      _newBadge(),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    item.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: textGrey,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
+                        const SizedBox(width: 6),
+                        _newBadge(),
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 3),
+                    Text(
+                      item.subtitle,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textGrey,
+                        fontSize: 10.3,
+                        fontWeight:
+                            FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.schedule_outlined,
+                          color: item.color,
+                          size: 13,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            _relativeTime(item.date),
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: item.color,
+                              fontSize: 9.1,
+                              fontWeight:
+                                  FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Icon(Icons.chevron_right_rounded, color: item.color),
-          ],
+              const SizedBox(width: 7),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: item.color,
+                size: 21,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1296,222 +1987,474 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Widget _newBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 6,
+        vertical: 3,
+      ),
       decoration: BoxDecoration(
-        color: redStatus.withValues(alpha: 0.10),
+        color: softRed,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: redStatus.withValues(alpha: 0.18)),
+        border: Border.all(
+          color: redStatus.withValues(alpha: 0.12),
+        ),
       ),
       child: const Text(
-        'Baru',
+        'BARU',
         style: TextStyle(
           color: redStatus,
-          fontSize: 9.5,
+          fontSize: 7.2,
           height: 1,
           fontWeight: FontWeight.w900,
+          letterSpacing: 0.3,
         ),
       ),
     );
   }
 
-  Widget _iconBox(IconData icon, Color color) {
-    return Container(
-      height: 42,
-      width: 42,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
+  Widget _managementDrawer(
+    _DashboardData data,
+  ) {
+    return Drawer(
+      elevation: 0,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(
+          right: Radius.circular(28),
+        ),
       ),
-      child: Icon(icon, color: color, size: 22),
-    );
-  }
-
-  Widget _smallBadge(int total, Color color) {
-    final text = total > 99 ? '99+' : total.toString();
-
-    return Container(
-      constraints: const BoxConstraints(minWidth: 25, minHeight: 23),
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          height: 1,
-          fontWeight: FontWeight.w900,
+      child: SafeArea(
+        child: Column(
+          children: [
+            _drawerHeader(),
+            Expanded(
+              child: ListView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior
+                        .manual,
+                padding: const EdgeInsets.fromLTRB(
+                  12,
+                  14,
+                  12,
+                  20,
+                ),
+                children: [
+                  const _DrawerSectionLabel(
+                    label: 'KELOLA DATA',
+                  ),
+                  _drawerTile(
+                    title: 'Kelola Pupuk',
+                    subtitle:
+                        'Atur stok dan jenis pupuk',
+                    icon:
+                        Icons.inventory_2_outlined,
+                    color: primaryGreen,
+                    onTap: () {
+                      _openManagementPage(
+                        const KelolaPupukPage(),
+                      );
+                    },
+                  ),
+                  _drawerTile(
+                    title: 'Kelola Alat',
+                    subtitle:
+                        'Atur data alat pertanian',
+                    icon: Icons
+                        .precision_manufacturing_outlined,
+                    color: orangeStatus,
+                    onTap: () {
+                      _openManagementPage(
+                        const KelolaAlatPage(),
+                      );
+                    },
+                  ),
+                  _drawerTile(
+                    title: 'Jadwal Alat',
+                    subtitle:
+                        'Atur jadwal peminjaman alat',
+                    icon:
+                        Icons.calendar_month_outlined,
+                    color: blueStatus,
+                    onTap: () {
+                      _openManagementPage(
+                        const JadwalAlatAdminPage(),
+                      );
+                    },
+                  ),
+                  _drawerTile(
+                    title: 'Kelola Pengumuman',
+                    subtitle:
+                        'Buat informasi untuk anggota',
+                    icon:
+                        Icons.campaign_outlined,
+                    color: purpleStatus,
+                    onTap: () {
+                      _openManagementPage(
+                        const KelolaPengumumanPage(),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: softBlue,
+                      borderRadius:
+                          BorderRadius.circular(16),
+                      border: Border.all(
+                        color: blueStatus.withValues(
+                          alpha: 0.10,
+                        ),
+                      ),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.swipe_right_alt_rounded,
+                          color: blueStatus,
+                          size: 20,
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Geser dari sisi kiri layar untuk membuka menu kelola ini.',
+                            style: TextStyle(
+                              color: textGrey,
+                              fontSize: 10.2,
+                              height: 1.4,
+                              fontWeight:
+                                  FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _sectionTitle({
-    required String title,
-    required String actionText,
-    required VoidCallback onTap,
-  }) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: textDark,
-              fontSize: 16.5,
-              fontWeight: FontWeight.w900,
+  Widget _drawerHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        17,
+        17,
+        15,
+        16,
+      ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            adminNavy,
+            adminNavyLight,
+            adminPurple,
+          ],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomRight: Radius.circular(27),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 50,
+            width: 50,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(
+                alpha: 0.95,
+              ),
+              borderRadius: BorderRadius.circular(17),
+            ),
+            child: const Icon(
+              Icons.tune_rounded,
+              color: adminNavy,
+              size: 26,
             ),
           ),
-        ),
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-            decoration: BoxDecoration(
-              color: softGreen.withValues(alpha: 0.82),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+          const SizedBox(width: 11),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.menu_rounded, color: primaryGreen, size: 16),
-                const SizedBox(width: 5),
                 Text(
-                  actionText,
-                  style: const TextStyle(
-                    color: primaryGreen,
-                    fontSize: 11.8,
+                  'Kelola Data',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
                     fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Manajemen data utama TaniGo',
+                  style: TextStyle(
+                    color: Color(0xffDFE6F1),
+                    fontSize: 10.2,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-        ),
-      ],
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: _closeDrawer,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                height: 37,
+                width: 37,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(
+                    alpha: 0.12,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _divider() {
-    return const Divider(height: 1, color: cardBorder);
+  Widget _drawerTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: 7,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.055),
+              borderRadius:
+                  BorderRadius.circular(16),
+              border: Border.all(
+                color: color.withValues(
+                  alpha: 0.09,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  height: 40,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.circular(13),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: textDark,
+                          fontSize: 12.5,
+                          fontWeight:
+                              FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: textGrey,
+                          fontSize: 9.7,
+                          fontWeight:
+                              FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: color,
+                  size: 21,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _bottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
+        border: const Border(
+          top: BorderSide(
+            color: cardBorder,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 14,
-            offset: const Offset(0, -5),
+            color: adminNavy.withValues(
+              alpha: 0.10,
+            ),
+            blurRadius: 18,
+            offset: const Offset(0, -6),
           ),
         ],
       ),
-      child: BottomNavigationBar(
-        currentIndex: 0,
-        elevation: 0,
-        backgroundColor: Colors.white,
-        selectedItemColor: primaryGreen,
-        unselectedItemColor: const Color(0xff9CA3AF),
-        selectedLabelStyle: const TextStyle(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w800,
+      child: SafeArea(
+        top: false,
+        child: BottomNavigationBar(
+          currentIndex: 0,
+          elevation: 0,
+          backgroundColor: Colors.white,
+          selectedItemColor: adminPurple,
+          unselectedItemColor: textSoft,
+          selectedLabelStyle:
+              const TextStyle(
+            fontSize: 10.8,
+            fontWeight: FontWeight.w900,
+          ),
+          unselectedLabelStyle:
+              const TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+          ),
+          type: BottomNavigationBarType.fixed,
+          onTap: (index) {
+            if (index == 1) {
+              _openPage(
+                const RiwayatAdminPage(),
+              );
+            } else if (index == 2) {
+              _openPage(
+                const LaporanPage(),
+              );
+            } else if (index == 3) {
+              _openPage(
+                const ProfilAdminPage(),
+              );
+            }
+          },
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(
+                Icons.space_dashboard_outlined,
+              ),
+              activeIcon: Icon(
+                Icons.space_dashboard_rounded,
+              ),
+              label: 'Dashboard',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(
+                Icons.receipt_long_outlined,
+              ),
+              activeIcon: Icon(
+                Icons.receipt_long_rounded,
+              ),
+              label: 'Riwayat',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(
+                Icons.bar_chart_outlined,
+              ),
+              activeIcon: Icon(
+                Icons.bar_chart_rounded,
+              ),
+              label: 'Laporan',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(
+                Icons.person_outline_rounded,
+              ),
+              activeIcon: Icon(
+                Icons.person_rounded,
+              ),
+              label: 'Profil',
+            ),
+          ],
         ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w600,
-        ),
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) {
-          if (index == 1) {
-            _openPage(const RiwayatAdminPage());
-          } else if (index == 2) {
-            _openPage(const LaporanPage());
-          } else if (index == 3) {
-            _openPage(const ProfilAdminPage());
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.grid_view_rounded),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long_rounded),
-            label: 'Riwayat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart_rounded),
-            label: 'Laporan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_circle_rounded),
-            label: 'Profil',
-          ),
-        ],
       ),
     );
   }
 
-  BoxDecoration _cardDecoration({double radius = 18}) {
+  Widget _divider() {
+    return const Divider(
+      height: 1,
+      color: cardBorder,
+    );
+  }
+
+  BoxDecoration _cardDecoration({
+    double radius = 18,
+  }) {
     return BoxDecoration(
-      color: Colors.white,
+      color: Colors.white.withValues(
+        alpha: 0.98,
+      ),
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: cardBorder),
+      border: Border.all(
+        color: cardBorder,
+      ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.035),
-          blurRadius: 12,
-          offset: const Offset(0, 5),
+          color: adminNavy.withValues(
+            alpha: 0.06,
+          ),
+          blurRadius: 16,
+          offset: const Offset(0, 7),
         ),
       ],
     );
   }
 }
-
-class _SummaryItem {
-  final String title;
-  final int value;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _SummaryItem({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-}
-
-class _NoticeItem {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final Widget page;
-  final _NoticeType type;
-  final DateTime date;
-
-  const _NoticeItem({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.page,
-    required this.type,
-    required this.date,
-  });
-}
-
-enum _NoticeType { anggota, pupuk, alat, reset }
 
 class _DashboardData {
   final int totalAnggotaAktif;
@@ -1544,9 +2487,291 @@ class _DashboardData {
     );
   }
 
-  int get totalTugasMenunggu =>
-      verifikasiAnggotaMenunggu +
-      bantuanPupukMenunggu +
-      peminjamanAlatMenunggu +
-      resetPasswordMenunggu;
+  int get totalVerifikasiMenunggu {
+    return verifikasiAnggotaMenunggu +
+        bantuanPupukMenunggu +
+        peminjamanAlatMenunggu;
+  }
+
+  int get totalTugasMenunggu {
+    return totalVerifikasiMenunggu +
+        resetPasswordMenunggu;
+  }
+}
+
+class _NoticeItem {
+  final String id;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final Widget page;
+  final DateTime date;
+
+  const _NoticeItem({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.page,
+    required this.date,
+  });
+}
+
+class _SmallContainerIcon extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final Color backgroundColor;
+
+  const _SmallContainerIcon({
+    required this.icon,
+    required this.color,
+    required this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 37,
+      width: 37,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(
+          color: color.withValues(alpha: 0.07),
+        ),
+      ),
+      child: Icon(
+        icon,
+        color: color,
+        size: 19,
+      ),
+    );
+  }
+}
+
+class _DrawerSectionLabel extends StatelessWidget {
+  final String label;
+
+  const _DrawerSectionLabel({
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        9,
+        5,
+        9,
+        8,
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: _AdminHomePageState.textSoft,
+          fontSize: 8.5,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminDashboardBackground
+    extends StatelessWidget {
+  const _AdminDashboardBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: SizedBox.expand(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final height = constraints.maxHeight;
+
+            final baseSize =
+                width < height ? width : height;
+
+            final largeCircle =
+                (baseSize * 0.98)
+                    .clamp(280.0, 470.0)
+                    .toDouble();
+
+            final mediumCircle =
+                (baseSize * 0.67)
+                    .clamp(190.0, 330.0)
+                    .toDouble();
+
+            final smallCircle =
+                (baseSize * 0.40)
+                    .clamp(120.0, 200.0)
+                    .toDouble();
+
+            return ClipRect(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0xff172A46),
+                          Color(0xff263E61),
+                          Color(0xffE8EAF2),
+                          Color(0xffF2F4F8),
+                        ],
+                        stops: [
+                          0,
+                          0.22,
+                          0.49,
+                          1,
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: -largeCircle * 0.55,
+                    right: -largeCircle * 0.30,
+                    child: _AdminBackgroundCircle(
+                      size: largeCircle,
+                      color:
+                          const Color(0xff6256A4),
+                      alpha: 0.22,
+                      borderColor: Colors.white,
+                    ),
+                  ),
+                  Positioned(
+                    top: -smallCircle * 0.13,
+                    left: -smallCircle * 0.22,
+                    child: _AdminBackgroundRing(
+                      size: smallCircle,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Positioned(
+                    top: height * 0.26,
+                    left: -mediumCircle * 0.56,
+                    child: _AdminBackgroundCircle(
+                      size: mediumCircle,
+                      color:
+                          const Color(0xff54779A),
+                      alpha: 0.21,
+                      borderColor:
+                          const Color(0xff54779A),
+                    ),
+                  ),
+                  Positioned(
+                    top: height * 0.47,
+                    right:
+                        -mediumCircle * 0.62,
+                    child: _AdminBackgroundCircle(
+                      size: mediumCircle * 1.08,
+                      color:
+                          const Color(0xffE8E1F7),
+                      alpha: 0.76,
+                      borderColor:
+                          const Color(0xff725BB4),
+                    ),
+                  ),
+                  Positioned(
+                    bottom:
+                        -largeCircle * 0.52,
+                    left: -largeCircle * 0.31,
+                    child: _AdminBackgroundCircle(
+                      size: largeCircle,
+                      color:
+                          const Color(0xffDCEDE8),
+                      alpha: 0.76,
+                      borderColor:
+                          const Color(0xff28766F),
+                    ),
+                  ),
+                  Positioned(
+                    bottom:
+                        -mediumCircle * 0.36,
+                    right:
+                        -mediumCircle * 0.42,
+                    child: _AdminBackgroundCircle(
+                      size: mediumCircle,
+                      color:
+                          const Color(0xffE7EDF6),
+                      alpha: 0.86,
+                      borderColor:
+                          const Color(0xff326CA3),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminBackgroundCircle
+    extends StatelessWidget {
+  final double size;
+  final Color color;
+  final double alpha;
+  final Color borderColor;
+
+  const _AdminBackgroundCircle({
+    required this.size,
+    required this.color,
+    required this.alpha,
+    required this.borderColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: alpha),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: borderColor.withValues(
+            alpha: 0.08,
+          ),
+          width: 2,
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminBackgroundRing
+    extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _AdminBackgroundRing({
+    required this.size,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: color.withValues(alpha: 0.12),
+          width: 2,
+        ),
+      ),
+    );
+  }
 }

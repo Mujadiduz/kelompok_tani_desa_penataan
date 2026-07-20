@@ -24,19 +24,46 @@ class AlatFormPage extends StatefulWidget {
 }
 
 class _AlatFormPageState extends State<AlatFormPage> {
-  static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff14532D);
-  static const Color bgColor = Color(0xffF6FAF7);
-  static const Color textDark = Color(0xff1F2937);
-  static const Color textGrey = Color(0xff6B7280);
-  static const Color borderColor = Color(0xffE5E7EB);
-  static const Color orangeStatus = Color(0xffF59E0B);
-  static const Color redStatus = Color(0xffDC2626);
-  static const Color blueStatus = Color(0xff2563EB);
+  static const Color primary = Color(0xff2E7D32);
+  static const Color dark = Color(0xff14532D);
+  static const Color teal = Color(0xff167A6B);
+  static const Color deepTeal = Color(0xff0E5F57);
+  static const Color blue = Color(0xff326FA3);
+  static const Color amber = Color(0xffD98212);
+  static const Color red = Color(0xffC83B3B);
+
+  static const Color background = Color(0xffF2F7F5);
+  static const Color border = Color(0xffE0E8E5);
+  static const Color textDark = Color(0xff18212B);
+  static const Color textGrey = Color(0xff66727F);
+  static const Color textSoft = Color(0xff8B96A2);
+
+  static const Color softGreen = Color(0xffE9F5EB);
+  static const Color softTeal = Color(0xffE6F4F1);
+  static const Color softBlue = Color(0xffEAF3FA);
+  static const Color softAmber = Color(0xffFFF3DD);
+  static const Color softRed = Color(0xffFBEAEA);
+
+  static const List<String> _monthNames = [
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
+  ];
 
   final TextEditingController tanggalKembaliController =
       TextEditingController();
-  final TextEditingController catatanController = TextEditingController();
+
+  final TextEditingController catatanController =
+      TextEditingController();
 
   @override
   void dispose() {
@@ -45,241 +72,390 @@ class _AlatFormPageState extends State<AlatFormPage> {
     super.dispose();
   }
 
-  void lanjutKonfirmasi() {
-    FocusScope.of(context).unfocus();
+  DateTime? _parseDate(String value) {
+    final raw = value.trim();
 
-    if (tanggalKembaliController.text.trim().isEmpty) {
-      _showSnackBar('Tanggal kembali wajib diisi', redStatus);
-      return;
+    if (raw.isEmpty || raw == '-') {
+      return null;
     }
 
-    if (!tanggalKembaliValid()) {
+    final dateOnly = RegExp(
+      r'^(\d{4})-(\d{2})-(\d{2})$',
+    ).firstMatch(raw);
+
+    if (dateOnly != null) {
+      return DateTime(
+        int.parse(dateOnly.group(1)!),
+        int.parse(dateOnly.group(2)!),
+        int.parse(dateOnly.group(3)!),
+      );
+    }
+
+    final reverseDate = RegExp(
+      r'^(\d{2})[-/](\d{2})[-/](\d{4})$',
+    ).firstMatch(raw);
+
+    if (reverseDate != null) {
+      return DateTime(
+        int.parse(reverseDate.group(3)!),
+        int.parse(reverseDate.group(2)!),
+        int.parse(reverseDate.group(1)!),
+      );
+    }
+
+    final parsed = DateTime.tryParse(raw);
+
+    if (parsed == null) {
+      return null;
+    }
+
+    final local = parsed.toLocal();
+
+    return DateTime(
+      local.year,
+      local.month,
+      local.day,
+    );
+  }
+
+  DateTime _dateOnly(DateTime value) {
+    return DateTime(
+      value.year,
+      value.month,
+      value.day,
+    );
+  }
+
+  String _databaseDate(DateTime value) {
+    return '${value.year.toString().padLeft(4, '0')}-'
+        '${value.month.toString().padLeft(2, '0')}-'
+        '${value.day.toString().padLeft(2, '0')}';
+  }
+
+  String _displayDate(DateTime value) {
+    return '${value.day.toString().padLeft(2, '0')} '
+        '${_monthNames[value.month - 1]} ${value.year}';
+  }
+
+  String _displayDateFromText(String value) {
+    final date = _parseDate(value);
+
+    if (date == null) {
+      return value.trim().isEmpty ? '-' : value.trim();
+    }
+
+    return _displayDate(date);
+  }
+
+  String _maskedNik(String value) {
+    final clean = value.replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
+
+    if (clean.length <= 4) {
+      return value;
+    }
+
+    return '•••• •••• •••• '
+        '${clean.substring(clean.length - 4)}';
+  }
+
+  int _loanDuration() {
+    final start = _parseDate(widget.tanggalDipilih);
+
+    final end = _parseDate(
+      tanggalKembaliController.text,
+    );
+
+    if (start == null || end == null) {
+      return 0;
+    }
+
+    final difference = _dateOnly(end)
+        .difference(_dateOnly(start))
+        .inDays;
+
+    return difference < 0 ? 0 : difference + 1;
+  }
+
+  bool _returnDateValid() {
+    final start = _parseDate(widget.tanggalDipilih);
+
+    final end = _parseDate(
+      tanggalKembaliController.text,
+    );
+
+    if (start == null || end == null) {
+      return false;
+    }
+
+    return !_dateOnly(end).isBefore(
+      _dateOnly(start),
+    );
+  }
+
+  IconData _equipmentIcon(String value) {
+    final name = value.toLowerCase();
+
+    if (name.contains('sprayer') ||
+        name.contains('semprot')) {
+      return Icons.water_drop_outlined;
+    }
+
+    if (name.contains('cangkul')) {
+      return Icons.handyman_outlined;
+    }
+
+    if (name.contains('traktor')) {
+      return Icons.agriculture_rounded;
+    }
+
+    if (name.contains('pompa')) {
+      return Icons.water_outlined;
+    }
+
+    if (name.contains('mesin')) {
+      return Icons.precision_manufacturing_outlined;
+    }
+
+    return Icons.construction_outlined;
+  }
+
+  Color _equipmentColor(String value) {
+    final name = value.toLowerCase();
+
+    if (name.contains('sprayer') ||
+        name.contains('semprot')) {
+      return blue;
+    }
+
+    if (name.contains('cangkul')) {
+      return amber;
+    }
+
+    if (name.contains('traktor')) {
+      return primary;
+    }
+
+    return teal;
+  }
+
+  Future<void> _pickReturnDate() async {
+    FocusScope.of(context).unfocus();
+
+    final start = _parseDate(
+      widget.tanggalDipilih,
+    );
+
+    if (start == null) {
       _showSnackBar(
-        'Tanggal kembali tidak boleh sebelum tanggal pinjam',
-        redStatus,
+        'Format tanggal pinjam tidak valid.',
+        red,
       );
       return;
     }
 
-    if (!mounted) return;
+    final firstDate = _dateOnly(start);
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (_) => AlatKonfirmasiPage(
-              idAlat: widget.idAlat,
-              namaAlat: widget.namaAlat,
-              nama: widget.nama,
-              nik: widget.nik,
-              tanggalPinjam: widget.tanggalDipilih,
-              tanggalKembali: tanggalKembaliController.text.trim(),
-              catatan: catatanController.text.trim(),
-            ),
-      ),
-    );
-  }
-
-  void _showSnackBar(String pesan, Color color) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          pesan,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-    );
-  }
-
-  IconData iconAlat(String nama) {
-    final alat = nama.toLowerCase();
-
-    if (alat.contains('sprayer')) return Icons.water_drop_rounded;
-    if (alat.contains('cangkul')) return Icons.construction_rounded;
-    if (alat.contains('traktor')) return Icons.agriculture_rounded;
-
-    return Icons.handyman_rounded;
-  }
-
-  Color warnaAlat(String nama) {
-    final alat = nama.toLowerCase();
-
-    if (alat.contains('sprayer')) return blueStatus;
-    if (alat.contains('cangkul')) return const Color(0xffD97706);
-    if (alat.contains('traktor')) return orangeStatus;
-
-    return primaryGreen;
-  }
-
-  Future<void> pilihTanggalKembali() async {
-    FocusScope.of(context).unfocus();
-
-    final tanggalPinjam = _parseTanggal(widget.tanggalDipilih);
-
-    if (tanggalPinjam == null) {
-      _showSnackBar('Format tanggal pinjam tidak valid', redStatus);
-      return;
-    }
-
-    final awalPinjam = DateTime(
-      tanggalPinjam.year,
-      tanggalPinjam.month,
-      tanggalPinjam.day,
+    final currentReturn = _parseDate(
+      tanggalKembaliController.text,
     );
 
-    final picked = await showDatePicker(
+    final initialDate = currentReturn != null &&
+            !currentReturn.isBefore(firstDate)
+        ? _dateOnly(currentReturn)
+        : firstDate;
+
+    final selected = await showDatePicker(
       context: context,
-      initialDate: awalPinjam,
-      firstDate: awalPinjam,
-      lastDate: awalPinjam.add(const Duration(days: 365)),
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: firstDate.add(
+        const Duration(days: 365),
+      ),
       helpText: 'Pilih Tanggal Kembali',
-      confirmText: 'Pilih',
       cancelText: 'Batal',
-      builder: (context, child) {
+      confirmText: 'Pilih',
+      builder: (dialogContext, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
+          data: Theme.of(dialogContext).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: primaryGreen,
+              primary: teal,
               onPrimary: Colors.white,
               surface: Colors.white,
               onSurface: textDark,
             ),
+            datePickerTheme: DatePickerThemeData(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
           ),
-          child: child!,
+          child: child ?? const SizedBox.shrink(),
         );
       },
     );
 
-    if (!mounted) return;
-
-    if (picked != null) {
-      setState(() {
-        tanggalKembaliController.text = _formatTanggal(picked);
-      });
+    if (!mounted || selected == null) {
+      return;
     }
+
+    setState(() {
+      tanggalKembaliController.text =
+          _databaseDate(selected);
+    });
   }
 
-  DateTime? _parseTanggal(String value) {
-    try {
-      final clean = value.trim();
+  void _continueToConfirmation() {
+    FocusScope.of(context).unfocus();
 
-      if (clean.contains('-')) {
-        final parts = clean.split('-');
-
-        if (parts.length != 3) return null;
-
-        if (parts[0].length == 4) {
-          return DateTime(
-            int.parse(parts[0]),
-            int.parse(parts[1]),
-            int.parse(parts[2]),
-          );
-        }
-
-        return DateTime(
-          int.parse(parts[2]),
-          int.parse(parts[1]),
-          int.parse(parts[0]),
-        );
-      }
-
-      if (clean.contains('/')) {
-        final parts = clean.split('/');
-        if (parts.length != 3) return null;
-
-        return DateTime(
-          int.parse(parts[2]),
-          int.parse(parts[1]),
-          int.parse(parts[0]),
-        );
-      }
-
-      return null;
-    } catch (_) {
-      return null;
+    if (tanggalKembaliController.text.trim().isEmpty) {
+      _showSnackBar(
+        'Tanggal kembali wajib dipilih.',
+        red,
+      );
+      return;
     }
+
+    if (!_returnDateValid()) {
+      _showSnackBar(
+        'Tanggal kembali tidak boleh sebelum tanggal pinjam.',
+        red,
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AlatKonfirmasiPage(
+          idAlat: widget.idAlat,
+          namaAlat: widget.namaAlat,
+          nama: widget.nama,
+          nik: widget.nik,
+          tanggalPinjam: widget.tanggalDipilih,
+          tanggalKembali:
+              tanggalKembaliController.text.trim(),
+          catatan: catatanController.text.trim(),
+        ),
+      ),
+    );
   }
 
-  String _formatTanggal(DateTime date) {
-    return '${date.year}-${_duaDigit(date.month)}-${_duaDigit(date.day)}';
-  }
+  void _showSnackBar(
+    String message,
+    Color color,
+  ) {
+    if (!mounted) {
+      return;
+    }
 
-  String _duaDigit(int value) {
-    return value.toString().padLeft(2, '0');
-  }
-
-  int durasiHari() {
-    final pinjam = _parseTanggal(widget.tanggalDipilih);
-    final kembali = _parseTanggal(tanggalKembaliController.text.trim());
-
-    if (pinjam == null || kembali == null) return 0;
-
-    final awal = DateTime(pinjam.year, pinjam.month, pinjam.day);
-    final akhir = DateTime(kembali.year, kembali.month, kembali.day);
-
-    final selisih = akhir.difference(awal).inDays;
-    return selisih < 0 ? 0 : selisih + 1;
-  }
-
-  bool tanggalKembaliValid() {
-    if (tanggalKembaliController.text.trim().isEmpty) return false;
-
-    final pinjam = _parseTanggal(widget.tanggalDipilih);
-    final kembali = _parseTanggal(tanggalKembaliController.text.trim());
-
-    if (pinjam == null || kembali == null) return false;
-
-    final awal = DateTime(pinjam.year, pinjam.month, pinjam.day);
-    final akhir = DateTime(kembali.year, kembali.month, kembali.day);
-
-    return !akhir.isBefore(awal);
-  }
-
-  String sensorNik(String nik) {
-    final cleanNik = nik.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleanNik.length <= 4) return nik;
-    return '•••• •••• •••• ${cleanNik.substring(cleanNik.length - 4)}';
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          backgroundColor: color,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            16,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      );
   }
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    final validTanggal = tanggalKembaliValid();
-    final durasi = durasiHari();
+    final screenWidth =
+        MediaQuery.sizeOf(context).width;
 
-    final bisaLanjut =
-        tanggalKembaliController.text.trim().isNotEmpty && validTanggal;
+    final keyboardOpen =
+        MediaQuery.viewInsetsOf(context).bottom > 0;
+
+    final horizontalPadding = screenWidth < 350
+        ? 12.0
+        : screenWidth >= 700
+            ? 22.0
+            : 16.0;
+
+    final validDate = _returnDateValid();
+    final duration = _loanDuration();
+
+    final canContinue =
+        tanggalKembaliController.text.trim().isNotEmpty &&
+            validDate;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: bgColor,
-      body: AppBackground(
-        showPattern: false,
-        child: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: SafeArea(
-            child: ListView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
-              padding: EdgeInsets.fromLTRB(16, 14, 16, bottomInset + 24),
+      backgroundColor: background,
+      body: SizedBox.expand(
+        child: AppBackground(
+          showPattern: false,
+          child: SizedBox.expand(
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                _headerPage(),
-                const SizedBox(height: 14),
-                _userInfoCard(),
-                const SizedBox(height: 12),
-                _stepCard(),
-                const SizedBox(height: 12),
-                _alatInfoCard(),
-                const SizedBox(height: 12),
-                _formCard(validTanggal, durasi),
-                const SizedBox(height: 12),
-                _guideCard(),
-                const SizedBox(height: 18),
-                _submitButton(bisaLanjut),
+                const _FormBackground(),
+                SafeArea(
+                  child: ListView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior
+                            .manual,
+                    physics:
+                        const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      12,
+                      horizontalPadding,
+                      keyboardOpen ? 24 : 28,
+                    ),
+                    children: [
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: 760,
+                          ),
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.stretch,
+                            children: [
+                              _header(),
+                              const SizedBox(height: 12),
+                              _identityAndEquipment(),
+                              const SizedBox(height: 10),
+                              _stepCard(),
+                              const SizedBox(height: 10),
+                              _loanInformationCard(),
+                              const SizedBox(height: 10),
+                              _formCard(
+                                validDate: validDate,
+                                duration: duration,
+                              ),
+                              const SizedBox(height: 10),
+                              _guideCard(),
+                              const SizedBox(height: 18),
+                              _submitButton(canContinue),
+                              const SizedBox(height: 8),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -288,199 +464,273 @@ class _AlatFormPageState extends State<AlatFormPage> {
     );
   }
 
-  Widget _headerPage() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
-      decoration: BoxDecoration(
-        color: darkGreen,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: darkGreen.withValues(alpha: 0.18),
-            blurRadius: 16,
-            offset: const Offset(0, 7),
+  Widget _header() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 370;
+
+        return Container(
+          padding: EdgeInsets.all(
+            compact ? 12 : 14,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          _backButton(),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Form Peminjaman',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Lengkapi jadwal kembali',
-                  style: TextStyle(
-                    color: Color(0xffD1FAE5),
-                    fontSize: 12,
-                    height: 1.3,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                dark,
+                deepTeal,
+                teal,
               ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: deepTeal.withValues(alpha: 0.23),
+                blurRadius: 22,
+                offset: const Offset(0, 9),
+              ),
+            ],
           ),
-          Container(
-            height: 44,
-            width: 44,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-            ),
-            child: const Icon(Icons.edit_note_rounded, color: Colors.white),
+          child: Row(
+            children: [
+              _backButton(),
+              SizedBox(width: compact ? 9 : 11),
+              _iconBox(
+                Icons.edit_note_outlined,
+                Colors.white,
+                Colors.white.withValues(alpha: 0.14),
+                compact ? 43 : 47,
+              ),
+              SizedBox(width: compact ? 9 : 11),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Form Peminjaman',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Lengkapi tanggal kembali dan catatan',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Color(0xffD7EEE7),
+                        fontSize: 10.2,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        );
+      },
+    );
+  }
+
+  Widget _identityAndEquipment() {
+    final equipmentColor =
+        _equipmentColor(widget.namaAlat);
+
+    return _card(
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 360;
+
+          final applicant = _detailBlock(
+            icon: Icons.person_outline_rounded,
+            color: primary,
+            itemBackground: softGreen,
+            label: 'Pemohon',
+            title: widget.nama,
+            subtitle:
+                'NIK ${_maskedNik(widget.nik)}',
+          );
+
+          final equipment = _detailBlock(
+            icon: _equipmentIcon(widget.namaAlat),
+            color: equipmentColor,
+            itemBackground:
+                equipmentColor.withValues(alpha: 0.09),
+            label: 'Alat Dipilih',
+            title: widget.namaAlat,
+            subtitle: 'Inventaris Desa Penataan',
+          );
+
+          if (compact) {
+            return Column(
+              children: [
+                applicant,
+                const SizedBox(height: 10),
+                const Divider(
+                  height: 1,
+                  color: border,
+                ),
+                const SizedBox(height: 10),
+                equipment,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Expanded(child: applicant),
+              Container(
+                width: 1,
+                height: 52,
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                ),
+                color: border,
+              ),
+              Expanded(child: equipment),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _userInfoCard() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(radius: 18),
-      child: Row(
-        children: [
-          Container(
-            height: 46,
-            width: 46,
-            decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: primaryGreen,
-              size: 25,
-            ),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Data Pemohon',
-                  style: TextStyle(
-                    color: textGrey,
-                    fontSize: 11.3,
-                    fontWeight: FontWeight.w700,
-                  ),
+  Widget _detailBlock({
+    required IconData icon,
+    required Color color,
+    required Color itemBackground,
+    required String label,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _iconBox(
+          icon,
+          color,
+          itemBackground,
+          43,
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 9.4,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.nama,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w900,
-                  ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w900,
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  'NIK ${sensorNik(widget.nik)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: textGrey,
-                    fontSize: 11.6,
-                    fontWeight: FontWeight.w700,
-                  ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 8.9,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Container(
-            height: 36,
-            width: 36,
-            decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.verified_user_rounded,
-              color: primaryGreen,
-              size: 20,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _stepCard() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(radius: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return _card(
+      Column(
         children: [
           Row(
             children: [
-              _stepDot('1', true),
+              _stepCircle('1', true),
               _stepLine(true),
-              _stepDot('2', true),
+              _stepCircle('2', true),
               _stepLine(true),
-              _stepDot('3', true),
+              _stepCircle('3', true),
               _stepLine(false),
-              _stepDot('4', false),
+              _stepCircle('4', false),
             ],
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'Tahap 3 dari 4',
-            style: TextStyle(
-              color: primaryGreen,
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Tentukan tanggal kembali dan isi catatan jika diperlukan.',
-            style: TextStyle(
-              color: textGrey,
-              fontSize: 11.8,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
+          const SizedBox(height: 10),
+          const Row(
+            children: [
+              Icon(
+                Icons.assignment_outlined,
+                color: teal,
+                size: 17,
+              ),
+              SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  'Tahap 3 • Lengkapi detail peminjaman',
+                  style: TextStyle(
+                    color: textDark,
+                    fontSize: 10.4,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
+      padding: const EdgeInsets.all(12),
     );
   }
 
-  Widget _stepDot(String text, bool active) {
+  Widget _stepCircle(
+    String text,
+    bool active,
+  ) {
     return Container(
-      height: 28,
-      width: 28,
+      height: 27,
+      width: 27,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: active ? primaryGreen : const Color(0xffEEF2F7),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: active ? primaryGreen : borderColor),
+        color: active
+            ? teal
+            : const Color(0xffEFF3F2),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: active ? teal : border,
+        ),
       ),
-      child: Center(
-        child: Text(
-          text,
-          style: TextStyle(
-            color: active ? Colors.white : textGrey,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-          ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: active
+              ? Colors.white
+              : textSoft,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );
@@ -490,192 +740,346 @@ class _AlatFormPageState extends State<AlatFormPage> {
     return Expanded(
       child: Container(
         height: 3,
-        margin: const EdgeInsets.symmetric(horizontal: 5),
+        margin: const EdgeInsets.symmetric(
+          horizontal: 5,
+        ),
         decoration: BoxDecoration(
-          color:
-              active
-                  ? primaryGreen.withValues(alpha: 0.55)
-                  : const Color(0xffE5E7EB),
+          color: active
+              ? teal.withValues(alpha: 0.48)
+              : const Color(0xffE4EAE8),
           borderRadius: BorderRadius.circular(99),
         ),
       ),
     );
   }
 
-  Widget _alatInfoCard() {
-    final color = warnaAlat(widget.namaAlat);
+  Widget _loanInformationCard() {
+    final start =
+        _parseDate(widget.tanggalDipilih);
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(radius: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return _card(
+      Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           _sectionTitle(
-            icon: Icons.agriculture_rounded,
-            title: 'Data Alat',
-            subtitle: 'Alat dan tanggal pinjam yang dipilih',
+            icon: Icons.event_available_outlined,
+            title: 'Jadwal Pinjam',
+            subtitle:
+                'Tanggal mulai yang sudah dipilih',
           ),
-          const SizedBox(height: 13),
-          _infoArea(
-            children: [
-              _infoRow(
-                iconAlat(widget.namaAlat),
-                'Alat',
-                widget.namaAlat,
-                iconColor: color,
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: softTeal,
+              borderRadius:
+                  BorderRadius.circular(15),
+              border: Border.all(
+                color:
+                    teal.withValues(alpha: 0.11),
               ),
-              _infoRow(
-                Icons.calendar_month_rounded,
-                'Tanggal Pinjam',
-                widget.tanggalDipilih,
-              ),
-            ],
+            ),
+            child: Row(
+              children: [
+                _iconBox(
+                  Icons.calendar_today_outlined,
+                  teal,
+                  Colors.white,
+                  42,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Tanggal Pinjam',
+                        style: TextStyle(
+                          color: textGrey,
+                          fontSize: 9.4,
+                          fontWeight:
+                              FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        start == null
+                            ? widget.tanggalDipilih
+                            : _displayDate(start),
+                        style: const TextStyle(
+                          color: textDark,
+                          fontSize: 12.5,
+                          fontWeight:
+                              FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const _StatusBadge(
+                  label: 'TERPILIH',
+                  color: teal,
+                  background: softTeal,
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _formCard(bool validTanggal, int durasi) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(radius: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _formCard({
+    required bool validDate,
+    required int duration,
+  }) {
+    return _card(
+      Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           _sectionTitle(
-            icon: Icons.assignment_rounded,
+            icon: Icons.edit_calendar_outlined,
             title: 'Detail Peminjaman',
-            subtitle: 'Lengkapi tanggal kembali',
+            subtitle:
+                'Pilih tanggal kembali dan isi catatan',
           ),
-          const SizedBox(height: 13),
-          _tanggalKembaliCard(validTanggal, durasi),
+          const SizedBox(height: 12),
+          _returnDatePicker(
+            validDate: validDate,
+            duration: duration,
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: catatanController,
-            maxLines: 4,
-            keyboardType: TextInputType.multiline,
-            textInputAction: TextInputAction.done,
+            minLines: 3,
+            maxLines: 5,
+            keyboardType:
+                TextInputType.multiline,
+            textCapitalization:
+                TextCapitalization.sentences,
+            textInputAction:
+                TextInputAction.done,
+            scrollPadding:
+                const EdgeInsets.only(
+              bottom: 120,
+            ),
+            onTapOutside: (_) {},
+            onSubmitted: (_) {
+              FocusScope.of(context).unfocus();
+            },
             decoration: _inputDecoration(
               label: 'Catatan / Keperluan',
-              icon: Icons.notes_rounded,
+              hint:
+                  'Contoh: digunakan untuk mengolah lahan atau penyemprotan.',
+              icon: Icons.notes_outlined,
             ),
           ),
-          const SizedBox(height: 14),
-          _ringkasanMini(validTanggal, durasi),
+          const SizedBox(height: 12),
+          _durationInfo(
+            validDate: validDate,
+            duration: duration,
+          ),
         ],
       ),
     );
   }
 
-  Widget _tanggalKembaliCard(bool validTanggal, int durasi) {
-    final hasValue = tanggalKembaliController.text.trim().isNotEmpty;
-    final color =
-        !hasValue
-            ? primaryGreen
-            : validTanggal
-            ? primaryGreen
-            : redStatus;
+  Widget _returnDatePicker({
+    required bool validDate,
+    required int duration,
+  }) {
+    final raw =
+        tanggalKembaliController.text.trim();
 
-    return InkWell(
-      onTap: pilihTanggalKembali,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.075),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: color.withValues(alpha: 0.18)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              height: 48,
-              width: 48,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(15),
+    final hasValue = raw.isNotEmpty;
+
+    final color = !hasValue
+        ? teal
+        : validDate
+            ? primary
+            : red;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: _pickReturnDate,
+        borderRadius:
+            BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration:
+              const Duration(milliseconds: 180),
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color:
+                color.withValues(alpha: 0.075),
+            borderRadius:
+                BorderRadius.circular(16),
+            border: Border.all(
+              color:
+                  color.withValues(alpha: 0.15),
+            ),
+          ),
+          child: Row(
+            children: [
+              _iconBox(
+                Icons.event_repeat_outlined,
+                color,
+                Colors.white,
+                45,
               ),
-              child: Icon(
-                Icons.event_available_rounded,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tanggal Kembali',
+                      style: TextStyle(
+                        color: textGrey,
+                        fontSize: 9.5,
+                        fontWeight:
+                            FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      hasValue
+                          ? _displayDateFromText(raw)
+                          : 'Pilih tanggal kembali',
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: hasValue
+                            ? textDark
+                            : color,
+                        fontSize: 12.6,
+                        fontWeight:
+                            FontWeight.w900,
+                      ),
+                    ),
+                    if (hasValue) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        validDate
+                            ? 'Durasi peminjaman $duration hari'
+                            : 'Tanggal kembali tidak valid',
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 8.9,
+                          fontWeight:
+                              FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_drop_down_rounded,
                 color: color,
                 size: 25,
               ),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Tanggal Kembali',
-                    style: TextStyle(
-                      color: textGrey,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    hasValue
-                        ? tanggalKembaliController.text.trim()
-                        : 'Pilih tanggal kembali',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: hasValue ? textDark : color,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  if (hasValue) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      validTanggal
-                          ? 'Durasi peminjaman $durasi hari'
-                          : 'Tanggal tidak valid',
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Icon(Icons.calendar_month_rounded, color: color, size: 24),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _ringkasanMini(bool validTanggal, int durasi) {
+  Widget _durationInfo({
+    required bool validDate,
+    required int duration,
+  }) {
+    final hasReturnDate =
+        tanggalKembaliController.text
+            .trim()
+            .isNotEmpty;
+
+    final color = hasReturnDate && validDate
+        ? primary
+        : hasReturnDate
+            ? red
+            : amber;
+
+    final itemBackground =
+        hasReturnDate && validDate
+            ? softGreen
+            : hasReturnDate
+                ? softRed
+                : softAmber;
+
+    final title = hasReturnDate && validDate
+        ? 'Jadwal peminjaman siap dikonfirmasi'
+        : hasReturnDate
+            ? 'Periksa kembali tanggal peminjaman'
+            : 'Tanggal kembali belum dipilih';
+
+    final message = hasReturnDate && validDate
+        ? 'Alat akan dipinjam selama $duration hari. Catatan bersifat opsional.'
+        : hasReturnDate
+            ? 'Tanggal kembali harus sama dengan atau setelah tanggal pinjam.'
+            : 'Pilih tanggal pengembalian sebelum melanjutkan.';
+
     return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: const Color(0xffF9FAFB),
+        color: itemBackground,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: borderColor),
+        border: Border.all(
+          color: color.withValues(alpha: 0.10),
+        ),
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          _summaryRow('Alat', widget.namaAlat),
-          _summaryRow('Tanggal Pinjam', widget.tanggalDipilih),
-          _summaryRow(
-            'Tanggal Kembali',
-            tanggalKembaliController.text.trim().isEmpty
-                ? '-'
-                : tanggalKembaliController.text.trim(),
+          Icon(
+            hasReturnDate && validDate
+                ? Icons.check_circle_outline_rounded
+                : hasReturnDate
+                    ? Icons.error_outline_rounded
+                    : Icons.info_outline_rounded,
+            color: color,
+            size: 18,
           ),
-          _summaryRow(
-            'Durasi',
-            validTanggal && durasi > 0 ? '$durasi hari' : '-',
-            valueColor: validTanggal ? primaryGreen : textDark,
-            isLast: true,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10.1,
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 9.1,
+                    height: 1.4,
+                    fontWeight:
+                        FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -684,23 +1088,30 @@ class _AlatFormPageState extends State<AlatFormPage> {
 
   Widget _guideCard() {
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: primaryGreen.withValues(alpha: 0.075),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
+        color: softBlue,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: blue.withValues(alpha: 0.10),
+        ),
       ),
       child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: primaryGreen, size: 19),
-          SizedBox(width: 9),
+          Icon(
+            Icons.verified_user_outlined,
+            color: blue,
+            size: 18,
+          ),
+          SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Pastikan tanggal kembali sudah sesuai sebelum melanjutkan ke halaman konfirmasi.',
+              'Setelah halaman konfirmasi dikirim, admin akan memeriksa jadwal dan ketersediaan alat.',
               style: TextStyle(
-                color: primaryGreen,
-                fontSize: 12.2,
+                color: textGrey,
+                fontSize: 9.4,
                 height: 1.4,
                 fontWeight: FontWeight.w700,
               ),
@@ -714,23 +1125,39 @@ class _AlatFormPageState extends State<AlatFormPage> {
   Widget _submitButton(bool enabled) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 51,
       child: ElevatedButton.icon(
-        onPressed: enabled ? lanjutKonfirmasi : null,
+        onPressed: enabled
+            ? _continueToConfirmation
+            : null,
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryGreen,
+          backgroundColor: teal,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: primaryGreen.withValues(alpha: 0.36),
-          disabledForegroundColor: Colors.white,
+          disabledBackgroundColor:
+              teal.withValues(alpha: 0.28),
+          disabledForegroundColor:
+              Colors.white.withValues(alpha: 0.86),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
         ),
-        icon: const Icon(Icons.arrow_forward_rounded, size: 20),
+        icon: Icon(
+          enabled
+              ? Icons.arrow_forward_rounded
+              : Icons.event_repeat_outlined,
+          size: 19,
+        ),
         label: Text(
-          enabled ? 'Lanjut Konfirmasi' : 'Pilih Tanggal Kembali',
-          style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900),
+          enabled
+              ? 'Lanjut Konfirmasi'
+              : 'Pilih Tanggal Kembali',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12.3,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ),
     );
@@ -743,25 +1170,23 @@ class _AlatFormPageState extends State<AlatFormPage> {
   }) {
     return Row(
       children: [
-        Container(
-          height: 38,
-          width: 38,
-          decoration: BoxDecoration(
-            color: primaryGreen.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(13),
-          ),
-          child: Icon(icon, color: primaryGreen, size: 21),
+        _iconBox(
+          icon,
+          teal,
+          softTeal,
+          38,
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 9),
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
                 title,
                 style: const TextStyle(
                   color: textDark,
-                  fontSize: 15.5,
+                  fontSize: 13.6,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -770,7 +1195,7 @@ class _AlatFormPageState extends State<AlatFormPage> {
                 subtitle,
                 style: const TextStyle(
                   color: textGrey,
-                  fontSize: 11.5,
+                  fontSize: 9.4,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -781,160 +1206,282 @@ class _AlatFormPageState extends State<AlatFormPage> {
     );
   }
 
-  Widget _infoArea({required List<Widget> children}) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 3),
-      decoration: BoxDecoration(
-        color: const Color(0xffF9FAFB),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(children: children),
-    );
-  }
-
-  Widget _infoRow(
-    IconData icon,
-    String label,
-    String value, {
-    Color? iconColor,
+  InputDecoration _inputDecoration({
+    required String label,
+    required String hint,
+    required IconData icon,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: iconColor ?? primaryGreen, size: 17),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: textGrey,
-                fontSize: 11.8,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value.trim().isEmpty ? '-' : value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: textDark,
-                fontSize: 11.8,
-                height: 1.35,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      alignLabelWithHint: true,
+      labelStyle: const TextStyle(
+        color: textGrey,
+        fontSize: 11.5,
+        fontWeight: FontWeight.w600,
       ),
-    );
-  }
-
-  Widget _summaryRow(
-    String label,
-    String value, {
-    Color? valueColor,
-    bool isLast = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom:
-              isLast ? BorderSide.none : const BorderSide(color: borderColor),
+      hintStyle: const TextStyle(
+        color: textSoft,
+        fontSize: 10.3,
+        height: 1.35,
+      ),
+      prefixIcon: Padding(
+        padding: const EdgeInsets.only(
+          bottom: 56,
+        ),
+        child: Icon(
+          icon,
+          color: teal,
+          size: 20,
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: textGrey,
-                fontSize: 11.8,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color: valueColor ?? textDark,
-                fontSize: 11.8,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
+      filled: true,
+      fillColor: const Color(0xffF8FAF9),
+      contentPadding: const EdgeInsets.fromLTRB(
+        14,
+        17,
+        14,
+        14,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(
+          color: border,
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(
+          color: teal,
+          width: 1.4,
+        ),
       ),
     );
   }
 
   Widget _backButton() {
-    return InkWell(
-      onTap: () {
-        if (!mounted) return;
-        Navigator.pop(context);
-      },
+    return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+      child: InkWell(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          Navigator.maybePop(context);
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: _iconBox(
+          Icons.arrow_back_rounded,
+          Colors.white,
+          Colors.white.withValues(alpha: 0.14),
+          42,
         ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
     );
   }
 
-  InputDecoration _inputDecoration({
-    required String label,
-    required IconData icon,
+  Widget _iconBox(
+    IconData icon,
+    Color color,
+    Color iconBackground,
+    double size,
+  ) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        color: iconBackground,
+        borderRadius: BorderRadius.circular(
+          size * 0.32,
+        ),
+      ),
+      child: Icon(
+        icon,
+        color: color,
+        size: size * 0.5,
+      ),
+    );
+  }
+
+  Widget _card(
+    Widget child, {
+    EdgeInsets padding =
+        const EdgeInsets.all(13),
   }) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(
-        color: textGrey,
-        fontSize: 12.5,
-        fontWeight: FontWeight.w600,
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(
+          alpha: 0.98,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: border),
+        boxShadow: [
+          BoxShadow(
+            color: deepTeal.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      prefixIcon: Icon(icon, color: primaryGreen, size: 21),
-      filled: true,
-      fillColor: const Color(0xffF9FAFB),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: borderColor),
+      child: child,
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  final Color background;
+
+  const _StatusBadge({
+    required this.label,
+    required this.color,
+    required this.background,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 5,
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: primaryGreen, width: 1.4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(
+          color: color.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 7.4,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.25,
+        ),
       ),
     );
   }
+}
 
-  BoxDecoration _cardDecoration({double radius = 18}) {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: borderColor),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.032),
-          blurRadius: 12,
-          offset: const Offset(0, 5),
+class _FormBackground extends StatelessWidget {
+  const _FormBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: SizedBox.expand(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final base =
+                constraints.maxWidth <
+                        constraints.maxHeight
+                    ? constraints.maxWidth
+                    : constraints.maxHeight;
+
+            final large = (base * 0.98)
+                .clamp(280.0, 470.0)
+                .toDouble();
+
+            final medium = (base * 0.67)
+                .clamp(190.0, 330.0)
+                .toDouble();
+
+            return ClipRect(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0xff0E5F57),
+                          Color(0xff167A6B),
+                          Color(0xffDDEFEA),
+                          Color(0xffF2F7F5),
+                        ],
+                        stops: [
+                          0,
+                          0.18,
+                          0.43,
+                          1,
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: -large * 0.55,
+                    right: -large * 0.30,
+                    child: _BackgroundCircle(
+                      size: large,
+                      color: const Color(
+                        0xff58B89F,
+                      ),
+                      alpha: 0.20,
+                    ),
+                  ),
+                  Positioned(
+                    top: constraints.maxHeight * 0.31,
+                    left: -medium * 0.58,
+                    child: _BackgroundCircle(
+                      size: medium,
+                      color: const Color(
+                        0xffA7DACD,
+                      ),
+                      alpha: 0.34,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -large * 0.52,
+                    left: -large * 0.31,
+                    child: _BackgroundCircle(
+                      size: large,
+                      color: const Color(
+                        0xffDDEFE6,
+                      ),
+                      alpha: 0.82,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _BackgroundCircle extends StatelessWidget {
+  final double size;
+  final Color color;
+  final double alpha;
+
+  const _BackgroundCircle({
+    required this.size,
+    required this.color,
+    required this.alpha,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        color: color.withValues(
+          alpha: alpha,
+        ),
+        shape: BoxShape.circle,
+      ),
     );
   }
 }

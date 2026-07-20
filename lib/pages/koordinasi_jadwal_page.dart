@@ -20,25 +20,31 @@ class KoordinasiJadwalPage extends StatefulWidget {
   });
 
   @override
-  State<KoordinasiJadwalPage> createState() => _KoordinasiJadwalPageState();
+  State<KoordinasiJadwalPage> createState() =>
+      _KoordinasiJadwalPageState();
 }
 
 class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
-  static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff14532D);
-  static const Color bgColor = Color(0xffF6FAF7);
-  static const Color softGreen = Color(0xffEAF7EC);
-  static const Color textDark = Color(0xff1F2937);
-  static const Color textGrey = Color(0xff6B7280);
-  static const Color borderColor = Color(0xffE5E7EB);
-  static const Color orangeStatus = Color(0xffF59E0B);
-  static const Color redStatus = Color(0xffDC2626);
-  static const Color blueStatus = Color(0xff2563EB);
+  static const Color primary = Color(0xff2E7D32);
+  static const Color dark = Color(0xff14532D);
+  static const Color teal = Color(0xff167A6B);
+  static const Color deepTeal = Color(0xff0E5F57);
+  static const Color blue = Color(0xff326FA3);
+  static const Color amber = Color(0xffD98212);
+  static const Color red = Color(0xffC83B3B);
 
-  int? tanggalDipilih;
-  final DateTime sekarang = DateTime.now();
+  static const Color background = Color(0xffF2F7F5);
+  static const Color border = Color(0xffE0E8E5);
+  static const Color textDark = Color(0xff18212B);
+  static const Color textGrey = Color(0xff66727F);
+  static const Color textSoft = Color(0xff8B96A2);
 
-  final List<String> namaBulan = const [
+  static const Color softGreen = Color(0xffE9F5EB);
+  static const Color softTeal = Color(0xffE6F4F1);
+  static const Color softAmber = Color(0xffFFF3DD);
+  static const Color softRed = Color(0xffFBEAEA);
+
+  static const List<String> _monthNames = [
     'Januari',
     'Februari',
     'Maret',
@@ -53,78 +59,326 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     'Desember',
   ];
 
-  final DatabaseReference peminjamanRef = FirebaseDatabase.instanceFor(
+  static const List<String> _dayNames = [
+    'Sen',
+    'Sel',
+    'Rab',
+    'Kam',
+    'Jum',
+    'Sab',
+    'Min',
+  ];
+
+  final DateTime _now = DateTime.now();
+
+  DateTime? _selectedDate;
+
+  final DatabaseReference _loanRef = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   ).ref('peminjaman_alat');
 
-  Future<void> _refreshData() async {
-    await peminjamanRef.get();
+  Map<dynamic, dynamic> _asMap(dynamic value) {
+    if (value is! Map) {
+      return {};
+    }
+
+    return Map<dynamic, dynamic>.from(value);
   }
 
-  int jumlahHariDalamBulan() {
-    return DateTime(sekarang.year, sekarang.month + 1, 0).day;
+  String _text(
+    dynamic value, {
+    String fallback = '-',
+  }) {
+    final result = value?.toString().trim() ?? '';
+
+    if (result.isEmpty || result.toLowerCase() == 'null') {
+      return fallback;
+    }
+
+    return result;
   }
 
-  int hariPertamaBulan() {
-    return DateTime(sekarang.year, sekarang.month, 1).weekday;
+  String _normalizedStatus(dynamic value) {
+    final status = _text(
+      value,
+      fallback: '',
+    )
+        .toLowerCase()
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+
+    if ({
+      '',
+      'pending',
+      'diajukan',
+      'pengajuan',
+      'menunggu_verifikasi',
+    }.contains(status)) {
+      return 'menunggu';
+    }
+
+    if ({
+      'approved',
+      'siap_diambil',
+    }.contains(status)) {
+      return 'disetujui';
+    }
+
+    if ({
+      'sedang_dipinjam',
+      'digunakan',
+    }.contains(status)) {
+      return 'dipinjam';
+    }
+
+    if ({
+      'selesai',
+      'sudah_dikembalikan',
+      'kembali',
+    }.contains(status)) {
+      return 'dikembalikan';
+    }
+
+    if (status == 'rejected') {
+      return 'ditolak';
+    }
+
+    return status;
   }
 
-  String bulanTahun() {
-    return '${namaBulan[sekarang.month - 1]} ${sekarang.year}';
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is DateTime) {
+      return DateTime(
+        value.year,
+        value.month,
+        value.day,
+      );
+    }
+
+    if (value is num) {
+      try {
+        final number = value.toInt();
+
+        final date = DateTime.fromMillisecondsSinceEpoch(
+          number.toString().length >= 13
+              ? number
+              : number * 1000,
+        ).toLocal();
+
+        return DateTime(
+          date.year,
+          date.month,
+          date.day,
+        );
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final raw = value.toString().trim();
+
+    if (raw.isEmpty || raw == '-') {
+      return null;
+    }
+
+    final dateOnly = RegExp(
+      r'^(\d{4})-(\d{2})-(\d{2})$',
+    ).firstMatch(raw);
+
+    if (dateOnly != null) {
+      return DateTime(
+        int.parse(dateOnly.group(1)!),
+        int.parse(dateOnly.group(2)!),
+        int.parse(dateOnly.group(3)!),
+      );
+    }
+
+    final reverseDate = RegExp(
+      r'^(\d{2})[-/](\d{2})[-/](\d{4})$',
+    ).firstMatch(raw);
+
+    if (reverseDate != null) {
+      return DateTime(
+        int.parse(reverseDate.group(3)!),
+        int.parse(reverseDate.group(2)!),
+        int.parse(reverseDate.group(1)!),
+      );
+    }
+
+    final parsed = DateTime.tryParse(raw);
+
+    if (parsed == null) {
+      return null;
+    }
+
+    final local = parsed.toLocal();
+
+    return DateTime(
+      local.year,
+      local.month,
+      local.day,
+    );
   }
 
-  String tanggalLengkap() {
-    if (tanggalDipilih == null) return '';
-    final bulan = sekarang.month.toString().padLeft(2, '0');
-    final tanggal = tanggalDipilih.toString().padLeft(2, '0');
-    return '${sekarang.year}-$bulan-$tanggal';
+  DateTime _dateOnly(DateTime value) {
+    return DateTime(
+      value.year,
+      value.month,
+      value.day,
+    );
   }
 
-  int ambilTanggal(dynamic tanggalText) {
-    final text = tanggalText.toString();
-    final angka = RegExp(r'\d+').firstMatch(text);
-    if (angka == null) return 0;
-    return int.tryParse(angka.group(0)!) ?? 0;
+  String _databaseDate(DateTime value) {
+    return '${value.year.toString().padLeft(4, '0')}-'
+        '${value.month.toString().padLeft(2, '0')}-'
+        '${value.day.toString().padLeft(2, '0')}';
   }
 
-  bool alatSama(Map<String, dynamic> item) {
-    final idAlat = (item['id_alat'] ?? '').toString();
-    final namaAlat = (item['alat'] ?? item['nama_alat'] ?? '').toString();
+  String _displayDate(DateTime value) {
+    return '${value.day.toString().padLeft(2, '0')} '
+        '${_monthNames[value.month - 1]} ${value.year}';
+  }
 
-    if (idAlat.isNotEmpty) return idAlat == widget.idAlat;
+  String _maskedNik(String value) {
+    final clean = value.replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
 
-    return namaAlat.toLowerCase().trim() ==
+    if (clean.length <= 4) {
+      return value;
+    }
+
+    return '•••• •••• •••• '
+        '${clean.substring(clean.length - 4)}';
+  }
+
+  int _daysInCurrentMonth() {
+    return DateTime(
+      _now.year,
+      _now.month + 1,
+      0,
+    ).day;
+  }
+
+  int _firstWeekdayOffset() {
+    return DateTime(
+          _now.year,
+          _now.month,
+          1,
+        ).weekday -
+        1;
+  }
+
+  String _currentMonthLabel() {
+    return '${_monthNames[_now.month - 1]} ${_now.year}';
+  }
+
+  List<Map<String, dynamic>> _loanList(dynamic value) {
+    final result = <Map<String, dynamic>>[];
+
+    for (final entry in _asMap(value).entries) {
+      if (entry.value is! Map) {
+        continue;
+      }
+
+      final item = Map<String, dynamic>.from(
+        entry.value as Map,
+      );
+
+      item['id_peminjaman'] = entry.key.toString();
+
+      result.add(item);
+    }
+
+    return result;
+  }
+
+  bool _sameEquipment(Map<String, dynamic> item) {
+    final itemId = _text(
+      item['id_alat'] ??
+          item['alat_id'] ??
+          item['idAlat'],
+      fallback: '',
+    );
+
+    if (itemId.isNotEmpty) {
+      return itemId == widget.idAlat;
+    }
+
+    final itemName = _text(
+      item['alat'] ??
+          item['nama_alat'] ??
+          item['namaAlat'],
+      fallback: '',
+    );
+
+    return itemName.toLowerCase().trim() ==
         widget.namaAlat.toLowerCase().trim();
   }
 
-  List<Map<String, dynamic>> ambilDataPeminjaman(dynamic value) {
-    if (value == null || value is! Map) return [];
-
-    final data = Map<dynamic, dynamic>.from(value);
-
-    return data.values
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
+  bool _blocksSchedule(String status) {
+    return {
+      'menunggu',
+      'disetujui',
+      'dipinjam',
+    }.contains(status);
   }
 
-  Map<String, dynamic>? dataPadaTanggal(
-    int tanggal,
-    List<Map<String, dynamic>> dataPeminjaman,
+  Map<String, dynamic>? _loanOnDate(
+    DateTime date,
+    List<Map<String, dynamic>> loans,
   ) {
-    for (final item in dataPeminjaman) {
-      final status = (item['status'] ?? '').toString().toLowerCase();
-      final tanggalPinjam = ambilTanggal(item['tanggal_pinjam'] ?? '');
-      final tanggalKembali = ambilTanggal(item['tanggal_kembali'] ?? '');
+    final target = _dateOnly(date);
 
-      if (alatSama(item) &&
-          tanggal >= tanggalPinjam &&
-          tanggal <= tanggalKembali &&
-          (status == 'menunggu' ||
-              status == 'disetujui' ||
-              status == 'dipinjam')) {
+    for (final item in loans) {
+      if (!_sameEquipment(item)) {
+        continue;
+      }
+
+      final status = _normalizedStatus(
+        item['status'],
+      );
+
+      if (!_blocksSchedule(status)) {
+        continue;
+      }
+
+      final start = _parseDate(
+        item['tanggal_pinjam'] ??
+            item['tanggal_mulai'] ??
+            item['tanggal_pengambilan'],
+      );
+
+      final end = _parseDate(
+            item['tanggal_kembali'] ??
+                item['tanggal_selesai'] ??
+                item['batas_pengembalian'],
+          ) ??
+          start;
+
+      if (start == null || end == null) {
+        continue;
+      }
+
+      final from = _dateOnly(start);
+      final until = _dateOnly(end);
+
+      final afterStart =
+          target.isAtSameMomentAs(from) ||
+              target.isAfter(from);
+
+      final beforeEnd =
+          target.isAtSameMomentAs(until) ||
+              target.isBefore(until);
+
+      if (afterStart && beforeEnd) {
         return item;
       }
     }
@@ -132,211 +386,449 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     return null;
   }
 
-  int hitungStatus(List<Map<String, dynamic>> data, String statusTarget) {
-    int total = 0;
-
-    for (final item in data) {
-      if (!alatSama(item)) continue;
-
-      final status = (item['status'] ?? '').toString().toLowerCase();
-      if (status == statusTarget) total++;
-    }
-
-    return total;
+  bool _isPast(DateTime date) {
+    return _dateOnly(date).isBefore(
+      _dateOnly(_now),
+    );
   }
 
-  int hitungTanggalTerpakai(List<Map<String, dynamic>> data) {
-    int total = 0;
-
-    for (int i = 1; i <= jumlahHariDalamBulan(); i++) {
-      if (dataPadaTanggal(i, data) != null) total++;
-    }
-
-    return total;
-  }
-
-  bool bisaDipilihTanggal(
-    int tanggal,
-    List<Map<String, dynamic>> dataPeminjaman,
+  bool _canSelect(
+    DateTime date,
+    List<Map<String, dynamic>> loans,
   ) {
-    if (tanggal < sekarang.day) return false;
-    return dataPadaTanggal(tanggal, dataPeminjaman) == null;
-  }
-
-  Color warnaTanggal(int tanggal, List<Map<String, dynamic>> dataPeminjaman) {
-    if (tanggal < sekarang.day) return const Color(0xffCBD5E1);
-
-    final item = dataPadaTanggal(tanggal, dataPeminjaman);
-
-    if (item == null) return primaryGreen;
-
-    final status = (item['status'] ?? '').toString().toLowerCase();
-
-    if (status == 'menunggu') return orangeStatus;
-    if (status == 'disetujui' || status == 'dipinjam') return redStatus;
-
-    return primaryGreen;
-  }
-
-  String keteranganTanggal(
-    int tanggal,
-    List<Map<String, dynamic>> dataPeminjaman,
-  ) {
-    if (tanggal < sekarang.day) return 'Tanggal sudah lewat';
-
-    final item = dataPadaTanggal(tanggal, dataPeminjaman);
-
-    if (item == null) return 'Tanggal tersedia';
-
-    final status = (item['status'] ?? '').toString().toLowerCase();
-
-    if (status == 'menunggu') return 'Tanggal ini sedang menunggu persetujuan';
-    if (status == 'disetujui' || status == 'dipinjam') {
-      return 'Tanggal ini sudah terpakai';
+    if (_isPast(date)) {
+      return false;
     }
 
-    return 'Tanggal tersedia';
+    return _loanOnDate(
+          date,
+          loans,
+        ) ==
+        null;
   }
 
-  IconData iconAlat(String nama) {
-    final alat = nama.toLowerCase();
+  String _dateMessage(
+    DateTime date,
+    List<Map<String, dynamic>> loans,
+  ) {
+    if (_isPast(date)) {
+      return 'Tanggal sudah lewat.';
+    }
 
-    if (alat.contains('sprayer')) return Icons.water_drop_rounded;
-    if (alat.contains('cangkul')) return Icons.construction_rounded;
-    if (alat.contains('traktor')) return Icons.agriculture_rounded;
+    final item = _loanOnDate(
+      date,
+      loans,
+    );
 
-    return Icons.handyman_rounded;
+    if (item == null) {
+      return 'Tanggal tersedia.';
+    }
+
+    final status = _normalizedStatus(
+      item['status'],
+    );
+
+    if (status == 'menunggu') {
+      return 'Tanggal sedang menunggu persetujuan admin.';
+    }
+
+    if (status == 'disetujui') {
+      return 'Tanggal sudah disetujui untuk peminjaman lain.';
+    }
+
+    return 'Tanggal sedang digunakan oleh peminjam lain.';
   }
 
-  Color warnaAlat(String nama) {
-    final alat = nama.toLowerCase();
-
-    if (alat.contains('sprayer')) return blueStatus;
-    if (alat.contains('cangkul')) return const Color(0xffD97706);
-    if (alat.contains('traktor')) return orangeStatus;
-
-    return primaryGreen;
-  }
-
-  void pilihTanggal(int tanggal, List<Map<String, dynamic>> dataPeminjaman) {
-    final bisaDipilih = bisaDipilihTanggal(tanggal, dataPeminjaman);
-
-    if (!bisaDipilih) {
-      _showSnackBar(
-        keteranganTanggal(tanggal, dataPeminjaman),
-        tanggal < sekarang.day ? textGrey : orangeStatus,
+  _DateVisual _dateVisual(
+    DateTime date,
+    List<Map<String, dynamic>> loans,
+  ) {
+    if (_isPast(date)) {
+      return const _DateVisual(
+        color: Color(0xffCBD5E1),
+        background: Color(0xffF1F4F6),
+        foreground: Color(0xff8B96A2),
       );
+    }
+
+    final item = _loanOnDate(
+      date,
+      loans,
+    );
+
+    if (item == null) {
+      return const _DateVisual(
+        color: primary,
+        background: softGreen,
+        foreground: primary,
+      );
+    }
+
+    final status = _normalizedStatus(
+      item['status'],
+    );
+
+    if (status == 'menunggu') {
+      return const _DateVisual(
+        color: amber,
+        background: softAmber,
+        foreground: amber,
+      );
+    }
+
+    return const _DateVisual(
+      color: red,
+      background: softRed,
+      foreground: red,
+    );
+  }
+
+  int _countRequests(
+    List<Map<String, dynamic>> loans,
+    String targetStatus,
+  ) {
+    int total = 0;
+
+    for (final item in loans) {
+      if (_sameEquipment(item) &&
+          _normalizedStatus(item['status']) ==
+              targetStatus) {
+        total++;
+      }
+    }
+
+    return total;
+  }
+
+  int _countAvailableDates(
+    List<Map<String, dynamic>> loans,
+  ) {
+    int total = 0;
+
+    for (
+      int day = 1;
+      day <= _daysInCurrentMonth();
+      day++
+    ) {
+      final date = DateTime(
+        _now.year,
+        _now.month,
+        day,
+      );
+
+      if (_canSelect(date, loans)) {
+        total++;
+      }
+    }
+
+    return total;
+  }
+
+  int _countUsedDates(
+    List<Map<String, dynamic>> loans,
+  ) {
+    int total = 0;
+
+    for (
+      int day = 1;
+      day <= _daysInCurrentMonth();
+      day++
+    ) {
+      final date = DateTime(
+        _now.year,
+        _now.month,
+        day,
+      );
+
+      if (_loanOnDate(date, loans) != null) {
+        total++;
+      }
+    }
+
+    return total;
+  }
+
+  IconData _equipmentIcon(String value) {
+    final name = value.toLowerCase();
+
+    if (name.contains('sprayer') ||
+        name.contains('semprot')) {
+      return Icons.water_drop_outlined;
+    }
+
+    if (name.contains('cangkul')) {
+      return Icons.handyman_outlined;
+    }
+
+    if (name.contains('traktor')) {
+      return Icons.agriculture_rounded;
+    }
+
+    if (name.contains('pompa')) {
+      return Icons.water_outlined;
+    }
+
+    if (name.contains('mesin')) {
+      return Icons.precision_manufacturing_outlined;
+    }
+
+    return Icons.construction_outlined;
+  }
+
+  Color _equipmentColor(String value) {
+    final name = value.toLowerCase();
+
+    if (name.contains('sprayer') ||
+        name.contains('semprot')) {
+      return blue;
+    }
+
+    if (name.contains('cangkul')) {
+      return amber;
+    }
+
+    if (name.contains('traktor')) {
+      return primary;
+    }
+
+    return teal;
+  }
+
+  Future<void> _refresh() async {
+    await _loanRef.get();
+  }
+
+  void _selectDate(
+    DateTime date,
+    List<Map<String, dynamic>> loans,
+  ) {
+    if (!_canSelect(date, loans)) {
+      _showSnackBar(
+        _dateMessage(date, loans),
+        _isPast(date)
+            ? textGrey
+            : amber,
+      );
+
       return;
     }
 
-    setState(() => tanggalDipilih = tanggal);
+    setState(() {
+      final selected = _selectedDate;
+
+      if (selected != null &&
+          _dateOnly(selected).isAtSameMomentAs(
+            _dateOnly(date),
+          )) {
+        _selectedDate = null;
+      } else {
+        _selectedDate = date;
+      }
+    });
   }
 
-  void lanjutKeForm() {
-    if (tanggalDipilih == null) return;
+  void _continueToForm() {
+    FocusScope.of(context).unfocus();
 
-    if (!mounted) return;
+    final selected = _selectedDate;
+
+    if (selected == null) {
+      return;
+    }
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (_) => AlatFormPage(
-              idAlat: widget.idAlat,
-              namaAlat: widget.namaAlat,
-              tanggalDipilih: tanggalLengkap(),
-              nama: widget.nama,
-              nik: widget.nik,
-            ),
-      ),
-    );
-  }
-
-  String sensorNik(String nik) {
-    final cleanNik = nik.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleanNik.length <= 4) return nik;
-    return '•••• •••• •••• ${cleanNik.substring(cleanNik.length - 4)}';
-  }
-
-  void _showSnackBar(String pesan, Color color) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          pesan,
-          style: const TextStyle(fontWeight: FontWeight.w700),
+        builder: (_) => AlatFormPage(
+          idAlat: widget.idAlat,
+          namaAlat: widget.namaAlat,
+          tanggalDipilih:
+              _databaseDate(selected),
+          nama: widget.nama,
+          nik: widget.nik,
         ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
+  }
+
+  void _showSnackBar(
+    String message,
+    Color color,
+  ) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          backgroundColor: color,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            16,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(14),
+          ),
+        ),
+      );
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth =
+        MediaQuery.sizeOf(context).width;
+
+    final horizontalPadding =
+        screenWidth < 350
+            ? 12.0
+            : screenWidth >= 700
+                ? 22.0
+                : 16.0;
+
     return Scaffold(
-      backgroundColor: bgColor,
-      body: AppBackground(
-        showPattern: false,
-        child: SafeArea(
-          child: StreamBuilder<DatabaseEvent>(
-            stream: peminjamanRef.onValue,
-            builder: (context, snapshot) {
-              final dataPeminjaman = ambilDataPeminjaman(
-                snapshot.data?.snapshot.value,
-              );
+      resizeToAvoidBottomInset: false,
+      backgroundColor: background,
+      body: SizedBox.expand(
+        child: AppBackground(
+          showPattern: false,
+          child: SizedBox.expand(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                const _ScheduleBackground(),
+                SafeArea(
+                  child:
+                      StreamBuilder<DatabaseEvent>(
+                    stream: _loanRef.onValue,
+                    builder: (
+                      context,
+                      snapshot,
+                    ) {
+                      final loans = _loanList(
+                        snapshot
+                            .data?.snapshot.value,
+                      );
 
-              final menunggu = hitungStatus(dataPeminjaman, 'menunggu');
-              final disetujui = hitungStatus(dataPeminjaman, 'disetujui');
-              final dipinjam = hitungStatus(dataPeminjaman, 'dipinjam');
-              final terpakai = hitungTanggalTerpakai(dataPeminjaman);
-              final tersedia = jumlahHariDalamBulan() - terpakai;
+                      final availableDates =
+                          _countAvailableDates(
+                        loans,
+                      );
 
-              return Column(
-                children: [
-                  _headerPage(),
-                  Expanded(
-                    child: RefreshIndicator(
-                      color: primaryGreen,
-                      backgroundColor: Colors.white,
-                      onRefresh: _refreshData,
-                      child: ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 96),
-                        children: [
-                          _userInfoCard(),
-                          const SizedBox(height: 12),
-                          _stepCard(),
-                          const SizedBox(height: 12),
-                          _alatCard(),
-                          const SizedBox(height: 12),
-                          _summaryGrid(
-                            tersedia: tersedia,
-                            menunggu: menunggu,
-                            terpakai: disetujui + dipinjam,
+                      final pendingRequests =
+                          _countRequests(
+                        loans,
+                        'menunggu',
+                      );
+
+                      final usedDates =
+                          _countUsedDates(
+                        loans,
+                      );
+
+                      return RefreshIndicator(
+                        color: teal,
+                        backgroundColor:
+                            Colors.white,
+                        onRefresh: _refresh,
+                        child: ListView(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior
+                                  .manual,
+                          physics:
+                              const AlwaysScrollableScrollPhysics(),
+                          padding:
+                              EdgeInsets.fromLTRB(
+                            horizontalPadding,
+                            12,
+                            horizontalPadding,
+                            112,
                           ),
-                          const SizedBox(height: 12),
-                          _availabilityInfo(),
-                          const SizedBox(height: 18),
-                          _sectionTitle(
-                            title: 'Kalender Peminjaman',
-                            subtitle: 'Pilih tanggal yang masih tersedia',
-                          ),
-                          const SizedBox(height: 12),
-                          _kalenderCard(dataPeminjaman),
-                          if (tanggalDipilih != null) ...[
-                            const SizedBox(height: 12),
-                            _tanggalDipilihCard(),
+                          children: [
+                            Center(
+                              child:
+                                  ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(
+                                  maxWidth: 760,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment
+                                          .stretch,
+                                  children: [
+                                    _header(),
+                                    const SizedBox(
+                                      height: 12,
+                                    ),
+                                    _identityAndEquipment(),
+                                    const SizedBox(
+                                      height: 10,
+                                    ),
+                                    _stepCard(),
+                                    const SizedBox(
+                                      height: 10,
+                                    ),
+                                    _compactSummary(
+                                      available:
+                                          availableDates,
+                                      pending:
+                                          pendingRequests,
+                                      used: usedDates,
+                                    ),
+                                    const SizedBox(
+                                      height: 10,
+                                    ),
+                                    _legendCard(),
+                                    const SizedBox(
+                                      height: 17,
+                                    ),
+                                    _sectionTitle(),
+                                    const SizedBox(
+                                      height: 10,
+                                    ),
+                                    if (snapshot
+                                            .connectionState ==
+                                        ConnectionState
+                                            .waiting)
+                                      _loadingCalendar()
+                                    else if (snapshot
+                                        .hasError)
+                                      _errorCard()
+                                    else
+                                      _calendarCard(
+                                        loans,
+                                      ),
+                                    if (_selectedDate !=
+                                        null) ...[
+                                      const SizedBox(
+                                        height: 10,
+                                      ),
+                                      _selectedDateCard(),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   ),
-                ],
-              );
-            },
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -344,205 +836,308 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     );
   }
 
-  Widget _headerPage() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
-        decoration: BoxDecoration(
-          color: darkGreen,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: darkGreen.withValues(alpha: 0.18),
-              blurRadius: 16,
-              offset: const Offset(0, 7),
+  Widget _header() {
+    return LayoutBuilder(
+      builder: (
+        context,
+        constraints,
+      ) {
+        final compact =
+            constraints.maxWidth < 370;
+
+        return Container(
+          padding: EdgeInsets.all(
+            compact ? 12 : 14,
+          ),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                dark,
+                deepTeal,
+                teal,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            _backButton(),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Pilih Jadwal',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
+            borderRadius:
+                BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: deepTeal.withValues(
+                  alpha: 0.23,
+                ),
+                blurRadius: 22,
+                offset: const Offset(0, 9),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              _backButton(),
+              SizedBox(
+                width: compact ? 9 : 11,
+              ),
+              _iconBox(
+                Icons.calendar_month_outlined,
+                Colors.white,
+                Colors.white.withValues(
+                  alpha: 0.14,
+                ),
+                compact ? 43 : 47,
+              ),
+              SizedBox(
+                width: compact ? 9 : 11,
+              ),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pilih Jadwal',
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17.5,
+                        fontWeight:
+                            FontWeight.w900,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Tentukan tanggal peminjaman',
-                    style: TextStyle(
-                      color: Color(0xffD1FAE5),
-                      fontSize: 12,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
+                    SizedBox(height: 3),
+                    Text(
+                      'Tentukan tanggal mulai peminjaman',
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color:
+                            Color(0xffD7EEE7),
+                        fontSize: 10.2,
+                        fontWeight:
+                            FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _identityAndEquipment() {
+    final equipmentColor =
+        _equipmentColor(widget.namaAlat);
+
+    return _card(
+      LayoutBuilder(
+        builder: (
+          context,
+          constraints,
+        ) {
+          final compact =
+              constraints.maxWidth < 360;
+
+          final applicant = _detailBlock(
+            icon: Icons.person_outline_rounded,
+            color: primary,
+            itemBackground: softGreen,
+            label: 'Pemohon',
+            title: widget.nama,
+            subtitle:
+                'NIK ${_maskedNik(widget.nik)}',
+          );
+
+          final equipment = _detailBlock(
+            icon: _equipmentIcon(
+              widget.namaAlat,
             ),
-            Container(
-              height: 44,
-              width: 44,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-              ),
-              child: const Icon(
-                Icons.calendar_month_rounded,
-                color: Colors.white,
-              ),
+            color: equipmentColor,
+            itemBackground:
+                equipmentColor.withValues(
+              alpha: 0.09,
             ),
-          ],
-        ),
+            label: 'Alat Dipilih',
+            title: widget.namaAlat,
+            subtitle:
+                'Inventaris Desa Penataan',
+          );
+
+          if (compact) {
+            return Column(
+              children: [
+                applicant,
+                const SizedBox(height: 10),
+                const Divider(
+                  height: 1,
+                  color: border,
+                ),
+                const SizedBox(height: 10),
+                equipment,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Expanded(child: applicant),
+              Container(
+                width: 1,
+                height: 52,
+                margin:
+                    const EdgeInsets.symmetric(
+                  horizontal: 12,
+                ),
+                color: border,
+              ),
+              Expanded(child: equipment),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _userInfoCard() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(radius: 18),
-      child: Row(
-        children: [
-          Container(
-            height: 46,
-            width: 46,
-            decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: primaryGreen,
-              size: 25,
-            ),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Data Pemohon',
-                  style: TextStyle(
-                    color: textGrey,
-                    fontSize: 11.3,
-                    fontWeight: FontWeight.w700,
-                  ),
+  Widget _detailBlock({
+    required IconData icon,
+    required Color color,
+    required Color itemBackground,
+    required String label,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        _iconBox(
+          icon,
+          color,
+          itemBackground,
+          43,
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 9.4,
+                  fontWeight:
+                      FontWeight.w700,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.nama,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w900,
-                  ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                title,
+                maxLines: 1,
+                overflow:
+                    TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 12.5,
+                  fontWeight:
+                      FontWeight.w900,
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  'NIK ${sensorNik(widget.nik)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: textGrey,
-                    fontSize: 11.6,
-                    fontWeight: FontWeight.w700,
-                  ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow:
+                    TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 8.9,
+                  fontWeight:
+                      FontWeight.w600,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Container(
-            height: 36,
-            width: 36,
-            decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.verified_user_rounded,
-              color: primaryGreen,
-              size: 20,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _stepCard() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(radius: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return _card(
+      Column(
         children: [
           Row(
             children: [
-              _stepDot('1', true),
+              _stepCircle('1', true),
               _stepLine(true),
-              _stepDot('2', true),
+              _stepCircle('2', true),
               _stepLine(false),
-              _stepDot('3', false),
+              _stepCircle('3', false),
               _stepLine(false),
-              _stepDot('4', false),
+              _stepCircle('4', false),
             ],
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'Tahap 2 dari 4',
-            style: TextStyle(
-              color: primaryGreen,
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Pilih tanggal peminjaman alat yang masih tersedia.',
-            style: TextStyle(
-              color: textGrey,
-              fontSize: 11.8,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
+          const SizedBox(height: 10),
+          const Row(
+            children: [
+              Icon(
+                Icons.event_available_outlined,
+                color: teal,
+                size: 17,
+              ),
+              SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  'Tahap 2 • Pilih tanggal yang masih tersedia',
+                  style: TextStyle(
+                    color: textDark,
+                    fontSize: 10.4,
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
+      padding: const EdgeInsets.all(12),
     );
   }
 
-  Widget _stepDot(String text, bool active) {
+  Widget _stepCircle(
+    String text,
+    bool active,
+  ) {
     return Container(
-      height: 28,
-      width: 28,
+      height: 27,
+      width: 27,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: active ? primaryGreen : const Color(0xffEEF2F7),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: active ? primaryGreen : borderColor),
+        color: active
+            ? teal
+            : const Color(0xffEFF3F2),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: active ? teal : border,
+        ),
       ),
-      child: Center(
-        child: Text(
-          text,
-          style: TextStyle(
-            color: active ? Colors.white : textGrey,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-          ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: active
+              ? Colors.white
+              : textSoft,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );
@@ -552,149 +1147,136 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     return Expanded(
       child: Container(
         height: 3,
-        margin: const EdgeInsets.symmetric(horizontal: 5),
+        margin: const EdgeInsets.symmetric(
+          horizontal: 5,
+        ),
         decoration: BoxDecoration(
-          color:
-              active
-                  ? primaryGreen.withValues(alpha: 0.55)
-                  : const Color(0xffE5E7EB),
-          borderRadius: BorderRadius.circular(99),
+          color: active
+              ? teal.withValues(alpha: 0.48)
+              : const Color(0xffE4EAE8),
+          borderRadius:
+              BorderRadius.circular(99),
         ),
       ),
     );
   }
 
-  Widget _alatCard() {
-    final color = warnaAlat(widget.namaAlat);
+  Widget _compactSummary({
+    required int available,
+    required int pending,
+    required int used,
+  }) {
+    return _card(
+      LayoutBuilder(
+        builder: (
+          context,
+          constraints,
+        ) {
+          final gap =
+              constraints.maxWidth < 350
+                  ? 6.0
+                  : 8.0;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(radius: 18),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(iconAlat(widget.namaAlat), color: color, size: 25),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Alat Dipilih',
-                  style: TextStyle(
-                    color: textGrey,
-                    fontSize: 11.3,
-                    fontWeight: FontWeight.w700,
-                  ),
+          final itemWidth =
+              (constraints.maxWidth -
+                      gap * 2) /
+                  3;
+
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              SizedBox(
+                width: itemWidth,
+                child: _summaryItem(
+                  'Tersedia',
+                  available,
+                  Icons
+                      .event_available_outlined,
+                  primary,
+                  softGreen,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.namaAlat,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w900,
-                  ),
+              ),
+              SizedBox(
+                width: itemWidth,
+                child: _summaryItem(
+                  'Menunggu',
+                  pending,
+                  Icons.schedule_outlined,
+                  amber,
+                  softAmber,
                 ),
-              ],
-            ),
-          ),
-          Container(
-            height: 34,
-            width: 34,
-            decoration: BoxDecoration(
-              color: softGreen,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.check_circle_rounded,
-              color: primaryGreen,
-              size: 20,
-            ),
-          ),
-        ],
+              ),
+              SizedBox(
+                width: itemWidth,
+                child: _summaryItem(
+                  'Terpakai',
+                  used,
+                  Icons.event_busy_outlined,
+                  red,
+                  softRed,
+                ),
+              ),
+            ],
+          );
+        },
       ),
+      padding: const EdgeInsets.all(9),
     );
   }
 
-  Widget _summaryGrid({
-    required int tersedia,
-    required int menunggu,
-    required int terpakai,
-  }) {
-    return Row(
-      children: [
-        Expanded(
-          child: _summaryMini(
-            title: 'Ketersediaan',
-            value: tersedia.toString(),
-            icon: Icons.event_available_rounded,
-            color: primaryGreen,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _summaryMini(
-            title: 'Menunggu',
-            value: menunggu.toString(),
-            icon: Icons.schedule_rounded,
-            color: orangeStatus,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _summaryMini(
-            title: 'Terpakai',
-            value: terpakai.toString(),
-            icon: Icons.event_busy_rounded,
-            color: redStatus,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _summaryMini({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
+  Widget _summaryItem(
+    String label,
+    int value,
+    IconData icon,
+    Color color,
+    Color itemBackground,
+  ) {
     return Container(
-      height: 82,
-      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
-      decoration: _cardDecoration(radius: 18),
+      constraints: const BoxConstraints(
+        minHeight: 67,
+      ),
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 4,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: itemBackground,
+        borderRadius:
+            BorderRadius.circular(14),
+      ),
       child: Column(
+        mainAxisAlignment:
+            MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 21),
-          const SizedBox(height: 6),
+          Icon(
+            icon,
+            color: color,
+            size: 16,
+          ),
+          const SizedBox(height: 4),
           Text(
-            value,
+            value > 99
+                ? '99+'
+                : value.toString(),
             style: TextStyle(
               color: color,
-              fontSize: 18,
+              fontSize: 14.5,
               height: 1,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Text(
-            title,
+            label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: textDark,
-              fontSize: 10.4,
-              fontWeight: FontWeight.w900,
+              color: textGrey,
+              fontSize: 8.2,
+              fontWeight:
+                  FontWeight.w700,
             ),
           ),
         ],
@@ -702,194 +1284,231 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     );
   }
 
-  Widget _availabilityInfo() {
+  Widget _legendCard() {
     return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(radius: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionSmallTitle(
-            icon: Icons.info_outline_rounded,
-            title: 'Keterangan Jadwal',
-            subtitle: 'Warna kalender menunjukkan kondisi tanggal',
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _statusChip(primaryGreen, 'Ketersediaan'),
-              _statusChip(orangeStatus, 'Menunggu'),
-              _statusChip(redStatus, 'Terpakai'),
-              _statusChip(const Color(0xffCBD5E1), 'Lewat'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionSmallTitle({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Row(
-      children: [
-        Container(
-          height: 36,
-          width: 36,
-          decoration: BoxDecoration(
-            color: primaryGreen.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: primaryGreen, size: 20),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: textDark,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: textGrey,
-                  fontSize: 11.2,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _statusChip(Color color, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.15)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 9,
-            height: 9,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color == const Color(0xffCBD5E1) ? textGrey : color,
-              fontSize: 10.8,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionTitle({required String title, required String subtitle}) {
-    return Row(
-      children: [
-        Container(
-          height: 32,
-          width: 5,
-          decoration: BoxDecoration(
-            color: primaryGreen,
-            borderRadius: BorderRadius.circular(99),
-          ),
+        color: softTeal,
+        borderRadius:
+            BorderRadius.circular(16),
+        border: Border.all(
+          color:
+              teal.withValues(alpha: 0.11),
         ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: textDark,
-                  fontSize: 15.8,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: textGrey,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _kalenderCard(List<Map<String, dynamic>> dataPeminjaman) {
-    final totalGrid = jumlahHariDalamBulan() + hariPertamaBulan() - 1;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(radius: 18),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.calendar_month_rounded, color: primaryGreen),
-              const SizedBox(width: 8),
+              Icon(
+                Icons.info_outline_rounded,
+                color: teal,
+                size: 17,
+              ),
+              SizedBox(width: 7),
               Expanded(
                 child: Text(
-                  bulanTahun(),
-                  style: const TextStyle(
+                  'Keterangan warna jadwal',
+                  style: TextStyle(
                     color: textDark,
-                    fontSize: 16.2,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 10.4,
+                    fontWeight:
+                        FontWeight.w900,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          _namaHari(),
-          const SizedBox(height: 10),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: totalGrid,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              crossAxisSpacing: 7,
-              mainAxisSpacing: 7,
+          const SizedBox(height: 9),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: const [
+              _LegendItem(
+                color: primary,
+                label: 'Tersedia',
+              ),
+              _LegendItem(
+                color: amber,
+                label: 'Menunggu',
+              ),
+              _LegendItem(
+                color: red,
+                label: 'Terpakai',
+              ),
+              _LegendItem(
+                color: Color(0xffAEB8C2),
+                label: 'Sudah lewat',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle() {
+    return const Row(
+      children: [
+        SizedBox(
+          width: 5,
+          height: 31,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: teal,
+              borderRadius:
+                  BorderRadius.all(
+                Radius.circular(99),
+              ),
             ),
-            itemBuilder: (context, index) {
-              final kosongAwal = hariPertamaBulan() - 1;
+          ),
+        ),
+        SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Kalender Peminjaman',
+                style: TextStyle(
+                  color: textDark,
+                  fontSize: 14.5,
+                  fontWeight:
+                      FontWeight.w900,
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Ketuk tanggal hijau untuk memilih jadwal.',
+                style: TextStyle(
+                  color: textGrey,
+                  fontSize: 9.7,
+                  fontWeight:
+                      FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-              if (index < kosongAwal) return const SizedBox();
+  Widget _calendarCard(
+    List<Map<String, dynamic>> loans,
+  ) {
+    final offset = _firstWeekdayOffset();
 
-              final tanggal = index - kosongAwal + 1;
-              return _tanggalBox(tanggal, dataPeminjaman);
+    final totalCells =
+        offset + _daysInCurrentMonth();
+
+    return _card(
+      Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _iconBox(
+                Icons.calendar_month_outlined,
+                teal,
+                softTeal,
+                40,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _currentMonthLabel(),
+                      style: const TextStyle(
+                        color: textDark,
+                        fontSize: 14.5,
+                        fontWeight:
+                            FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Jadwal untuk bulan berjalan',
+                      style: TextStyle(
+                        color: textGrey,
+                        fontSize: 9.2,
+                        fontWeight:
+                            FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          _weekdayHeader(),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (
+              context,
+              constraints,
+            ) {
+              final spacing =
+                  constraints.maxWidth < 340
+                      ? 4.0
+                      : 6.0;
+
+              final cellWidth =
+                  (constraints.maxWidth -
+                          spacing * 6) /
+                      7;
+
+              final cellHeight = cellWidth
+                  .clamp(39.0, 52.0)
+                  .toDouble();
+
+              final ratio =
+                  cellWidth / cellHeight;
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics:
+                    const NeverScrollableScrollPhysics(),
+                itemCount: totalCells,
+                gridDelegate:
+                    SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  crossAxisSpacing: spacing,
+                  mainAxisSpacing: spacing,
+                  childAspectRatio: ratio,
+                ),
+                itemBuilder: (
+                  context,
+                  index,
+                ) {
+                  if (index < offset) {
+                    return const SizedBox
+                        .shrink();
+                  }
+
+                  final day =
+                      index - offset + 1;
+
+                  final date = DateTime(
+                    _now.year,
+                    _now.month,
+                    day,
+                  );
+
+                  return _dateCell(
+                    date,
+                    loans,
+                  );
+                },
+              );
             },
           ),
         ],
@@ -897,150 +1516,398 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     );
   }
 
-  Widget _namaHari() {
-    final hari = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-
+  Widget _weekdayHeader() {
     return Row(
-      children:
-          hari.map((item) {
-            return Expanded(
-              child: Center(
-                child: Text(
-                  item,
-                  style: const TextStyle(
-                    color: textGrey,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+      children: _dayNames.map((day) {
+        return Expanded(
+          child: Center(
+            child: Text(
+              day,
+              style: const TextStyle(
+                color: textGrey,
+                fontSize: 9.2,
+                fontWeight:
+                    FontWeight.w900,
               ),
-            );
-          }).toList(),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
-  Widget _tanggalBox(int tanggal, List<Map<String, dynamic>> dataPeminjaman) {
-    final warna = warnaTanggal(tanggal, dataPeminjaman);
-    final bisaDipilih = bisaDipilihTanggal(tanggal, dataPeminjaman);
-    final selected = tanggalDipilih == tanggal;
+  Widget _dateCell(
+    DateTime date,
+    List<Map<String, dynamic>> loans,
+  ) {
+    final visual = _dateVisual(
+      date,
+      loans,
+    );
 
-    final bgColorBox = selected ? blueStatus : warna;
-    final opacity = bisaDipilih ? 1.0 : 0.70;
+    final canSelect = _canSelect(
+      date,
+      loans,
+    );
 
-    return InkWell(
-      onTap: () => pilihTanggal(tanggal, dataPeminjaman),
-      borderRadius: BorderRadius.circular(13),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: bgColorBox.withValues(alpha: opacity),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(
-            color: selected ? textDark : Colors.transparent,
-            width: selected ? 1.3 : 1,
+    final selected =
+        _selectedDate != null &&
+            _dateOnly(_selectedDate!)
+                .isAtSameMomentAs(
+              _dateOnly(date),
+            );
+
+    final isToday = _dateOnly(_now)
+        .isAtSameMomentAs(
+      _dateOnly(date),
+    );
+
+    final itemBackground =
+        selected
+            ? teal
+            : visual.background;
+
+    final foreground =
+        selected
+            ? Colors.white
+            : visual.foreground;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius:
+          BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () {
+          _selectDate(
+            date,
+            loans,
+          );
+        },
+        borderRadius:
+            BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(
+            milliseconds: 180,
           ),
-          boxShadow:
-              selected
-                  ? [
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: itemBackground,
+            borderRadius:
+                BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? teal
+                  : isToday
+                      ? visual.color
+                      : visual.color
+                          .withValues(
+                          alpha: 0.13,
+                        ),
+              width:
+                  selected || isToday
+                      ? 1.4
+                      : 1,
+            ),
+            boxShadow: selected
+                ? [
                     BoxShadow(
-                      color: blueStatus.withValues(alpha: 0.22),
+                      color:
+                          teal.withValues(
+                        alpha: 0.22,
+                      ),
                       blurRadius: 8,
-                      offset: const Offset(0, 4),
+                      offset:
+                          const Offset(
+                        0,
+                        4,
+                      ),
                     ),
                   ]
-                  : [],
-        ),
-        child: Text(
-          '$tanggal',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11.8,
-            fontWeight: FontWeight.w900,
+                : const [],
+          ),
+          child: Column(
+            mainAxisAlignment:
+                MainAxisAlignment.center,
+            children: [
+              Text(
+                date.day.toString(),
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 11.2,
+                  height: 1,
+                  fontWeight:
+                      FontWeight.w900,
+                ),
+              ),
+              if (isToday) ...[
+                const SizedBox(height: 3),
+                Container(
+                  height: 3,
+                  width: 3,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? Colors.white
+                        : visual.color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ] else if (!canSelect &&
+                  !_isPast(date)) ...[
+                const SizedBox(height: 3),
+                Container(
+                  height: 3,
+                  width: 3,
+                  decoration: BoxDecoration(
+                    color: foreground,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _tanggalDipilihCard() {
+  Widget _selectedDateCard() {
+    final selected = _selectedDate!;
+
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: primaryGreen.withValues(alpha: 0.075),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.16)),
+        color: softGreen,
+        borderRadius:
+            BorderRadius.circular(16),
+        border: Border.all(
+          color:
+              primary.withValues(alpha: 0.13),
+        ),
       ),
       child: Row(
         children: [
-          Container(
-            height: 38,
-            width: 38,
-            decoration: BoxDecoration(
-              color: primaryGreen.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: const Icon(
-              Icons.check_circle_rounded,
-              color: primaryGreen,
-              size: 21,
+          _iconBox(
+            Icons
+                .check_circle_outline_rounded,
+            primary,
+            Colors.white,
+            40,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Tanggal Dipilih',
+                  style: TextStyle(
+                    color: textGrey,
+                    fontSize: 9.3,
+                    fontWeight:
+                        FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _displayDate(selected),
+                  style: const TextStyle(
+                    color: primary,
+                    fontSize: 12.3,
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Tanggal dipilih: ${tanggalLengkap()}',
-              style: const TextStyle(
-                color: primaryGreen,
-                fontSize: 12.2,
-                height: 1.4,
-                fontWeight: FontWeight.w900,
-              ),
+          IconButton(
+            tooltip: 'Batalkan pilihan',
+            onPressed: () {
+              setState(() {
+                _selectedDate = null;
+              });
+            },
+            icon: const Icon(
+              Icons.close_rounded,
+              color: textGrey,
+              size: 19,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _loadingCalendar() {
+    return _card(
+      Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: border,
+                  borderRadius:
+                      BorderRadius.circular(13),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Container(
+                  height: 13,
+                  decoration: BoxDecoration(
+                    color: border,
+                    borderRadius:
+                        BorderRadius.circular(
+                      99,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 17),
+          const SizedBox(
+            height: 28,
+            width: 28,
+            child:
+                CircularProgressIndicator(
+              color: teal,
+              strokeWidth: 2.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Memuat jadwal peminjaman...',
+            style: TextStyle(
+              color: textGrey,
+              fontSize: 9.8,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+    );
+  }
+
+  Widget _errorCard() {
+    return _card(
+      Column(
+        children: [
+          _iconBox(
+            Icons.cloud_off_outlined,
+            red,
+            softRed,
+            62,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Jadwal Tidak Dapat Dimuat',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: textDark,
+              fontSize: 14.3,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Periksa koneksi internet lalu tarik halaman ke bawah.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: textGrey,
+              fontSize: 9.8,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 26,
       ),
     );
   }
 
   Widget _bottomButton() {
-    final aktif = tanggalDipilih != null;
+    final active = _selectedDate != null;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 14,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
+    return Material(
+      color: Colors.white,
+      elevation: 10,
+      shadowColor:
+          deepTeal.withValues(alpha: 0.13),
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton.icon(
-            onPressed: aktif ? lanjutKeForm : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryGreen,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: primaryGreen.withValues(alpha: 0.36),
-              disabledForegroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            14,
+            9,
+            14,
+            12,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints:
+                  const BoxConstraints(
+                maxWidth: 760,
               ),
-            ),
-            icon: const Icon(Icons.arrow_forward_rounded, size: 20),
-            label: Text(
-              aktif ? 'Lanjut Isi Data' : 'Pilih Tanggal Terlebih Dahulu',
-              style: const TextStyle(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w900,
+              child: SizedBox(
+                width: double.infinity,
+                height: 51,
+                child: ElevatedButton.icon(
+                  onPressed: active
+                      ? _continueToForm
+                      : null,
+                  style:
+                      ElevatedButton.styleFrom(
+                    backgroundColor: teal,
+                    foregroundColor:
+                        Colors.white,
+                    disabledBackgroundColor:
+                        teal.withValues(
+                      alpha: 0.28,
+                    ),
+                    disabledForegroundColor:
+                        Colors.white.withValues(
+                      alpha: 0.86,
+                    ),
+                    elevation: 0,
+                    shape:
+                        RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(
+                        15,
+                      ),
+                    ),
+                  ),
+                  icon: Icon(
+                    active
+                        ? Icons
+                            .arrow_forward_rounded
+                        : Icons
+                            .event_available_outlined,
+                    size: 19,
+                  ),
+                  label: Text(
+                    active
+                        ? 'Lanjut Isi Data'
+                        : 'Pilih Tanggal Terlebih Dahulu',
+                    maxLines: 1,
+                    overflow:
+                        TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.3,
+                      fontWeight:
+                          FontWeight.w900,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -1050,37 +1917,277 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
   }
 
   Widget _backButton() {
-    return InkWell(
-      onTap: () {
-        if (!mounted) return;
-        Navigator.pop(context);
-      },
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+    return Material(
+      color: Colors.transparent,
+      borderRadius:
+          BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          Navigator.maybePop(context);
+        },
+        borderRadius:
+            BorderRadius.circular(14),
+        child: _iconBox(
+          Icons.arrow_back_rounded,
+          Colors.white,
+          Colors.white.withValues(
+            alpha: 0.14,
+          ),
+          42,
         ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
       ),
     );
   }
 
-  BoxDecoration _cardDecoration({double radius = 18}) {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: borderColor),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.032),
-          blurRadius: 12,
-          offset: const Offset(0, 5),
+  Widget _iconBox(
+    IconData icon,
+    Color color,
+    Color iconBackground,
+    double size,
+  ) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        color: iconBackground,
+        borderRadius:
+            BorderRadius.circular(
+          size * 0.32,
         ),
-      ],
+      ),
+      child: Icon(
+        icon,
+        color: color,
+        size: size * 0.5,
+      ),
+    );
+  }
+
+  Widget _card(
+    Widget child, {
+    EdgeInsets padding =
+        const EdgeInsets.all(13),
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(
+          alpha: 0.98,
+        ),
+        borderRadius:
+            BorderRadius.circular(20),
+        border: Border.all(
+          color: border,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: deepTeal.withValues(
+              alpha: 0.05,
+            ),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _DateVisual {
+  final Color color;
+  final Color background;
+  final Color foreground;
+
+  const _DateVisual({
+    required this.color,
+    required this.background,
+    required this.foreground,
+  });
+}
+
+class _LegendItem extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _LegendItem({
+    required this.color,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 7,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(
+          alpha: 0.72,
+        ),
+        borderRadius:
+            BorderRadius.circular(99),
+        border: Border.all(
+          color:
+              color.withValues(alpha: 0.14),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 8,
+            width: 8,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: color ==
+                      const Color(
+                        0xffAEB8C2,
+                      )
+                  ? const Color(
+                      0xff66727F,
+                    )
+                  : color,
+              fontSize: 8.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScheduleBackground extends StatelessWidget {
+  const _ScheduleBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: SizedBox.expand(
+        child: LayoutBuilder(
+          builder: (
+            context,
+            constraints,
+          ) {
+            final base =
+                constraints.maxWidth <
+                        constraints.maxHeight
+                    ? constraints.maxWidth
+                    : constraints.maxHeight;
+
+            final large = (base * 0.98)
+                .clamp(280.0, 470.0)
+                .toDouble();
+
+            final medium = (base * 0.67)
+                .clamp(190.0, 330.0)
+                .toDouble();
+
+            return ClipRect(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient:
+                          LinearGradient(
+                        begin:
+                            Alignment.topCenter,
+                        end: Alignment
+                            .bottomCenter,
+                        colors: [
+                          Color(0xff0E5F57),
+                          Color(0xff167A6B),
+                          Color(0xffDDEFEA),
+                          Color(0xffF2F7F5),
+                        ],
+                        stops: [
+                          0,
+                          0.18,
+                          0.43,
+                          1,
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: -large * 0.55,
+                    right: -large * 0.30,
+                    child: _BackgroundCircle(
+                      size: large,
+                      color: const Color(
+                        0xff58B89F,
+                      ),
+                      alpha: 0.20,
+                    ),
+                  ),
+                  Positioned(
+                    top:
+                        constraints.maxHeight *
+                            0.31,
+                    left: -medium * 0.58,
+                    child: _BackgroundCircle(
+                      size: medium,
+                      color: const Color(
+                        0xffA7DACD,
+                      ),
+                      alpha: 0.34,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -large * 0.52,
+                    left: -large * 0.31,
+                    child: _BackgroundCircle(
+                      size: large,
+                      color: const Color(
+                        0xffDDEFE6,
+                      ),
+                      alpha: 0.82,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _BackgroundCircle extends StatelessWidget {
+  final double size;
+  final Color color;
+  final double alpha;
+
+  const _BackgroundCircle({
+    required this.size,
+    required this.color,
+    required this.alpha,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        color: color.withValues(
+          alpha: alpha,
+        ),
+        shape: BoxShape.circle,
+      ),
     );
   }
 }
