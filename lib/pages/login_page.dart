@@ -155,16 +155,29 @@ class _LoginPageState extends State<LoginPage> {
         nama: nama,
       );
 
+      final savedSession =
+          await SessionHelper.getSession();
+
+      if (!savedSession.isUser) {
+        throw StateError(
+          'Sesi pengguna gagal disimpan.',
+        );
+      }
+
       if (!mounted) return;
 
-      Navigator.pushReplacement(
-        context,
+      TextInput.finishAutofillContext(
+        shouldSave: true,
+      );
+
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => UserHomePage(
-            nama: nama,
-            nik: nik,
+            nama: savedSession.nama!,
+            nik: savedSession.nik!,
           ),
         ),
+        (route) => false,
       );
     } catch (_) {
       if (!mounted) return;

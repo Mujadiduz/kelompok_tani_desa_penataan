@@ -138,13 +138,22 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
       await SessionHelper.saveAdminSession();
 
+      final savedSession =
+          await SessionHelper.getSession();
+
+      if (!savedSession.isAdmin) {
+        throw StateError(
+          'Sesi admin gagal disimpan.',
+        );
+      }
+
       if (!mounted) return;
 
-      Navigator.pushReplacement(
-        context,
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => const AdminHomePage(),
         ),
+        (route) => false,
       );
     } catch (_) {
       if (!mounted) return;

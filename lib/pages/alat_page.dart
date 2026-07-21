@@ -362,9 +362,11 @@ class _AlatPageState extends State<AlatPage> {
 
     final pagePadding = screenWidth < 350
         ? 12.0
-        : screenWidth >= 700
-            ? 22.0
-            : 16.0;
+        : screenWidth < 600
+            ? 16.0
+            : screenWidth < 1000
+                ? 24.0
+                : 32.0;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -425,14 +427,14 @@ class _AlatPageState extends State<AlatPage> {
                                 pagePadding,
                                 12,
                                 pagePadding,
-                                112,
+                                28,
                               ),
                               children: [
                                 Center(
                                   child: ConstrainedBox(
                                     constraints:
                                         const BoxConstraints(
-                                      maxWidth: 760,
+                                      maxWidth: 840,
                                     ),
                                     child: Column(
                                       crossAxisAlignment:
@@ -515,34 +517,50 @@ class _AlatPageState extends State<AlatPage> {
       );
     }
 
-    return Column(
-      children: alat.map((entry) {
-        final nama = _text(
-          entry.value['nama_alat'],
-          fallback: 'Alat pertanian',
-        );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 720 ? 2 : 1;
+        const gap = 10.0;
 
-        final jumlah = _int(
-          entry.value['jumlah_unit'],
-        );
+        final itemWidth = columns == 2
+            ? (constraints.maxWidth - gap) / 2
+            : constraints.maxWidth;
 
-        final sedangDipinjam = _dipinjam(
-          entry.key,
-          nama,
-          peminjaman,
-        );
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: alat.map((entry) {
+            final nama = _text(
+              entry.value['nama_alat'],
+              fallback: 'Alat pertanian',
+            );
 
-        final sisa = jumlah - sedangDipinjam;
-        final tersedia = sisa < 0 ? 0 : sisa;
+            final jumlah = _int(
+              entry.value['jumlah_unit'],
+            );
 
-        return _alatCard(
-          id: entry.key,
-          nama: nama,
-          jumlah: jumlah,
-          dipinjam: sedangDipinjam,
-          tersedia: tersedia,
+            final sedangDipinjam = _dipinjam(
+              entry.key,
+              nama,
+              peminjaman,
+            );
+
+            final sisa = jumlah - sedangDipinjam;
+            final tersedia = sisa < 0 ? 0 : sisa;
+
+            return SizedBox(
+              width: itemWidth,
+              child: _alatCard(
+                id: entry.key,
+                nama: nama,
+                jumlah: jumlah,
+                dipinjam: sedangDipinjam,
+                tersedia: tersedia,
+              ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 
@@ -1043,11 +1061,7 @@ class _AlatPageState extends State<AlatPage> {
     final equipmentColor = _warnaAlat(nama);
     final stockColor = _warnaStok(tersedia);
 
-    return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 10,
-      ),
-      child: Material(
+    return Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
@@ -1217,8 +1231,7 @@ class _AlatPageState extends State<AlatPage> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _selectionIcon({
@@ -1353,10 +1366,12 @@ class _AlatPageState extends State<AlatPage> {
             14,
             12,
           ),
-          child: Center(
+          child: Align(
+            alignment: Alignment.center,
+            heightFactor: 1,
             child: ConstrainedBox(
               constraints: const BoxConstraints(
-                maxWidth: 760,
+                maxWidth: 840,
               ),
               child: SizedBox(
                 width: double.infinity,
@@ -1628,18 +1643,21 @@ class _AlatBackground extends StatelessWidget {
       child: SizedBox.expand(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final base =
-                constraints.maxWidth <
-                        constraints.maxHeight
-                    ? constraints.maxWidth
-                    : constraints.maxHeight;
+            final width = constraints.maxWidth;
+            final height = constraints.maxHeight;
+            final shortestSide = width < height ? width : height;
 
-            final large = (base * 0.98)
-                .clamp(280.0, 470.0)
+            final large = (shortestSide * 1.02)
+                .clamp(290.0, 520.0)
                 .toDouble();
-
-            final medium = (base * 0.67)
-                .clamp(190.0, 330.0)
+            final medium = (shortestSide * 0.70)
+                .clamp(190.0, 360.0)
+                .toDouble();
+            final iconLarge = (shortestSide * 0.17)
+                .clamp(48.0, 92.0)
+                .toDouble();
+            final iconSmall = (shortestSide * 0.11)
+                .clamp(34.0, 62.0)
                 .toDouble();
 
             return ClipRect(
@@ -1649,55 +1667,89 @@ class _AlatBackground extends StatelessWidget {
                   const DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                         colors: [
-                          Color(0xff0E5F57),
-                          Color(0xff167A6B),
-                          Color(0xffDDEFEA),
-                          Color(0xffF2F7F5),
+                          Color(0xff0B4F49),
+                          Color(0xff116A60),
+                          Color(0xff54A792),
+                          Color(0xffDCEFE9),
+                          Color(0xffF4F8F6),
                         ],
                         stops: [
                           0,
-                          0.18,
-                          0.43,
+                          0.17,
+                          0.34,
+                          0.58,
                           1,
                         ],
                       ),
                     ),
                   ),
                   Positioned(
-                    top: -large * 0.55,
+                    top: -large * 0.56,
                     right: -large * 0.30,
                     child: _Circle(
                       size: large,
-                      color: const Color(
-                        0xff58B89F,
-                      ),
-                      alpha: 0.20,
+                      color: const Color(0xff8BE0C6),
+                      alpha: 0.18,
                     ),
                   ),
                   Positioned(
-                    top: constraints.maxHeight *
-                        0.31,
-                    left: -medium * 0.58,
+                    top: height * 0.22,
+                    left: -medium * 0.62,
                     child: _Circle(
                       size: medium,
-                      color: const Color(
-                        0xffA7DACD,
-                      ),
-                      alpha: 0.34,
+                      color: const Color(0xffB9E7D9),
+                      alpha: 0.27,
                     ),
                   ),
                   Positioned(
-                    bottom: -large * 0.52,
-                    left: -large * 0.31,
+                    top: height * 0.52,
+                    right: -medium * 0.46,
+                    child: _Circle(
+                      size: medium,
+                      color: const Color(0xffD7EFE7),
+                      alpha: 0.52,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -large * 0.56,
+                    left: -large * 0.32,
                     child: _Circle(
                       size: large,
-                      color: const Color(
-                        0xffDDEFE6,
-                      ),
-                      alpha: 0.82,
+                      color: const Color(0xffE9F6F1),
+                      alpha: 0.88,
+                    ),
+                  ),
+                  Positioned(
+                    top: height * 0.07,
+                    right: width * 0.08,
+                    child: _BackgroundIcon(
+                      icon: Icons.agriculture_rounded,
+                      size: iconLarge,
+                      color: Colors.white,
+                      alpha: 0.075,
+                    ),
+                  ),
+                  Positioned(
+                    top: height * 0.40,
+                    left: width * 0.045,
+                    child: _BackgroundIcon(
+                      icon: Icons.handyman_outlined,
+                      size: iconSmall,
+                      color: const Color(0xff0B4F49),
+                      alpha: 0.055,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: height * 0.14,
+                    right: width * 0.06,
+                    child: _BackgroundIcon(
+                      icon: Icons.precision_manufacturing_outlined,
+                      size: iconLarge * 0.88,
+                      color: const Color(0xff116A60),
+                      alpha: 0.045,
                     ),
                   ),
                 ],
@@ -1705,6 +1757,32 @@ class _AlatBackground extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _BackgroundIcon extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final Color color;
+  final double alpha;
+
+  const _BackgroundIcon({
+    required this.icon,
+    required this.size,
+    required this.color,
+    required this.alpha,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.rotate(
+      angle: -0.16,
+      child: Icon(
+        icon,
+        size: size,
+        color: color.withValues(alpha: alpha),
       ),
     );
   }

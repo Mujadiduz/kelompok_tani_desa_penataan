@@ -7,6 +7,27 @@ import 'package:flutter/material.dart';
 import '../services/notification_helper.dart';
 import '../widgets/app_background.dart';
 
+const Color _adminNavy = Color(0xff172554);
+const Color _adminIndigo = Color(0xff35469C);
+const Color _adminPurple = Color(0xff6946C6);
+const Color _adminBlue = Color(0xff326FA3);
+const Color _adminTeal = Color(0xff167A6B);
+const Color _adminGreen = Color(0xff2E7D32);
+const Color _adminAmber = Color(0xffD98212);
+const Color _adminRed = Color(0xffC83B3B);
+
+const Color _pageBackground = Color(0xffF4F6FB);
+const Color _cardBorder = Color(0xffE1E5EF);
+const Color _textDark = Color(0xff18212B);
+const Color _textGrey = Color(0xff66727F);
+const Color _textSoft = Color(0xff8B96A2);
+
+const Color _softPurple = Color(0xffF0EBFC);
+const Color _softBlue = Color(0xffEAF3FA);
+const Color _softGreen = Color(0xffE9F5EB);
+const Color _softAmber = Color(0xffFFF3DD);
+const Color _softRed = Color(0xffFBEAEA);
+
 class VerifikasiPeminjamanPage extends StatefulWidget {
   const VerifikasiPeminjamanPage({super.key});
 
@@ -15,22 +36,8 @@ class VerifikasiPeminjamanPage extends StatefulWidget {
       _VerifikasiPeminjamanPageState();
 }
 
-class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
-  static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff14532D);
-  static const Color lightGreen = Color(0xffEAF7EC);
-  static const Color backgroundColor = Color(0xffF6FAF7);
-  static const Color cardBorder = Color(0xffE5E7EB);
-  static const Color textDark = Color(0xff1F2937);
-  static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffF59E0B);
-  static const Color blueStatus = Color(0xff2563EB);
-  static const Color purpleStatus = Color(0xff7C3AED);
-  static const Color redStatus = Color(0xffDC2626);
-
-  String selectedFilter = 'semua';
-  bool isProcessing = false;
-
+class _VerifikasiPeminjamanPageState
+    extends State<VerifikasiPeminjamanPage> {
   final FirebaseDatabase db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
@@ -40,339 +47,891 @@ class _VerifikasiPeminjamanPageState extends State<VerifikasiPeminjamanPage> {
   late final DatabaseReference peminjamanRef;
   late final DatabaseReference alatRef;
 
+  final TextEditingController _searchController =
+      TextEditingController();
+
+  String selectedFilter = 'menunggu';
+  String _searchQuery = '';
+  bool isProcessing = false;
+
   @override
   void initState() {
     super.initState();
+
     peminjamanRef = db.ref('peminjaman_alat');
     alatRef = db.ref('alat_pertanian');
   }
 
-  Future<void> refreshData() async {
-    await peminjamanRef.get();
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
-  String _text(dynamic value) {
-    if (value == null) return '-';
-    final result = value.toString().trim();
-    return result.isEmpty ? '-' : result;
+  Map<String, dynamic> _stringMap(dynamic value) {
+    if (value is! Map) {
+      return {};
+    }
+
+    final source = Map<dynamic, dynamic>.from(value);
+
+    return source.map(
+      (key, item) => MapEntry(
+        key.toString(),
+        item,
+      ),
+    );
   }
 
-  int _intValue(dynamic value, {int fallback = 0}) {
-    if (value == null) return fallback;
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    return int.tryParse(value.toString()) ?? fallback;
+  String _text(
+    dynamic value, {
+    String fallback = '-',
+  }) {
+    final result = value?.toString().trim() ?? '';
+
+    if (result.isEmpty || result.toLowerCase() == 'null') {
+      return fallback;
+    }
+
+    return result;
   }
 
-  String normalStatus(Map<dynamic, dynamic> item) {
-    final status = _text(item['status']).toLowerCase();
-    return status == '-' ? 'menunggu' : status;
+  int _intValue(
+    dynamic value, {
+    int fallback = 0,
+  }) {
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(
+          value?.toString() ?? '',
+        ) ??
+        fallback;
   }
 
-String ambilNik(Map<dynamic, dynamic> item) {
-  return _text(
-    item['nik'] ??
-        item['nik_anggota'] ??
-        item['nik_user'] ??
-        item['nikUser'],
-  ).replaceAll(RegExp(r'[^0-9]'), '');
-}
+  String _normalStatus(
+    Map<String, dynamic> item,
+  ) {
+    final status = _text(
+      item['status'],
+      fallback: 'menunggu',
+    )
+        .toLowerCase()
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
 
-  String ambilNama(Map<dynamic, dynamic> item) {
+    if ({
+      '',
+      'pending',
+      'diajukan',
+      'pengajuan',
+      'menunggu_verifikasi',
+    }.contains(status)) {
+      return 'menunggu';
+    }
+
+    if ({
+      'approved',
+      'siap_diambil',
+    }.contains(status)) {
+      return 'disetujui';
+    }
+
+    if ({
+      'sedang_dipinjam',
+      'digunakan',
+    }.contains(status)) {
+      return 'dipinjam';
+    }
+
+    if ({
+      'selesai',
+      'sudah_dikembalikan',
+      'kembali',
+    }.contains(status)) {
+      return 'dikembalikan';
+    }
+
+    if (status == 'rejected') {
+      return 'ditolak';
+    }
+
+    return status;
+  }
+
+  String _nik(
+    Map<String, dynamic> item,
+  ) {
+    return _text(
+      item['nik'] ??
+          item['nik_anggota'] ??
+          item['nik_user'] ??
+          item['nikUser'],
+      fallback: '',
+    ).replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
+  }
+
+  String _name(
+    Map<String, dynamic> item,
+  ) {
     return _text(
       item['nama'] ??
           item['nama_anggota'] ??
           item['nama_user'] ??
           item['namaUser'],
+      fallback: 'Anggota',
     );
   }
 
-  String ambilNamaAlat(Map<dynamic, dynamic> item) {
+  String _equipmentName(
+    Map<String, dynamic> item,
+  ) {
     return _text(
       item['alat'] ??
           item['nama_alat'] ??
           item['namaAlat'] ??
           item['jenis_alat'],
+      fallback: 'Alat pertanian',
     );
   }
 
-  String ambilIdAlat(Map<dynamic, dynamic> item) {
-    return _text(item['id_alat'] ?? item['alat_id'] ?? item['idAlat']);
+  String _equipmentId(
+    Map<String, dynamic> item,
+  ) {
+    return _text(
+      item['id_alat'] ??
+          item['alat_id'] ??
+          item['idAlat'],
+      fallback: '',
+    );
   }
 
-  int ambilJumlah(Map<dynamic, dynamic> item) {
-    return _intValue(item['jumlah'] ?? item['jumlah_alat'], fallback: 1);
+  int _quantity(
+    Map<String, dynamic> item,
+  ) {
+    return _intValue(
+      item['jumlah'] ??
+          item['jumlah_alat'],
+      fallback: 1,
+    );
   }
 
-  String teksStatus(String status) {
-    if (status == 'disetujui') return 'Disetujui';
-    if (status == 'dipinjam') return 'Dipinjam';
-    if (status == 'dikembalikan') return 'Kembali';
-    if (status == 'ditolak') return 'Ditolak';
-    return 'Menunggu';
-  }
+  DateTime _parseDateTime(
+    dynamic value,
+  ) {
+    if (value == null) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
 
-  Color warnaStatus(String status) {
-    if (status == 'disetujui') return blueStatus;
-    if (status == 'dipinjam') return purpleStatus;
-    if (status == 'dikembalikan') return primaryGreen;
-    if (status == 'ditolak') return redStatus;
-    return orangeStatus;
-  }
+    if (value is num) {
+      try {
+        final number = value.toInt();
 
-  Color backgroundStatus(String status) {
-    if (status == 'disetujui') return const Color(0xffEFF6FF);
-    if (status == 'dipinjam') return const Color(0xffF5F3FF);
-    if (status == 'dikembalikan') return lightGreen;
-    if (status == 'ditolak') return const Color(0xffFEE2E2);
-    return const Color(0xffFFF7ED);
-  }
-
-  IconData iconAlat(String alat) {
-    final namaAlat = alat.toLowerCase();
-
-    if (namaAlat.contains('sprayer')) return Icons.water_drop_rounded;
-    if (namaAlat.contains('cangkul')) return Icons.hardware_rounded;
-    if (namaAlat.contains('traktor')) return Icons.agriculture_rounded;
-
-    return Icons.precision_manufacturing_rounded;
-  }
-
-  String _duaDigit(int value) {
-    return value.toString().padLeft(2, '0');
-  }
-
-  String _formatTanggal(DateTime date) {
-    return '${date.year}-${_duaDigit(date.month)}-${_duaDigit(date.day)}';
-  }
-
-  String _formatWaktu(DateTime date) {
-    return '${_duaDigit(date.hour)}:${_duaDigit(date.minute)}';
-  }
-
-  DateTime? _parseTanggal(String value) {
-    try {
-      final clean = value.trim();
-
-      if (clean.isEmpty || clean == '-') return null;
-
-      if (clean.contains('-')) {
-        final parts = clean.split('-');
-        if (parts.length != 3) return null;
-
-        if (parts[0].length == 4) {
-          return DateTime(
-            int.parse(parts[0]),
-            int.parse(parts[1]),
-            int.parse(parts[2]),
-          );
-        }
-
-        return DateTime(
-          int.parse(parts[2]),
-          int.parse(parts[1]),
-          int.parse(parts[0]),
-        );
+        return DateTime.fromMillisecondsSinceEpoch(
+          number.toString().length >= 13
+              ? number
+              : number * 1000,
+        ).toLocal();
+      } catch (_) {
+        return DateTime.fromMillisecondsSinceEpoch(0);
       }
+    }
 
-      if (clean.contains('/')) {
-        final parts = clean.split('/');
-        if (parts.length != 3) return null;
+    final raw = value.toString().trim();
 
-        return DateTime(
-          int.parse(parts[2]),
-          int.parse(parts[1]),
-          int.parse(parts[0]),
-        );
-      }
+    if (raw.isEmpty || raw == '-') {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
 
-      return null;
-    } catch (_) {
+    return DateTime.tryParse(raw)?.toLocal() ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  DateTime? _parseDate(
+    dynamic value,
+  ) {
+    if (value == null) {
       return null;
     }
-  }
 
-  _HasilKeterlambatan _hitungKeterlambatan(
-    String tanggalKembali,
-    DateTime aktual,
-  ) {
-    final rencanaKembali = _parseTanggal(tanggalKembali);
-
-    if (rencanaKembali == null) {
-      return const _HasilKeterlambatan(
-        status: 'tidak_diketahui',
-        hariTerlambat: 0,
+    if (value is DateTime) {
+      return DateTime(
+        value.year,
+        value.month,
+        value.day,
       );
     }
 
-    final rencana = DateTime(
-      rencanaKembali.year,
-      rencanaKembali.month,
-      rencanaKembali.day,
-    );
+    final raw = value.toString().trim();
 
-    final tanggalAktual = DateTime(aktual.year, aktual.month, aktual.day);
-    final selisih = tanggalAktual.difference(rencana).inDays;
-
-    if (selisih > 0) {
-      return _HasilKeterlambatan(status: 'terlambat', hariTerlambat: selisih);
+    if (raw.isEmpty || raw == '-') {
+      return null;
     }
 
-    return const _HasilKeterlambatan(status: 'tepat_waktu', hariTerlambat: 0);
+    final dateOnly = RegExp(
+      r'^(\d{4})-(\d{2})-(\d{2})$',
+    ).firstMatch(raw);
+
+    if (dateOnly != null) {
+      return DateTime(
+        int.parse(dateOnly.group(1)!),
+        int.parse(dateOnly.group(2)!),
+        int.parse(dateOnly.group(3)!),
+      );
+    }
+
+    final reverseDate = RegExp(
+      r'^(\d{2})[-/](\d{2})[-/](\d{4})$',
+    ).firstMatch(raw);
+
+    if (reverseDate != null) {
+      return DateTime(
+        int.parse(reverseDate.group(3)!),
+        int.parse(reverseDate.group(2)!),
+        int.parse(reverseDate.group(1)!),
+      );
+    }
+
+    final parsed = DateTime.tryParse(raw);
+
+    if (parsed == null) {
+      return null;
+    }
+
+    final local = parsed.toLocal();
+
+    return DateTime(
+      local.year,
+      local.month,
+      local.day,
+    );
   }
 
-  String teksPengembalian(Map<dynamic, dynamic> item) {
-    final status = _text(item['status_pengembalian']).toLowerCase();
+  String _twoDigits(
+    int value,
+  ) {
+    return value.toString().padLeft(2, '0');
+  }
 
-    if (status == 'terlambat') {
-      return 'Terlambat ${item['jumlah_hari_terlambat'] ?? 0} hari';
+  String _databaseDate(
+    DateTime date,
+  ) {
+    return '${date.year}-'
+        '${_twoDigits(date.month)}-'
+        '${_twoDigits(date.day)}';
+  }
+
+  String _time(
+    DateTime date,
+  ) {
+    return '${_twoDigits(date.hour)}:'
+        '${_twoDigits(date.minute)}';
+  }
+
+  String _displayDate(
+    dynamic value,
+  ) {
+    final date = _parseDate(value);
+
+    if (date == null) {
+      return _text(value);
     }
 
-    if (status == 'tepat_waktu') return 'Tepat waktu';
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+
+    return '${_twoDigits(date.day)} '
+        '${months[date.month - 1]} '
+        '${date.year}';
+  }
+
+  String _displayDateTime(
+    dynamic value,
+  ) {
+    final date = _parseDateTime(value);
+
+    if (date.millisecondsSinceEpoch == 0) {
+      return '-';
+    }
+
+    return '${_twoDigits(date.day)}/'
+        '${_twoDigits(date.month)}/'
+        '${date.year} • ${_time(date)}';
+  }
+
+  String _maskedNik(
+    String nik,
+  ) {
+    final clean = nik.replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
+
+    if (clean.length <= 4) {
+      return nik.isEmpty ? '-' : nik;
+    }
+
+    return '•••• •••• •••• '
+        '${clean.substring(clean.length - 4)}';
+  }
+
+  String _statusText(
+    String status,
+  ) {
+    if (status == 'disetujui') {
+      return 'Disetujui';
+    }
+
+    if (status == 'dipinjam') {
+      return 'Dipinjam';
+    }
+
+    if (status == 'dikembalikan') {
+      return 'Dikembalikan';
+    }
+
+    if (status == 'ditolak') {
+      return 'Ditolak';
+    }
+
+    return 'Menunggu';
+  }
+
+  Color _statusColor(
+    String status,
+  ) {
+    if (status == 'disetujui') {
+      return _adminBlue;
+    }
+
+    if (status == 'dipinjam') {
+      return _adminPurple;
+    }
+
+    if (status == 'dikembalikan') {
+      return _adminGreen;
+    }
+
+    if (status == 'ditolak') {
+      return _adminRed;
+    }
+
+    return _adminAmber;
+  }
+
+  Color _statusBackground(
+    String status,
+  ) {
+    if (status == 'disetujui') {
+      return _softBlue;
+    }
+
+    if (status == 'dipinjam') {
+      return _softPurple;
+    }
+
+    if (status == 'dikembalikan') {
+      return _softGreen;
+    }
+
+    if (status == 'ditolak') {
+      return _softRed;
+    }
+
+    return _softAmber;
+  }
+
+  IconData _statusIcon(
+    String status,
+  ) {
+    if (status == 'disetujui') {
+      return Icons.verified_outlined;
+    }
+
+    if (status == 'dipinjam') {
+      return Icons.outbox_outlined;
+    }
+
+    if (status == 'dikembalikan') {
+      return Icons.assignment_turned_in_outlined;
+    }
+
+    if (status == 'ditolak') {
+      return Icons.block_outlined;
+    }
+
+    return Icons.schedule_outlined;
+  }
+
+  IconData _equipmentIcon(
+    String value,
+  ) {
+    final name = value.toLowerCase();
+
+    if (name.contains('sprayer') ||
+        name.contains('semprot')) {
+      return Icons.water_drop_outlined;
+    }
+
+    if (name.contains('cangkul')) {
+      return Icons.handyman_outlined;
+    }
+
+    if (name.contains('traktor')) {
+      return Icons.agriculture_rounded;
+    }
+
+    if (name.contains('pompa')) {
+      return Icons.water_outlined;
+    }
+
+    if (name.contains('mesin')) {
+      return Icons.precision_manufacturing_outlined;
+    }
+
+    return Icons.construction_outlined;
+  }
+
+  Color _equipmentColor(
+    String value,
+  ) {
+    final name = value.toLowerCase();
+
+    if (name.contains('sprayer') ||
+        name.contains('semprot')) {
+      return _adminBlue;
+    }
+
+    if (name.contains('cangkul')) {
+      return _adminAmber;
+    }
+
+    if (name.contains('traktor')) {
+      return _adminGreen;
+    }
+
+    if (name.contains('pompa')) {
+      return _adminTeal;
+    }
+
+    return _adminPurple;
+  }
+
+  List<MapEntry<String, dynamic>> _loanList(
+    dynamic value,
+  ) {
+    if (value is! Map) {
+      return [];
+    }
+
+    final result =
+        <MapEntry<String, dynamic>>[];
+
+    for (final entry
+        in Map<dynamic, dynamic>.from(value).entries) {
+      if (entry.value is! Map) {
+        continue;
+      }
+
+      result.add(
+        MapEntry(
+          entry.key.toString(),
+          _stringMap(entry.value),
+        ),
+      );
+    }
+
+    result.sort(
+      (
+        first,
+        second,
+      ) {
+        final firstDate = _parseDateTime(
+          first.value['tanggal_pengajuan'] ??
+              first.value['tanggal_verifikasi'] ??
+              first.value['tanggal_diambil'],
+        );
+
+        final secondDate = _parseDateTime(
+          second.value['tanggal_pengajuan'] ??
+              second.value['tanggal_verifikasi'] ??
+              second.value['tanggal_diambil'],
+        );
+
+        return secondDate.compareTo(firstDate);
+      },
+    );
+
+    return result;
+  }
+
+  Map<String, int> _statusCounts(
+    List<MapEntry<String, dynamic>> data,
+  ) {
+    final result = <String, int>{
+      'semua': data.length,
+      'menunggu': 0,
+      'disetujui': 0,
+      'dipinjam': 0,
+      'dikembalikan': 0,
+      'ditolak': 0,
+    };
+
+    for (final entry in data) {
+      final status = _normalStatus(
+        entry.value,
+      );
+
+      if (result.containsKey(status)) {
+        result[status] =
+            (result[status] ?? 0) + 1;
+      }
+    }
+
+    return result;
+  }
+
+  List<MapEntry<String, dynamic>> _filteredLoans(
+    List<MapEntry<String, dynamic>> data,
+  ) {
+    final query =
+        _searchQuery.trim().toLowerCase();
+
+    return data.where(
+      (entry) {
+        final item = entry.value;
+        final status = _normalStatus(item);
+
+        if (selectedFilter != 'semua' &&
+            status != selectedFilter) {
+          return false;
+        }
+
+        if (query.isEmpty) {
+          return true;
+        }
+
+        final name =
+            _name(item).toLowerCase();
+
+        final nik =
+            _nik(item).toLowerCase();
+
+        final equipment =
+            _equipmentName(item).toLowerCase();
+
+        final start = _text(
+          item['tanggal_pinjam'],
+        ).toLowerCase();
+
+        final end = _text(
+          item['tanggal_kembali'],
+        ).toLowerCase();
+
+        return name.contains(query) ||
+            nik.contains(query) ||
+            equipment.contains(query) ||
+            start.contains(query) ||
+            end.contains(query);
+      },
+    ).toList();
+  }
+
+  Future<void> _refreshData() async {
+    await Future.wait([
+      peminjamanRef.get(),
+      alatRef.get(),
+    ]);
+  }
+
+  _LateResult _calculateLateness(
+    String returnDate,
+    DateTime actual,
+  ) {
+    final planned =
+        _parseDate(returnDate);
+
+    if (planned == null) {
+      return const _LateResult(
+        status: 'tidak_diketahui',
+        lateDays: 0,
+      );
+    }
+
+    final plannedDate = DateTime(
+      planned.year,
+      planned.month,
+      planned.day,
+    );
+
+    final actualDate = DateTime(
+      actual.year,
+      actual.month,
+      actual.day,
+    );
+
+    final difference = actualDate
+        .difference(plannedDate)
+        .inDays;
+
+    if (difference > 0) {
+      return _LateResult(
+        status: 'terlambat',
+        lateDays: difference,
+      );
+    }
+
+    return const _LateResult(
+      status: 'tepat_waktu',
+      lateDays: 0,
+    );
+  }
+
+  String _returnStatusText(
+    Map<String, dynamic> item,
+  ) {
+    final status = _text(
+      item['status_pengembalian'],
+      fallback: '',
+    ).toLowerCase();
+
+    if (status == 'terlambat') {
+      return 'Terlambat '
+          '${_intValue(item['jumlah_hari_terlambat'])} hari';
+    }
+
+    if (status == 'tepat_waktu') {
+      return 'Tepat waktu';
+    }
 
     return 'Belum diketahui';
   }
 
-  Color warnaPengembalian(Map<dynamic, dynamic> item) {
-    final status = _text(item['status_pengembalian']).toLowerCase();
+  Color _returnStatusColor(
+    Map<String, dynamic> item,
+  ) {
+    final status = _text(
+      item['status_pengembalian'],
+      fallback: '',
+    ).toLowerCase();
 
-    if (status == 'terlambat') return redStatus;
-    if (status == 'tepat_waktu') return primaryGreen;
+    if (status == 'terlambat') {
+      return _adminRed;
+    }
 
-    return textGrey;
+    if (status == 'tepat_waktu') {
+      return _adminGreen;
+    }
+
+    return _textGrey;
   }
 
-  Map<String, int> hitungStatus(List<MapEntry<String, dynamic>> data) {
-    int menunggu = 0;
-    int disetujui = 0;
-    int dipinjam = 0;
-    int dikembalikan = 0;
-    int ditolak = 0;
+  int _borrowedByEquipmentId(
+    String equipmentId,
+    Map<dynamic, dynamic> data, {
+    required String currentId,
+  }) {
+    int total = 0;
 
-    for (final entry in data) {
-      if (entry.value is Map) {
-        final item = Map<dynamic, dynamic>.from(entry.value as Map);
-        final status = normalStatus(item);
+    for (final entry in data.entries) {
+      if (entry.key.toString() == currentId ||
+          entry.value is! Map) {
+        continue;
+      }
 
-        if (status == 'menunggu') menunggu++;
-        if (status == 'disetujui') disetujui++;
-        if (status == 'dipinjam') dipinjam++;
-        if (status == 'dikembalikan') dikembalikan++;
-        if (status == 'ditolak') ditolak++;
+      final item =
+          _stringMap(entry.value);
+
+      final itemEquipmentId =
+          _equipmentId(item);
+
+      final status =
+          _normalStatus(item);
+
+      if (itemEquipmentId == equipmentId &&
+          status == 'dipinjam') {
+        total += _quantity(item);
       }
     }
 
-    return {
-      'semua': data.length,
-      'menunggu': menunggu,
-      'disetujui': disetujui,
-      'dipinjam': dipinjam,
-      'dikembalikan': dikembalikan,
-      'ditolak': ditolak,
-    };
+    return total;
   }
 
-  List<MapEntry<String, dynamic>> filterData(
-    List<MapEntry<String, dynamic>> data,
-  ) {
-    if (selectedFilter == 'semua') return data;
-
-    return data.where((entry) {
-      if (entry.value is! Map) return false;
-      final item = Map<dynamic, dynamic>.from(entry.value as Map);
-      return normalStatus(item) == selectedFilter;
-    }).toList();
-  }
-
-  Future<void> updateStatus(
+  Future<void> _updateStatus(
     String id,
     String status,
-    Map<dynamic, dynamic> item,
+    Map<String, dynamic> item,
   ) async {
-    if (isProcessing) return;
+    if (isProcessing) {
+      return;
+    }
 
-    setState(() => isProcessing = true);
+    setState(() {
+      isProcessing = true;
+    });
 
     try {
       await peminjamanRef.child(id).update({
         'status': status,
-        'tanggal_verifikasi': DateTime.now().toIso8601String(),
-      });
+        'tanggal_verifikasi':
+            DateTime.now().toIso8601String(),
+      }).timeout(
+        const Duration(seconds: 15),
+      );
 
-      final nik = ambilNik(item);
-      final namaAlat = ambilNamaAlat(item);
+      final nik = _nik(item);
+
+      final equipment =
+          _equipmentName(item);
 
       if (status == 'disetujui') {
         unawaited(
-          NotificationHelper.alatDisetujui(nik: nik, namaAlat: namaAlat),
+          NotificationHelper.alatDisetujui(
+            nik: nik,
+            namaAlat: equipment,
+          ),
         );
       } else if (status == 'ditolak') {
-        unawaited(NotificationHelper.alatDitolak(nik: nik, namaAlat: namaAlat));
+        unawaited(
+          NotificationHelper.alatDitolak(
+            nik: nik,
+            namaAlat: equipment,
+          ),
+        );
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       _showSnackBar(
         status == 'disetujui'
-            ? 'Peminjaman berhasil disetujui'
-            : 'Peminjaman berhasil ditolak',
-        status == 'disetujui' ? primaryGreen : redStatus,
+            ? 'Peminjaman berhasil disetujui.'
+            : 'Peminjaman berhasil ditolak.',
+        status == 'disetujui'
+            ? _adminGreen
+            : _adminRed,
       );
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('Gagal mengubah status: $e', redStatus);
+    } catch (error) {
+      debugPrint(
+        'Gagal mengubah status: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar(
+        'Gagal mengubah status peminjaman.',
+        _adminRed,
+      );
     } finally {
-      if (mounted) setState(() => isProcessing = false);
+      if (mounted) {
+        setState(() {
+          isProcessing = false;
+        });
+      }
     }
   }
 
-  Future<void> tandaiDipinjam(String id, Map<dynamic, dynamic> item) async {
-    if (isProcessing) return;
+  Future<void> _markBorrowed(
+    String id,
+    Map<String, dynamic> item,
+  ) async {
+    if (isProcessing) {
+      return;
+    }
 
-    setState(() => isProcessing = true);
+    setState(() {
+      isProcessing = true;
+    });
 
     try {
-      final idAlat = ambilIdAlat(item);
-      final namaAlat = ambilNamaAlat(item);
-      final jumlahPinjam = ambilJumlah(item);
-      final nik = ambilNik(item);
+      final equipmentId =
+          _equipmentId(item);
 
-      if (idAlat == '-') {
-        throw Exception('ID alat tidak ditemukan pada data peminjaman');
+      final equipmentName =
+          _equipmentName(item);
+
+      final quantity =
+          _quantity(item);
+
+      final nik =
+          _nik(item);
+
+      if (equipmentId.isEmpty) {
+        throw Exception(
+          'ID alat tidak ditemukan pada data peminjaman.',
+        );
       }
 
-      final alatSnapshot = await alatRef.child(idAlat).get();
+      final equipmentSnapshot =
+          await alatRef.child(equipmentId).get();
 
-      if (!alatSnapshot.exists || alatSnapshot.value == null) {
-        throw Exception('Data alat tidak ditemukan');
+      if (!equipmentSnapshot.exists ||
+          equipmentSnapshot.value is! Map) {
+        throw Exception(
+          'Data alat tidak ditemukan.',
+        );
       }
 
-      final pinjamSnapshot = await peminjamanRef.get();
-      final dataAlat = Map<dynamic, dynamic>.from(alatSnapshot.value as Map);
+      final loanSnapshot =
+          await peminjamanRef.get();
 
-      final totalUnit = _intValue(
-        dataAlat['jumlah_unit'] ??
-            dataAlat['stok'] ??
-            dataAlat['stok_unit'] ??
-            dataAlat['jumlah'],
+      final equipmentData =
+          _stringMap(
+        equipmentSnapshot.value,
       );
 
-      final peminjamanData =
-          pinjamSnapshot.exists && pinjamSnapshot.value is Map
-              ? Map<dynamic, dynamic>.from(pinjamSnapshot.value as Map)
+      final totalUnit = _intValue(
+        equipmentData['jumlah_unit'] ??
+            equipmentData['stok'] ??
+            equipmentData['stok_unit'] ??
+            equipmentData['jumlah'],
+      );
+
+      final loanData =
+          loanSnapshot.exists &&
+                  loanSnapshot.value is Map
+              ? Map<dynamic, dynamic>.from(
+                  loanSnapshot.value as Map,
+                )
               : <dynamic, dynamic>{};
 
-      final sedangDipinjam = _hitungSedangDipinjamById(
-        idAlat,
-        peminjamanData,
+      final borrowed =
+          _borrowedByEquipmentId(
+        equipmentId,
+        loanData,
         currentId: id,
       );
 
-      final sisaTersedia = totalUnit - sedangDipinjam;
+      final available =
+          totalUnit - borrowed;
 
-      if (sisaTersedia < jumlahPinjam) {
+      if (available < quantity) {
         throw Exception(
-          'Stok alat tidak mencukupi. Tersedia $sisaTersedia unit.',
+          'Unit tidak mencukupi. Tersedia '
+          '${available < 0 ? 0 : available} unit.',
         );
       }
 
@@ -380,168 +939,271 @@ String ambilNik(Map<dynamic, dynamic> item) {
 
       await peminjamanRef.child(id).update({
         'status': 'dipinjam',
-        'tanggal_diambil': _formatTanggal(now),
-        'waktu_diambil': _formatWaktu(now),
-        'alat': namaAlat,
-      });
+        'tanggal_diambil':
+            _databaseDate(now),
+        'waktu_diambil':
+            _time(now),
+        'alat': equipmentName,
+      }).timeout(
+        const Duration(seconds: 15),
+      );
 
       unawaited(
         NotificationHelper.alatDipinjam(
           nik: nik,
-          namaAlat: namaAlat,
-          jumlah: jumlahPinjam,
+          namaAlat: equipmentName,
+          jumlah: quantity,
         ),
       );
 
-      if (!mounted) return;
-      _showSnackBar('Alat berhasil ditandai dipinjam', primaryGreen);
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('Gagal menandai dipinjam: $e', redStatus);
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar(
+        'Alat berhasil ditandai dipinjam.',
+        _adminGreen,
+      );
+    } catch (error) {
+      debugPrint(
+        'Gagal menandai dipinjam: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final message = error
+          .toString()
+          .replaceFirst(
+            'Exception: ',
+            '',
+          );
+
+      _showSnackBar(
+        message.isEmpty
+            ? 'Gagal menandai alat dipinjam.'
+            : message,
+        _adminRed,
+      );
     } finally {
-      if (mounted) setState(() => isProcessing = false);
+      if (mounted) {
+        setState(() {
+          isProcessing = false;
+        });
+      }
     }
   }
 
-  Future<void> tandaiDikembalikan(String id, Map<dynamic, dynamic> item) async {
-    if (isProcessing) return;
+  Future<void> _markReturned(
+    String id,
+    Map<String, dynamic> item,
+  ) async {
+    if (isProcessing) {
+      return;
+    }
 
-    setState(() => isProcessing = true);
+    setState(() {
+      isProcessing = true;
+    });
 
     try {
       final now = DateTime.now();
-      final tanggalKembali = _text(item['tanggal_kembali']);
-      final hasil = _hitungKeterlambatan(tanggalKembali, now);
-      final nik = ambilNik(item);
-      final namaAlat = ambilNamaAlat(item);
+
+      final plannedReturn = _text(
+        item['tanggal_kembali'],
+      );
+
+      final result = _calculateLateness(
+        plannedReturn,
+        now,
+      );
+
+      final nik = _nik(item);
+
+      final equipmentName =
+          _equipmentName(item);
 
       await peminjamanRef.child(id).update({
         'status': 'dikembalikan',
-        'tanggal_dikembalikan': _formatTanggal(now),
-        'waktu_dikembalikan': _formatWaktu(now),
-        'status_pengembalian': hasil.status,
-        'jumlah_hari_terlambat': hasil.hariTerlambat,
-      });
+        'tanggal_dikembalikan':
+            _databaseDate(now),
+        'waktu_dikembalikan':
+            _time(now),
+        'status_pengembalian':
+            result.status,
+        'jumlah_hari_terlambat':
+            result.lateDays,
+      }).timeout(
+        const Duration(seconds: 15),
+      );
 
-      final pesanTambahan =
-          hasil.status == 'terlambat'
-              ? ' Pengembalian terlambat ${hasil.hariTerlambat} hari.'
+      final additionalMessage =
+          result.status == 'terlambat'
+              ? ' Pengembalian terlambat '
+                  '${result.lateDays} hari.'
               : ' Pengembalian tepat waktu.';
 
       unawaited(
         NotificationHelper.alatDikembalikan(
           nik: nik,
-          namaAlat: namaAlat,
-          pesanTambahan: pesanTambahan,
+          namaAlat: equipmentName,
+          pesanTambahan:
+              additionalMessage,
         ),
       );
 
-      if (!mounted) return;
-      _showSnackBar('Alat berhasil ditandai dikembalikan', primaryGreen);
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('Gagal menandai pengembalian: $e', redStatus);
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar(
+        result.status == 'terlambat'
+            ? 'Alat dikembalikan terlambat '
+                '${result.lateDays} hari.'
+            : 'Alat berhasil dikembalikan tepat waktu.',
+        result.status == 'terlambat'
+            ? _adminAmber
+            : _adminGreen,
+      );
+    } catch (error) {
+      debugPrint(
+        'Gagal menandai pengembalian: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar(
+        'Gagal menandai alat dikembalikan.',
+        _adminRed,
+      );
     } finally {
-      if (mounted) setState(() => isProcessing = false);
-    }
-  }
-
-  int _hitungSedangDipinjamById(
-    String idAlat,
-    Map<dynamic, dynamic> data, {
-    required String currentId,
-  }) {
-    int total = 0;
-
-    for (final entry in data.entries) {
-      if (entry.key.toString() == currentId) continue;
-
-      if (entry.value is Map) {
-        final item = Map<dynamic, dynamic>.from(entry.value as Map);
-        final itemIdAlat = ambilIdAlat(item);
-        final status = normalStatus(item);
-
-        if (itemIdAlat == idAlat && status == 'dipinjam') {
-          total += ambilJumlah(item);
-        }
+      if (mounted) {
+        setState(() {
+          isProcessing = false;
+        });
       }
     }
-
-    return total;
   }
 
-  Future<void> tampilkanKonfirmasi({
+  Future<void> _confirmVerification({
     required String id,
     required String status,
-    required Map<dynamic, dynamic> item,
+    required Map<String, dynamic> item,
   }) async {
-    final nama = ambilNama(item);
-    final isSetuju = status == 'disetujui';
+    final approve =
+        status == 'disetujui';
 
-    final hasil = await _showConfirmDialog(
-      icon: isSetuju ? Icons.verified_rounded : Icons.block_rounded,
-      iconColor: isSetuju ? primaryGreen : redStatus,
-      title: isSetuju ? 'Setujui Peminjaman?' : 'Tolak Peminjaman?',
-      message:
-          isSetuju
-              ? 'Pengajuan peminjaman dari $nama akan disetujui.'
-              : 'Pengajuan peminjaman dari $nama akan ditolak.',
-      confirmText: isSetuju ? 'Setujui' : 'Tolak',
-      confirmColor: isSetuju ? primaryGreen : redStatus,
+    final memberName =
+        _name(item);
+
+    final equipmentName =
+        _equipmentName(item);
+
+    final confirmed =
+        await _showConfirmDialog(
+      icon: approve
+          ? Icons.verified_outlined
+          : Icons.block_outlined,
+      iconColor: approve
+          ? _adminGreen
+          : _adminRed,
+      title: approve
+          ? 'Setujui Peminjaman?'
+          : 'Tolak Peminjaman?',
+      message: approve
+          ? 'Pengajuan $equipmentName dari '
+              '$memberName akan disetujui.'
+          : 'Pengajuan $equipmentName dari '
+              '$memberName akan ditolak.',
+      confirmText:
+          approve ? 'Setujui' : 'Tolak',
+      confirmColor: approve
+          ? _adminGreen
+          : _adminRed,
     );
 
-    if (!mounted) return;
-
-    if (hasil == true) {
-      await updateStatus(id, status, item);
+    if (!mounted ||
+        confirmed != true) {
+      return;
     }
+
+    await _updateStatus(
+      id,
+      status,
+      item,
+    );
   }
 
-  Future<void> konfirmasiDipinjam({
+  Future<void> _confirmBorrowed({
     required String id,
-    required Map<dynamic, dynamic> item,
+    required Map<String, dynamic> item,
   }) async {
-    final nama = ambilNama(item);
-    final alat = ambilNamaAlat(item);
+    final memberName =
+        _name(item);
 
-    final hasil = await _showConfirmDialog(
-      icon: Icons.inventory_2_rounded,
-      iconColor: primaryGreen,
+    final equipmentName =
+        _equipmentName(item);
+
+    final confirmed =
+        await _showConfirmDialog(
+      icon: Icons.outbox_outlined,
+      iconColor: _adminPurple,
       title: 'Tandai Dipinjam?',
       message:
-          'Pastikan $nama sudah mengambil alat $alat. Status akan berubah menjadi dipinjam.',
+          'Pastikan $memberName sudah mengambil '
+          '$equipmentName. Sistem akan memeriksa '
+          'jumlah unit yang masih tersedia.',
       confirmText: 'Ya, Dipinjam',
-      confirmColor: primaryGreen,
+      confirmColor: _adminPurple,
     );
 
-    if (!mounted) return;
-
-    if (hasil == true) {
-      await tandaiDipinjam(id, item);
+    if (!mounted ||
+        confirmed != true) {
+      return;
     }
+
+    await _markBorrowed(
+      id,
+      item,
+    );
   }
 
-  Future<void> konfirmasiDikembalikan({
+  Future<void> _confirmReturned({
     required String id,
-    required Map<dynamic, dynamic> item,
+    required Map<String, dynamic> item,
   }) async {
-    final nama = ambilNama(item);
-    final alat = ambilNamaAlat(item);
+    final memberName =
+        _name(item);
 
-    final hasil = await _showConfirmDialog(
-      icon: Icons.assignment_turned_in_rounded,
-      iconColor: primaryGreen,
+    final equipmentName =
+        _equipmentName(item);
+
+    final confirmed =
+        await _showConfirmDialog(
+      icon:
+          Icons.assignment_turned_in_outlined,
+      iconColor: _adminGreen,
       title: 'Tandai Dikembalikan?',
-      message: 'Pastikan $nama sudah mengembalikan alat $alat.',
+      message:
+          'Pastikan $memberName sudah '
+          'mengembalikan $equipmentName. '
+          'Ketepatan pengembalian akan dihitung.',
       confirmText: 'Ya, Kembali',
-      confirmColor: primaryGreen,
+      confirmColor: _adminGreen,
     );
 
-    if (!mounted) return;
-
-    if (hasil == true) {
-      await tandaiDikembalikan(id, item);
+    if (!mounted ||
+        confirmed != true) {
+      return;
     }
+
+    await _markReturned(
+      id,
+      item,
+    );
   }
 
   Future<bool?> _showConfirmDialog({
@@ -554,93 +1216,224 @@ String ambilNik(Map<dynamic, dynamic> item) {
   }) {
     return showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) {
+        final screenWidth =
+            MediaQuery.sizeOf(
+          dialogContext,
+        ).width;
+
         return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+          insetPadding:
+              EdgeInsets.symmetric(
+            horizontal:
+                screenWidth < 350 ? 16 : 24,
           ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  height: 62,
-                  width: 62,
-                  decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: iconColor.withValues(alpha: 0.16),
+          backgroundColor:
+              Colors.transparent,
+          child: ConstrainedBox(
+            constraints:
+                const BoxConstraints(
+              maxWidth: 420,
+            ),
+            child: Container(
+              padding:
+                  const EdgeInsets.fromLTRB(
+                19,
+                22,
+                19,
+                18,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius:
+                    BorderRadius.circular(24),
+                border:
+                    Border.all(
+                  color: _cardBorder,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color:
+                        _adminNavy.withValues(
+                      alpha: 0.18,
+                    ),
+                    blurRadius: 28,
+                    offset:
+                        const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize:
+                    MainAxisSize.min,
+                children: [
+                  _dialogIcon(
+                    icon: icon,
+                    color: iconColor,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    title,
+                    textAlign:
+                        TextAlign.center,
+                    style:
+                        const TextStyle(
+                      color: _textDark,
+                      fontSize: 17.5,
+                      fontWeight:
+                          FontWeight.w900,
                     ),
                   ),
-                  child: Icon(icon, color: iconColor, size: 32),
-                ),
-                const SizedBox(height: 15),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
+                  const SizedBox(height: 7),
+                  Text(
+                    message,
+                    textAlign:
+                        TextAlign.center,
+                    style:
+                        const TextStyle(
+                      color: _textGrey,
+                      fontSize: 10.8,
+                      height: 1.45,
+                      fontWeight:
+                          FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: textGrey,
-                    fontSize: 12.7,
-                    height: 1.45,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 21),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: textDark,
-                          side: const BorderSide(color: cardBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                  const SizedBox(height: 19),
+                  LayoutBuilder(
+                    builder: (
+                      context,
+                      constraints,
+                    ) {
+                      final compact =
+                          constraints
+                                  .maxWidth <
+                              300;
+
+                      final cancelButton =
+                          SizedBox(
+                        height: 46,
+                        child:
+                            OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(
+                              dialogContext,
+                            ).pop(false);
+                          },
+                          style: OutlinedButton
+                              .styleFrom(
+                            foregroundColor:
+                                _textGrey,
+                            side:
+                                const BorderSide(
+                              color:
+                                  _cardBorder,
+                            ),
+                            shape:
+                                RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius
+                                      .circular(
+                                14,
+                              ),
+                            ),
+                          ),
+                          child:
+                              const Text(
+                            'Batal',
+                            style:
+                                TextStyle(
+                              fontWeight:
+                                  FontWeight
+                                      .w800,
+                            ),
                           ),
                         ),
-                        onPressed: () => Navigator.pop(dialogContext, false),
-                        child: const Text(
-                          'Batal',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: confirmColor,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                      );
+
+                      final confirmButton =
+                          SizedBox(
+                        height: 46,
+                        child:
+                            ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(
+                              dialogContext,
+                            ).pop(true);
+                          },
+                          style: ElevatedButton
+                              .styleFrom(
+                            backgroundColor:
+                                confirmColor,
+                            foregroundColor:
+                                Colors.white,
+                            elevation: 0,
+                            shape:
+                                RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius
+                                      .circular(
+                                14,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            confirmText,
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow
+                                    .ellipsis,
+                            style:
+                                const TextStyle(
+                              fontWeight:
+                                  FontWeight
+                                      .w900,
+                            ),
                           ),
                         ),
-                        onPressed: () => Navigator.pop(dialogContext, true),
-                        child: Text(
-                          confirmText,
-                          style: const TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                      );
+
+                      if (compact) {
+                        return Column(
+                          children: [
+                            SizedBox(
+                              width: double
+                                  .infinity,
+                              child:
+                                  confirmButton,
+                            ),
+                            const SizedBox(
+                              height: 9,
+                            ),
+                            SizedBox(
+                              width: double
+                                  .infinity,
+                              child:
+                                  cancelButton,
+                            ),
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(
+                            child:
+                                cancelButton,
+                          ),
+                          const SizedBox(
+                            width: 9,
+                          ),
+                          Expanded(
+                            child:
+                                confirmButton,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -648,214 +1441,255 @@ String ambilNik(Map<dynamic, dynamic> item) {
     );
   }
 
-  void _showSnackBar(String pesan, Color color) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          pesan,
-          style: const TextStyle(fontWeight: FontWeight.w700),
+  Widget _dialogIcon({
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      height: 64,
+      width: 64,
+      decoration: BoxDecoration(
+        color: color.withValues(
+          alpha: 0.10,
         ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        borderRadius:
+            BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withValues(
+            alpha: 0.13,
+          ),
+        ),
+      ),
+      child: Icon(
+        icon,
+        color: color,
+        size: 32,
       ),
     );
   }
 
-  String sensorNik(String nik) {
-    final cleanNik = nik.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleanNik.length <= 4) return nik;
-    return '•••• •••• •••• ${cleanNik.substring(cleanNik.length - 4)}';
+  void _showSnackBar(
+    String message,
+    Color color,
+  ) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          backgroundColor: color,
+          behavior: SnackBarBehavior.fixed,
+        ),
+      );
   }
 
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final horizontalPadding = screenWidth < 340 ? 13.0 : 17.0;
+
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: AppBackground(
-        showPattern: false,
-        child: Stack(
-          children: [
-            SafeArea(
-              child: StreamBuilder<DatabaseEvent>(
-                stream: peminjamanRef.onValue,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-                      children: [
-                        _headerPage(0),
-                        const SizedBox(height: 16),
-                        _messageState(
-                          icon: Icons.error_outline_rounded,
-                          title: 'Terjadi Kesalahan',
-                          message: snapshot.error.toString(),
-                        ),
-                      ],
+      resizeToAvoidBottomInset: false,
+      backgroundColor: _pageBackground,
+      body: SizedBox.expand(
+        child: AppBackground(
+          showPattern: false,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              const _VerificationBackground(),
+              SafeArea(
+                child: StreamBuilder<DatabaseEvent>(
+                  stream: peminjamanRef.onValue,
+                  builder: (context, snapshot) {
+                    final allLoans = _loanList(
+                      snapshot.data?.snapshot.value,
                     );
-                  }
+                    final counts = _statusCounts(allLoans);
+                    final filteredLoans = _filteredLoans(allLoans);
+                    final pending = counts['menunggu'] ?? 0;
 
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-                      children: [
-                        _headerPage(0),
-                        const SizedBox(height: 120),
-                        const Center(
-                          child: CircularProgressIndicator(color: primaryGreen),
+                    return RefreshIndicator(
+                      color: _adminPurple,
+                      backgroundColor: Colors.white,
+                      onRefresh: _refreshData,
+                      child: ListView(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.manual,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalPadding,
+                          12,
+                          horizontalPadding,
+                          28,
                         ),
-                      ],
+                        children: [
+                          Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 760),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _header(pending),
+                                  const SizedBox(height: 13),
+                                  _filterPanel(counts),
+                                  const SizedBox(height: 10),
+                                  _searchField(),
+                                  const SizedBox(height: 10),
+                                  _pendingInformation(pending),
+                                  const SizedBox(height: 16),
+                                  _sectionTitle(filteredLoans.length),
+                                  const SizedBox(height: 10),
+                                  _content(
+                                    snapshot: snapshot,
+                                    allLoans: allLoans,
+                                    filteredLoans: filteredLoans,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     );
-                  }
-
-                  final rawData = snapshot.data?.snapshot.value;
-                  List<MapEntry<String, dynamic>> semuaData = [];
-
-                  if (rawData is Map) {
-                    final data = Map<String, dynamic>.from(rawData);
-                    semuaData = data.entries.toList().reversed.toList();
-                  }
-
-                  final jumlahStatus = hitungStatus(semuaData);
-
-                  final totalSemua = jumlahStatus['semua'] ?? 0;
-                  final totalMenunggu = jumlahStatus['menunggu'] ?? 0;
-                  final totalDisetujui = jumlahStatus['disetujui'] ?? 0;
-                  final totalDipinjam = jumlahStatus['dipinjam'] ?? 0;
-                  final totalDikembalikan = jumlahStatus['dikembalikan'] ?? 0;
-                  final totalDitolak = jumlahStatus['ditolak'] ?? 0;
-
-                  final peminjamanList = filterData(semuaData);
-
-                  return RefreshIndicator(
-                    color: primaryGreen,
-                    backgroundColor: Colors.white,
-                    onRefresh: refreshData,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-                      children: [
-                        _headerPage(totalMenunggu),
-                        const SizedBox(height: 12),
-                        _filterPanel(
-                          totalSemua: totalSemua,
-                          totalMenunggu: totalMenunggu,
-                          totalDisetujui: totalDisetujui,
-                          totalDipinjam: totalDipinjam,
-                          totalDikembalikan: totalDikembalikan,
-                          totalDitolak: totalDitolak,
-                        ),
-                        const SizedBox(height: 12),
-                        _infoBox(totalMenunggu),
-                        const SizedBox(height: 14),
-                        _sectionTitle(
-                          title: 'Daftar Peminjaman',
-                          subtitle:
-                              selectedFilter == 'semua'
-                                  ? 'Semua data peminjaman alat anggota'
-                                  : 'Filter: ${teksStatus(selectedFilter)}',
-                        ),
-                        const SizedBox(height: 12),
-                        if (semuaData.isEmpty)
-                          _messageState(
-                            icon: Icons.inventory_2_outlined,
-                            title: 'Belum Ada Pengajuan',
-                            message: 'Data peminjaman alat belum tersedia.',
-                          )
-                        else if (peminjamanList.isEmpty)
-                          _messageState(
-                            icon: Icons.search_off_rounded,
-                            title: 'Data Tidak Ditemukan',
-                            message:
-                                'Tidak ada peminjaman alat dengan status ini.',
-                          )
-                        else
-                          ...peminjamanList.map((entry) {
-                            final id = entry.key.toString();
-                            final item = Map<dynamic, dynamic>.from(
-                              entry.value as Map,
-                            );
-
-                            return _peminjamanCard(id, item);
-                          }),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-            if (isProcessing)
-              Container(
-                color: Colors.black.withValues(alpha: 0.18),
-                child: const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                  },
                 ),
               ),
+              if (isProcessing) _processingOverlay(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _header(int pending) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(13, 13, 14, 13),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _adminNavy,
+            Color(0xff294762),
+            _adminPurple,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: _adminNavy.withValues(alpha: 0.24),
+            blurRadius: 23,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -45,
+              top: -58,
+              child: Container(
+                height: 140,
+                width: 140,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.07),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                _backButton(),
+                const SizedBox(width: 10),
+                Container(
+                  height: 46,
+                  width: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.19),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.fact_check_outlined,
+                    color: Colors.white,
+                    size: 23,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Verifikasi Peminjaman',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 17.2,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Aktivitas alat pertanian desa',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Color(0xffDFE5F0),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 7),
+                _headerCounter(pending),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _headerPage(int totalMenunggu) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
-      decoration: BoxDecoration(
-        color: darkGreen,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: darkGreen.withValues(alpha: 0.18),
-            blurRadius: 16,
-            offset: const Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          _backButton(),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Verifikasi Peminjaman',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Kelola pengajuan alat anggota',
-                  style: TextStyle(
-                    color: Color(0xffD1FAE5),
-                    fontSize: 12,
-                    height: 1.3,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _headerCounter(totalMenunggu),
-        ],
-      ),
-    );
-  }
-
   Widget _headerCounter(int total) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 48, minHeight: 44),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      constraints: const BoxConstraints(
+        minWidth: 44,
+        minHeight: 40,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        color: Colors.white.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.19),
+        ),
       ),
       child: Column(
         children: [
@@ -863,17 +1697,17 @@ String ambilNik(Map<dynamic, dynamic> item) {
             total > 99 ? '99+' : total.toString(),
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 17,
+              fontSize: 15,
               height: 1,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             'baru',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.82),
-              fontSize: 10,
+              color: Colors.white.withValues(alpha: 0.77),
+              fontSize: 8.6,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -882,73 +1716,75 @@ String ambilNik(Map<dynamic, dynamic> item) {
     );
   }
 
-  Widget _filterPanel({
-    required int totalSemua,
-    required int totalMenunggu,
-    required int totalDisetujui,
-    required int totalDipinjam,
-    required int totalDikembalikan,
-    required int totalDitolak,
-  }) {
+  Widget _filterPanel(
+    Map<String, int> counts,
+  ) {
     final filters = [
       _FilterItem(
-        'Semua',
-        'semua',
-        totalSemua,
-        Icons.dashboard_customize_rounded,
-        primaryGreen,
+        label: 'Menunggu',
+        value: 'menunggu',
+        total: counts['menunggu'] ?? 0,
+        icon: Icons.pending_actions_outlined,
+        color: _adminAmber,
       ),
       _FilterItem(
-        'Menunggu',
-        'menunggu',
-        totalMenunggu,
-        Icons.pending_actions_rounded,
-        orangeStatus,
+        label: 'Disetujui',
+        value: 'disetujui',
+        total: counts['disetujui'] ?? 0,
+        icon: Icons.verified_outlined,
+        color: _adminBlue,
       ),
       _FilterItem(
-        'Setuju',
-        'disetujui',
-        totalDisetujui,
-        Icons.verified_rounded,
-        primaryGreen,
+        label: 'Dipinjam',
+        value: 'dipinjam',
+        total: counts['dipinjam'] ?? 0,
+        icon: Icons.outbox_outlined,
+        color: _adminPurple,
       ),
       _FilterItem(
-        'Dipinjam',
-        'dipinjam',
-        totalDipinjam,
-        Icons.agriculture_rounded,
-        primaryGreen,
+        label: 'Kembali',
+        value: 'dikembalikan',
+        total: counts['dikembalikan'] ?? 0,
+        icon: Icons.assignment_turned_in_outlined,
+        color: _adminGreen,
       ),
       _FilterItem(
-        'Kembali',
-        'dikembalikan',
-        totalDikembalikan,
-        Icons.assignment_return_rounded,
-        primaryGreen,
+        label: 'Ditolak',
+        value: 'ditolak',
+        total: counts['ditolak'] ?? 0,
+        icon: Icons.block_outlined,
+        color: _adminRed,
       ),
       _FilterItem(
-        'Ditolak',
-        'ditolak',
-        totalDitolak,
-        Icons.block_rounded,
-        redStatus,
+        label: 'Semua',
+        value: 'semua',
+        total: counts['semua'] ?? 0,
+        icon: Icons.grid_view_rounded,
+        color: _adminIndigo,
       ),
     ];
 
     return Container(
       padding: const EdgeInsets.all(9),
-      decoration: _cardDecoration(radius: 18),
-      child: Wrap(
-        spacing: 7,
-        runSpacing: 7,
-        children:
-            filters.map((item) {
-              final aktif = selectedFilter == item.value;
+      decoration: _cardDecoration(radius: 19),
+      child: SizedBox(
+        height: 39,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          physics: const ClampingScrollPhysics(),
+          itemCount: filters.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 7),
+          itemBuilder: (context, index) {
+            final filter = filters[index];
+            final active = selectedFilter == filter.value;
 
-              return InkWell(
+            return Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+              child: InkWell(
                 onTap: () {
                   setState(() {
-                    selectedFilter = item.value;
+                    selectedFilter = filter.value;
                   });
                 },
                 borderRadius: BorderRadius.circular(999),
@@ -959,77 +1795,176 @@ String ambilNik(Map<dynamic, dynamic> item) {
                     vertical: 7,
                   ),
                   decoration: BoxDecoration(
-                    color:
-                        aktif ? item.color : item.color.withValues(alpha: 0.08),
+                    color: active
+                        ? filter.color
+                        : filter.color.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: item.color.withValues(alpha: 0.18),
+                      color: active
+                          ? filter.color
+                          : filter.color.withValues(alpha: 0.12),
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        item.icon,
-                        size: 14,
-                        color: aktif ? Colors.white : item.color,
+                        filter.icon,
+                        color: active ? Colors.white : filter.color,
+                        size: 15,
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        item.total > 99 ? '99+' : item.total.toString(),
+                        filter.label,
                         style: TextStyle(
-                          color: aktif ? Colors.white : item.color,
-                          fontSize: 11,
+                          color: active ? Colors.white : _textDark,
+                          fontSize: 9.8,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        item.label,
-                        style: TextStyle(
-                          color: aktif ? Colors.white : textDark,
-                          fontSize: 10.8,
-                          fontWeight: FontWeight.w800,
+                      const SizedBox(width: 6),
+                      Container(
+                        constraints: const BoxConstraints(
+                          minWidth: 20,
+                          minHeight: 19,
+                        ),
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: active
+                              ? Colors.white.withValues(alpha: 0.18)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          filter.total > 99
+                              ? '99+'
+                              : filter.total.toString(),
+                          style: TextStyle(
+                            color: active ? Colors.white : filter.color,
+                            fontSize: 8,
+                            height: 1,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              );
-            }).toList(),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _infoBox(int totalMenunggu) {
-    final clear = totalMenunggu == 0;
+  Widget _searchField() {
+    return SizedBox(
+      height: 45,
+      child: TextField(
+        controller: _searchController,
+        textInputAction: TextInputAction.search,
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value;
+          });
+        },
+        decoration: InputDecoration(
+          hintText: 'Cari nama, NIK, alat, atau tanggal',
+          hintStyle: const TextStyle(
+            color: _textSoft,
+            fontSize: 10.2,
+            fontWeight: FontWeight.w600,
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: _adminPurple,
+            size: 19,
+          ),
+          suffixIcon: _searchQuery.isEmpty
+              ? null
+              : IconButton(
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = '';
+                    });
+                  },
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: _textGrey,
+                    size: 18,
+                  ),
+                ),
+          filled: true,
+          fillColor: Colors.white.withValues(alpha: 0.98),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 13,
+            vertical: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: _cardBorder),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(
+              color: _adminPurple,
+              width: 1.3,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pendingInformation(int pending) {
+    final clear = pending == 0;
+    final color = clear ? _adminGreen : _adminAmber;
 
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: (clear ? primaryGreen : orangeStatus).withValues(alpha: 0.075),
-        borderRadius: BorderRadius.circular(16),
+        color: clear ? _softGreen : _softAmber,
+        borderRadius: BorderRadius.circular(17),
         border: Border.all(
-          color: (clear ? primaryGreen : orangeStatus).withValues(alpha: 0.16),
+          color: color.withValues(alpha: 0.13),
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            clear ? Icons.task_alt_rounded : Icons.info_outline_rounded,
-            color: clear ? primaryGreen : orangeStatus,
-            size: 19,
+          Container(
+            height: 37,
+            width: 37,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              clear
+                  ? Icons.task_alt_rounded
+                  : Icons.info_outline_rounded,
+              color: color,
+              size: 19,
+            ),
           ),
           const SizedBox(width: 9),
           Expanded(
             child: Text(
               clear
                   ? 'Semua pengajuan peminjaman sudah diproses.'
-                  : '$totalMenunggu pengajuan peminjaman masih menunggu verifikasi.',
-              style: TextStyle(
-                color: clear ? primaryGreen : orangeStatus,
-                fontSize: 12.2,
+                  : '$pending pengajuan menunggu keputusan admin.',
+              style: const TextStyle(
+                color: _textGrey,
+                fontSize: 10.3,
                 height: 1.4,
                 fontWeight: FontWeight.w700,
               ),
@@ -1040,158 +1975,265 @@ String ambilNik(Map<dynamic, dynamic> item) {
     );
   }
 
-  Widget _sectionTitle({required String title, required String subtitle}) {
+  Widget _sectionTitle(int count) {
     return Row(
       children: [
         Container(
-          height: 32,
+          height: 31,
           width: 5,
           decoration: BoxDecoration(
-            color: primaryGreen,
-            borderRadius: BorderRadius.circular(99),
+            color: _adminPurple,
+            borderRadius: BorderRadius.circular(999),
           ),
         ),
         const SizedBox(width: 9),
-        Expanded(
+        const Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                title,
-                style: const TextStyle(
-                  color: textDark,
-                  fontSize: 15.8,
+                'Aktivitas Peminjaman',
+                style: TextStyle(
+                  color: _textDark,
+                  fontSize: 15,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               Text(
-                subtitle,
-                style: const TextStyle(
-                  color: textGrey,
-                  fontSize: 11.5,
+                'Verifikasi dan ubah status secara bertahap.',
+                style: TextStyle(
+                  color: _textGrey,
+                  fontSize: 10.4,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
         ),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 5,
+          ),
+          decoration: BoxDecoration(
+            color: _softPurple,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            '$count data',
+            style: const TextStyle(
+              color: _adminPurple,
+              fontSize: 8.6,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _peminjamanCard(String id, Map<dynamic, dynamic> item) {
-    final nama = ambilNama(item);
-    final nik = ambilNik(item);
-    final alat = ambilNamaAlat(item);
-    final idAlat = ambilIdAlat(item);
-    final jumlah = ambilJumlah(item).toString();
-    final tanggalPinjam = _text(item['tanggal_pinjam']);
-    final tanggalKembali = _text(item['tanggal_kembali']);
-    final catatan = _text(item['catatan']);
-    final status = normalStatus(item);
+  Widget _content({
+    required AsyncSnapshot<DatabaseEvent> snapshot,
+    required List<MapEntry<String, dynamic>> allLoans,
+    required List<MapEntry<String, dynamic>> filteredLoans,
+  }) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Center(
+          child: CircularProgressIndicator(
+            color: _adminPurple,
+            strokeWidth: 2.8,
+          ),
+        ),
+      );
+    }
+
+    if (snapshot.hasError) {
+      return _messageState(
+        icon: Icons.cloud_off_outlined,
+        title: 'Data Tidak Dapat Dimuat',
+        message:
+            'Periksa koneksi internet lalu tarik halaman ke bawah.',
+        color: _adminRed,
+        background: _softRed,
+      );
+    }
+
+    if (allLoans.isEmpty) {
+      return _messageState(
+        icon: Icons.inventory_2_outlined,
+        title: 'Belum Ada Peminjaman',
+        message:
+            'Pengajuan peminjaman alat belum tersedia.',
+        color: _adminPurple,
+        background: _softPurple,
+      );
+    }
+
+    if (filteredLoans.isEmpty) {
+      return _messageState(
+        icon: Icons.search_off_rounded,
+        title: 'Data Tidak Ditemukan',
+        message:
+            'Tidak ada peminjaman yang sesuai dengan filter atau pencarian.',
+        color: _adminAmber,
+        background: _softAmber,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 760 ? 2 : 1;
+        const gap = 10.0;
+        final itemWidth = columns == 2
+            ? (constraints.maxWidth - gap) / 2
+            : constraints.maxWidth;
+
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: filteredLoans.map((entry) {
+            return SizedBox(
+              width: itemWidth,
+              child: _loanCard(
+                id: entry.key,
+                item: entry.value,
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _loanCard({
+    required String id,
+    required Map<String, dynamic> item,
+  }) {
+    final status = _normalStatus(item);
+    final name = _name(item);
+    final nik = _nik(item);
+    final equipment = _equipmentName(item);
+    final equipmentColor = _equipmentColor(equipment);
+    final quantity = _quantity(item);
+
+    final startDate = _displayDate(
+      item['tanggal_pinjam'] ??
+          item['tanggal_mulai'] ??
+          item['tanggal_pengambilan'],
+    );
+    final returnDate = _displayDate(
+      item['tanggal_kembali'] ??
+          item['tanggal_selesai'] ??
+          item['batas_pengembalian'],
+    );
+    final submittedAt = _displayDateTime(
+      item['tanggal_pengajuan'],
+    );
+    final note = _text(
+      item['catatan'],
+      fallback: '',
+    );
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 11),
+      margin: const EdgeInsets.only(bottom: 1),
       padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(radius: 18),
+      decoration: _cardDecoration(radius: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardTop(alat: alat, nama: nama, nik: nik, status: status),
-          const SizedBox(height: 12),
-          _dataBox(
+          Row(
             children: [
-              _infoRow(Icons.badge_outlined, 'NIK', sensorNik(nik)),
-              _infoRow(Icons.handyman_rounded, 'Alat', alat),
-              _infoRow(Icons.qr_code_rounded, 'ID Alat', idAlat),
-              _infoRow(Icons.inventory_2_rounded, 'Jumlah', '$jumlah Unit'),
-              _infoRow(
-                Icons.calendar_today_rounded,
-                'Tanggal Pinjam',
-                tanggalPinjam,
+              Container(
+                height: 45,
+                width: 45,
+                decoration: BoxDecoration(
+                  color: equipmentColor.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  _equipmentIcon(equipment),
+                  color: equipmentColor,
+                  size: 23,
+                ),
               ),
-              _infoRow(
-                Icons.event_available_rounded,
-                'Rencana Kembali',
-                tanggalKembali,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      equipment,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _textDark,
+                        fontSize: 13.6,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$name • ${_maskedNik(nik)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _textGrey,
+                        fontSize: 10.2,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              if (status == 'dipinjam' || status == 'dikembalikan') ...[
-                _infoRow(
-                  Icons.output_rounded,
-                  'Diambil',
-                  '${_text(item['tanggal_diambil'])} ${_text(item['waktu_diambil'])}',
-                ),
-              ],
-              if (status == 'dikembalikan') ...[
-                _infoRow(
-                  Icons.event_repeat_rounded,
-                  'Dikembalikan',
-                  '${_text(item['tanggal_dikembalikan'])} ${_text(item['waktu_dikembalikan'])}',
-                ),
-                _infoRow(
-                  Icons.timer_outlined,
-                  'Ketepatan',
-                  teksPengembalian(item),
-                  valueColor: warnaPengembalian(item),
-                ),
-              ],
-              if (catatan != '-')
-                _infoRow(Icons.notes_rounded, 'Catatan', catatan),
+              const SizedBox(width: 7),
+              _statusBadge(status),
             ],
           ),
-          if (status == 'menunggu') ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _actionButton(
-                    title: 'Tolak',
-                    icon: Icons.close_rounded,
-                    color: redStatus,
-                    onPressed: () {
-                      tampilkanKonfirmasi(
-                        id: id,
-                        status: 'ditolak',
-                        item: item,
-                      );
-                    },
-                  ),
+          const SizedBox(height: 10),
+          _activityStrip(status),
+          const SizedBox(height: 10),
+          _dataBox(
+            children: [
+              _detailRow(
+                icon: Icons.date_range_outlined,
+                label: 'Jadwal',
+                value: '$startDate — $returnDate',
+              ),
+              _detailRow(
+                icon: Icons.inventory_2_outlined,
+                label: 'Jumlah',
+                value: '$quantity unit',
+                valueColor: equipmentColor,
+              ),
+              _detailRow(
+                icon: Icons.schedule_outlined,
+                label: 'Diajukan',
+                value: submittedAt,
+              ),
+              if (status == 'dikembalikan')
+                _detailRow(
+                  icon: Icons.assignment_turned_in_outlined,
+                  label: 'Pengembalian',
+                  value: _returnStatusText(item),
+                  valueColor: _returnStatusColor(item),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _actionButton(
-                    title: 'Setujui',
-                    icon: Icons.check_rounded,
-                    color: primaryGreen,
-                    onPressed: () {
-                      tampilkanKonfirmasi(
-                        id: id,
-                        status: 'disetujui',
-                        item: item,
-                      );
-                    },
-                  ),
+              if (note.isNotEmpty)
+                _detailRow(
+                  icon: Icons.notes_outlined,
+                  label: 'Catatan',
+                  value: note,
                 ),
-              ],
-            ),
-          ],
-          if (status == 'disetujui') ...[
-            const SizedBox(height: 12),
-            _actionButton(
-              title: 'Tandai Dipinjam',
-              icon: Icons.inventory_2_rounded,
-              color: primaryGreen,
-              onPressed: () => konfirmasiDipinjam(id: id, item: item),
-            ),
-          ],
-          if (status == 'dipinjam') ...[
-            const SizedBox(height: 12),
-            _actionButton(
-              title: 'Tandai Dikembalikan',
-              icon: Icons.assignment_turned_in_rounded,
-              color: primaryGreen,
-              onPressed: () => konfirmasiDikembalikan(id: id, item: item),
+            ],
+          ),
+          if (_hasActions(status)) ...[
+            const SizedBox(height: 10),
+            _actionArea(
+              id: id,
+              item: item,
+              status: status,
             ),
           ],
         ],
@@ -1199,124 +2241,168 @@ String ambilNik(Map<dynamic, dynamic> item) {
     );
   }
 
-  Widget _cardTop({
-    required String alat,
-    required String nama,
-    required String nik,
-    required String status,
-  }) {
-    return Row(
-      children: [
-        Container(
-          height: 48,
-          width: 48,
-          decoration: BoxDecoration(
-            color: primaryGreen.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Icon(iconAlat(alat), color: primaryGreen, size: 25),
-        ),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                alat == '-' ? 'Peminjaman Alat' : alat,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: textDark,
-                  fontSize: 15.2,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '$nama • ${sensorNik(nik)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: textGrey,
-                  fontSize: 11.7,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        _statusBadge(status),
-      ],
-    );
-  }
+  Widget _activityStrip(String status) {
+    final labels = const [
+      'Diajukan',
+      'Disetujui',
+      'Dipinjam',
+      'Kembali',
+    ];
 
-  Widget _statusBadge(String status) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 92),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: backgroundStatus(status),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: warnaStatus(status).withValues(alpha: 0.15)),
-      ),
-      child: Text(
-        teksStatus(status),
-        textAlign: TextAlign.center,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: warnaStatus(status),
-          fontSize: 9.8,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
+    int currentIndex;
+    if (status == 'disetujui') {
+      currentIndex = 1;
+    } else if (status == 'dipinjam') {
+      currentIndex = 2;
+    } else if (status == 'dikembalikan') {
+      currentIndex = 3;
+    } else {
+      currentIndex = 0;
+    }
 
-  Widget _dataBox({required List<Widget> children}) {
+    final rejected = status == 'ditolak';
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 3),
+      padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
       decoration: BoxDecoration(
-        color: const Color(0xffF9FAFB),
+        color: const Color(0xffF9FAFC),
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: cardBorder),
+        border: Border.all(color: _cardBorder),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: List.generate(labels.length, (index) {
+              final completed = !rejected && index <= currentIndex;
+              final rejectedNode = rejected && index == 0;
+              final nodeColor = rejectedNode
+                  ? _adminRed
+                  : completed
+                      ? _adminPurple
+                      : _cardBorder;
+
+              return Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      height: 23,
+                      width: 23,
+                      decoration: BoxDecoration(
+                        color: nodeColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        rejectedNode
+                            ? Icons.close_rounded
+                            : completed
+                                ? Icons.check_rounded
+                                : Icons.circle,
+                        color: completed || rejectedNode
+                            ? Colors.white
+                            : _textSoft,
+                        size: completed || rejectedNode ? 11 : 5,
+                      ),
+                    ),
+                    if (index < labels.length - 1)
+                      Expanded(
+                        child: Container(
+                          height: 2,
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 3,
+                          ),
+                          color: rejected
+                              ? _cardBorder
+                              : index < currentIndex
+                                  ? _adminPurple
+                                  : _cardBorder,
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 5),
+          Row(
+            children: labels.map((label) {
+              return Expanded(
+                child: Text(
+                  rejected && label == 'Diajukan'
+                      ? 'Ditolak'
+                      : label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: rejected && label == 'Diajukan'
+                        ? _adminRed
+                        : _textGrey,
+                    fontSize: 7.1,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dataBox({
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        11,
+        10,
+        11,
+        2,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xffF9FAFC),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: _cardBorder),
       ),
       child: Column(children: children),
     );
   }
 
-  Widget _infoRow(
-    IconData icon,
-    String label,
-    String value, {
+  Widget _detailRow({
+    required IconData icon,
+    required String label,
+    required String value,
     Color? valueColor,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: primaryGreen, size: 17),
-          const SizedBox(width: 8),
+          Icon(
+            icon,
+            color: _adminPurple,
+            size: 15,
+          ),
+          const SizedBox(width: 7),
           SizedBox(
-            width: 98,
+            width: 80,
             child: Text(
               label,
               style: const TextStyle(
-                color: textGrey,
-                fontSize: 11.8,
+                color: _textGrey,
+                fontSize: 9.8,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
           Expanded(
             child: Text(
-              value.isEmpty ? '-' : value,
+              value.trim().isEmpty ? '-' : value,
               textAlign: TextAlign.right,
               style: TextStyle(
-                color: valueColor ?? textDark,
-                fontSize: 11.8,
+                color: valueColor ?? _textDark,
+                fontSize: 10.2,
                 height: 1.35,
                 fontWeight: FontWeight.w900,
               ),
@@ -1327,49 +2413,197 @@ String ambilNik(Map<dynamic, dynamic> item) {
     );
   }
 
-  Widget _actionButton({
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      height: 46,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: color.withValues(alpha: 0.40),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
+  Widget _statusBadge(String status) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 89),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 7,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: _statusBackground(status),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: _statusColor(status).withValues(alpha: 0.13),
         ),
-        onPressed: isProcessing ? null : onPressed,
-        icon: Icon(icon, size: 18),
-        label: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _statusIcon(status),
+            color: _statusColor(status),
+            size: 10.5,
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              _statusText(status),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: _statusColor(status),
+                fontSize: 7.8,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _backButton() {
-    return InkWell(
-      onTap: () {
-        if (!mounted) return;
-        Navigator.pop(context);
+  bool _hasActions(
+    String status,
+  ) {
+    return {
+      'menunggu',
+      'disetujui',
+      'dipinjam',
+    }.contains(status);
+  }
+
+  Widget _actionArea({
+    required String id,
+    required Map<String, dynamic> item,
+    required String status,
+  }) {
+    if (status == 'menunggu') {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 300;
+
+          final approveButton = _actionButton(
+            label: 'Setujui',
+            icon: Icons.check_rounded,
+            color: _adminGreen,
+            onPressed: () {
+              _confirmVerification(
+                id: id,
+                status: 'disetujui',
+                item: item,
+              );
+            },
+          );
+
+          final rejectButton = _actionButton(
+            label: 'Tolak',
+            icon: Icons.close_rounded,
+            color: _adminRed,
+            outlined: true,
+            onPressed: () {
+              _confirmVerification(
+                id: id,
+                status: 'ditolak',
+                item: item,
+              );
+            },
+          );
+
+          if (compact) {
+            return Column(
+              children: [
+                approveButton,
+                const SizedBox(height: 8),
+                rejectButton,
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: rejectButton),
+              const SizedBox(width: 8),
+              Expanded(child: approveButton),
+            ],
+          );
+        },
+      );
+    }
+
+    if (status == 'disetujui') {
+      return _actionButton(
+        label: 'Tandai Sudah Dipinjam',
+        icon: Icons.outbox_outlined,
+        color: _adminPurple,
+        onPressed: () {
+          _confirmBorrowed(
+            id: id,
+            item: item,
+          );
+        },
+      );
+    }
+
+    return _actionButton(
+      label: 'Tandai Sudah Dikembalikan',
+      icon: Icons.assignment_turned_in_outlined,
+      color: _adminGreen,
+      onPressed: () {
+        _confirmReturned(
+          id: id,
+          item: item,
+        );
       },
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-        ),
-        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-      ),
+    );
+  }
+
+  Widget _actionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+    bool outlined = false,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 40,
+      child: outlined
+          ? OutlinedButton.icon(
+              onPressed: isProcessing ? null : onPressed,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: color,
+                side: BorderSide(
+                  color: color.withValues(alpha: 0.22),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+              icon: Icon(icon, size: 16),
+              label: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 9.8,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            )
+          : ElevatedButton.icon(
+              onPressed: isProcessing ? null : onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor:
+                    color.withValues(alpha: 0.30),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+              icon: Icon(icon, size: 16),
+              label: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 9.8,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
     );
   }
 
@@ -1377,30 +2611,38 @@ String ambilNik(Map<dynamic, dynamic> item) {
     required IconData icon,
     required String title,
     required String message,
+    required Color color,
+    required Color background,
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration(radius: 20),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 22,
+        vertical: 28,
+      ),
+      decoration: _cardDecoration(radius: 22),
       child: Column(
         children: [
           Container(
-            height: 72,
-            width: 72,
+            height: 64,
+            width: 64,
             decoration: BoxDecoration(
-              color: lightGreen,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
+              color: background,
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: Icon(icon, color: primaryGreen, size: 36),
+            child: Icon(
+              icon,
+              color: color,
+              size: 32,
+            ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Text(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: textDark,
-              fontSize: 15.8,
+              color: _textDark,
+              fontSize: 14.5,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1409,9 +2651,9 @@ String ambilNik(Map<dynamic, dynamic> item) {
             message,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: textGrey,
-              fontSize: 12.4,
-              height: 1.4,
+              color: _textGrey,
+              fontSize: 10,
+              height: 1.45,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1420,16 +2662,77 @@ String ambilNik(Map<dynamic, dynamic> item) {
     );
   }
 
-  BoxDecoration _cardDecoration({double radius = 18}) {
+  Widget _processingOverlay() {
+    return Positioned.fill(
+      child: AbsorbPointer(
+        child: Container(
+          color: _adminNavy.withValues(alpha: 0.28),
+          alignment: Alignment.center,
+          child: Container(
+            height: 74,
+            width: 74,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 20,
+                ),
+              ],
+            ),
+            child: const CircularProgressIndicator(
+              color: _adminPurple,
+              strokeWidth: 2.8,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _backButton() {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: isProcessing
+            ? null
+            : () {
+                FocusScope.of(context).unfocus();
+                Navigator.maybePop(context);
+              },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          height: 42,
+          width: 42,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(
+            Icons.arrow_back_rounded,
+            color: Colors.white,
+            size: 21,
+          ),
+        ),
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration({
+    double radius = 18,
+  }) {
     return BoxDecoration(
-      color: Colors.white,
+      color: Colors.white.withValues(alpha: 0.98),
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: cardBorder),
+      border: Border.all(color: _cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.032),
-          blurRadius: 12,
-          offset: const Offset(0, 5),
+          color: _adminNavy.withValues(alpha: 0.05),
+          blurRadius: 15,
+          offset: const Offset(0, 6),
         ),
       ],
     );
@@ -1443,15 +2746,126 @@ class _FilterItem {
   final IconData icon;
   final Color color;
 
-  const _FilterItem(this.label, this.value, this.total, this.icon, this.color);
+  const _FilterItem({
+    required this.label,
+    required this.value,
+    required this.total,
+    required this.icon,
+    required this.color,
+  });
 }
 
-class _HasilKeterlambatan {
+class _LateResult {
   final String status;
-  final int hariTerlambat;
+  final int lateDays;
 
-  const _HasilKeterlambatan({
+  const _LateResult({
     required this.status,
-    required this.hariTerlambat,
+    required this.lateDays,
   });
+}
+
+class _VerificationBackground extends StatelessWidget {
+  const _VerificationBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: SizedBox.expand(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final base = constraints.maxWidth < constraints.maxHeight
+                ? constraints.maxWidth
+                : constraints.maxHeight;
+
+            final large = (base * 0.98)
+                .clamp(280.0, 470.0)
+                .toDouble();
+            final medium = (base * 0.67)
+                .clamp(190.0, 330.0)
+                .toDouble();
+
+            return ClipRect(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0xff172A46),
+                          Color(0xff294762),
+                          Color(0xffE8EBF2),
+                          Color(0xffF2F4F8),
+                        ],
+                        stops: [
+                          0,
+                          0.18,
+                          0.43,
+                          1,
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: -large * 0.55,
+                    right: -large * 0.30,
+                    child: _BackgroundCircle(
+                      size: large,
+                      color: const Color(0xff7367B5),
+                      alpha: 0.20,
+                    ),
+                  ),
+                  Positioned(
+                    top: constraints.maxHeight * 0.31,
+                    left: -medium * 0.58,
+                    child: _BackgroundCircle(
+                      size: medium,
+                      color: const Color(0xffB9B1DD),
+                      alpha: 0.30,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -large * 0.52,
+                    left: -large * 0.31,
+                    child: _BackgroundCircle(
+                      size: large,
+                      color: const Color(0xffE6E3F2),
+                      alpha: 0.82,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _BackgroundCircle extends StatelessWidget {
+  final double size;
+  final Color color;
+  final double alpha;
+
+  const _BackgroundCircle({
+    required this.size,
+    required this.color,
+    required this.alpha,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: alpha),
+        shape: BoxShape.circle,
+      ),
+    );
+  }
 }

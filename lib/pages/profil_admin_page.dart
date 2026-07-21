@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -24,14 +22,19 @@ class ProfilAdminPage extends StatefulWidget {
 }
 
 class _ProfilAdminPageState extends State<ProfilAdminPage> {
+  static const Color adminNavy = Color(0xff172A46);
+  static const Color adminNavyLight = Color(0xff294762);
+  static const Color adminPurple = Color(0xff6256A4);
+
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff14532D);
-  static const Color cardBorder = Color(0xffE6ECE8);
-  static const Color textDark = Color(0xff1F2937);
-  static const Color textGrey = Color(0xff6B7280);
-  static const Color orangeStatus = Color(0xffF59E0B);
-  static const Color blueStatus = Color(0xff2563EB);
-  static const Color redColor = Color(0xffDC2626);
+  static const Color orangeStatus = Color(0xffD98212);
+  static const Color blueStatus = Color(0xff326CA3);
+  static const Color redColor = Color(0xffC83B3B);
+
+  static const Color pageBackground = Color(0xffF2F4F8);
+  static const Color cardBorder = Color(0xffE0E5EC);
+  static const Color textDark = Color(0xff18212B);
+  static const Color textGrey = Color(0xff66727F);
 
   final FirebaseDatabase _db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -39,112 +42,148 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 
-  late final DatabaseReference _anggotaRef;
-  late final DatabaseReference _calonRef;
-  late final DatabaseReference _pupukRef;
-  late final DatabaseReference _peminjamanRef;
-
-  final StreamController<_AdminProfileData> _profileController =
-      StreamController<_AdminProfileData>.broadcast();
-
-  final List<StreamSubscription<DatabaseEvent>> _subscriptions = [];
-
-  dynamic _anggotaValue;
-  dynamic _calonValue;
-  dynamic _pupukValue;
-  dynamic _peminjamanValue;
-
-  bool _isDisposed = false;
+  late final DatabaseReference _rootRef;
 
   @override
   void initState() {
     super.initState();
-
-    _anggotaRef = _db.ref('anggota');
-    _calonRef = _db.ref('calon_anggota');
-    _pupukRef = _db.ref('bantuan_pupuk');
-    _peminjamanRef = _db.ref('peminjaman_alat');
-
-    _listenData();
+    _rootRef = _db.ref();
   }
 
-  @override
-  void dispose() {
-    _isDisposed = true;
-
-    for (final sub in _subscriptions) {
-      sub.cancel();
+  Map<dynamic, dynamic> _asMap(dynamic value) {
+    if (value is! Map) {
+      return <dynamic, dynamic>{};
     }
 
-    _profileController.close();
-    super.dispose();
+    return Map<dynamic, dynamic>.from(value);
   }
 
-  void _listenData() {
-    _subscriptions.addAll([
-      _anggotaRef.onValue.listen((event) {
-        _anggotaValue = event.snapshot.value;
-        _emitData();
-      }),
-      _calonRef.onValue.listen((event) {
-        _calonValue = event.snapshot.value;
-        _emitData();
-      }),
-      _pupukRef.onValue.listen((event) {
-        _pupukValue = event.snapshot.value;
-        _emitData();
-      }),
-      _peminjamanRef.onValue.listen((event) {
-        _peminjamanValue = event.snapshot.value;
-        _emitData();
-      }),
-    ]);
+  Iterable<dynamic> _records(dynamic value) {
+    if (value is Map) {
+      return Map<dynamic, dynamic>.from(value).values;
+    }
 
-    _emitData();
+    if (value is List) {
+      return value.where((item) => item != null);
+    }
+
+    return const <dynamic>[];
   }
 
-  void _emitData() {
-    if (_isDisposed || _profileController.isClosed) return;
+  String _normalStatus(dynamic value) {
+    return (value ?? '')
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+  }
 
-    _profileController.add(
-      _AdminProfileData(
-        totalAnggota: _countTotal(_anggotaValue),
-        totalCalon: _countTotal(_calonValue),
-        totalPupuk: _countTotal(_pupukValue),
-        totalPeminjaman: _countTotal(_peminjamanValue),
-        calonMenunggu: _countStatus(_calonValue, 'menunggu'),
-        pupukMenunggu: _countStatus(_pupukValue, 'menunggu'),
-        alatMenunggu: _countStatus(_peminjamanValue, 'menunggu'),
-      ),
-    );
+  bool _isPendingStatus(dynamic value) {
+    final status = _normalStatus(value);
+
+    return {
+      '',
+      'menunggu',
+      'pending',
+      'diajukan',
+      'pengajuan',
+      'proses',
+      'diproses',
+      'sedang_diproses',
+      'verifikasi',
+      'diverifikasi',
+      'menunggu_verifikasi',
+      'belum_diproses',
+    }.contains(status);
   }
 
   int _countTotal(dynamic value) {
-    if (value == null || value is! Map) return 0;
-    return value.length;
-  }
-
-  int _countStatus(dynamic value, String targetStatus) {
-    if (value == null || value is! Map) return 0;
-
     int total = 0;
-    final data = Map<dynamic, dynamic>.from(value);
 
-    for (final item in data.values) {
-      if (item is! Map) continue;
-
-      final detail = Map<dynamic, dynamic>.from(item);
-      final status =
-          (detail['status'] ?? 'menunggu').toString().toLowerCase().trim();
-
-      if (status == targetStatus) total++;
+    for (final item in _records(value)) {
+      if (item is Map) {
+        total++;
+      }
     }
 
     return total;
   }
 
+  int _countAnggotaAktif(dynamic value) {
+    int total = 0;
+
+    const inactiveStatuses = {
+      'nonaktif',
+      'non_aktif',
+      'inactive',
+      'ditolak',
+      'rejected',
+      'dihapus',
+      'deleted',
+      'keluar',
+    };
+
+    for (final item in _records(value)) {
+      if (item is! Map) {
+        continue;
+      }
+
+      final detail = Map<dynamic, dynamic>.from(item);
+      final status = _normalStatus(detail['status']);
+
+      /*
+       * Node anggota adalah sumber anggota aktif.
+       * Data tanpa status atau dengan istilah lama tetap dihitung,
+       * kecuali statusnya jelas menyatakan tidak aktif.
+       */
+      if (!inactiveStatuses.contains(status)) {
+        total++;
+      }
+    }
+
+    return total;
+  }
+
+  int _countPending(dynamic value) {
+    int total = 0;
+
+    for (final item in _records(value)) {
+      if (item is! Map) {
+        continue;
+      }
+
+      final detail = Map<dynamic, dynamic>.from(item);
+
+      if (_isPendingStatus(detail['status'])) {
+        total++;
+      }
+    }
+
+    return total;
+  }
+
+  _AdminProfileData _buildProfileData(dynamic value) {
+    final root = _asMap(value);
+
+    final anggota = root['anggota'];
+    final calon = root['calon_anggota'];
+    final pupuk = root['bantuan_pupuk'];
+    final peminjaman = root['peminjaman_alat'];
+
+    return _AdminProfileData(
+      totalAnggota: _countAnggotaAktif(anggota),
+      totalCalon: _countTotal(calon),
+      totalPupuk: _countTotal(pupuk),
+      totalPeminjaman: _countTotal(peminjaman),
+      calonMenunggu: _countPending(calon),
+      pupukMenunggu: _countPending(pupuk),
+      alatMenunggu: _countPending(peminjaman),
+    );
+  }
+
   Future<void> _refreshData() async {
-    _emitData();
+    await _rootRef.get();
   }
 
   void _openPage(Widget page) {
@@ -153,64 +192,146 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
   }
 
   void _logout() {
-    showDialog(
+    showDialog<void>(
       context: context,
+      barrierDismissible: true,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
           ),
-          title: const Text(
-            'Keluar dari Admin?',
-            style: TextStyle(color: textDark, fontWeight: FontWeight.w900),
-          ),
-          content: const Text(
-            'Anda akan keluar dari halaman administrator dan kembali ke halaman login.',
-            style: TextStyle(
-              color: textGrey,
-              height: 1.45,
-              fontWeight: FontWeight.w600,
+          child: Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(
+              maxWidth: 430,
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text(
-                'Batal',
-                style: TextStyle(fontWeight: FontWeight.w800),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+              border: Border.all(
+                color: cardBorder,
               ),
-            ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: redColor,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: adminNavy.withValues(alpha: 0.17),
+                  blurRadius: 28,
+                  offset: const Offset(0, 12),
                 ),
-              ),
-              onPressed: () async {
-                final navigator = Navigator.of(context);
-
-                Navigator.pop(dialogContext);
-
-                await SessionHelper.clearSession();
-
-                if (!mounted) return;
-
-                navigator.pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
-                  (route) => false,
-                );
-              },
-              icon: const Icon(Icons.logout_rounded, size: 18),
-              label: const Text(
-                'Keluar',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
+              ],
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 60,
+                  width: 60,
+                  decoration: const BoxDecoration(
+                    color: Color(0xffFEE2E2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.power_settings_new_rounded,
+                    color: redColor,
+                    size: 29,
+                  ),
+                ),
+                const SizedBox(height: 13),
+                const Text(
+                  'Keluar dari TaniGo?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: textDark,
+                    fontSize: 17.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                const Text(
+                  'Sesi admin akan diakhiri dan Anda akan '
+                  'kembali ke halaman pemilihan pengguna.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: textGrey,
+                    fontSize: 11.2,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 19),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: textDark,
+                          side: const BorderSide(
+                            color: cardBorder,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                        ),
+                        child: const Text(
+                          'Batal',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(dialogContext);
+
+                          await SessionHelper.clearSession();
+
+                          if (!mounted) {
+                            return;
+                          }
+
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const RoleSelectionPage(),
+                            ),
+                            (route) => false,
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: redColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                        ),
+                        child: const Text(
+                          'Keluar',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -219,39 +340,47 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: pageBackground,
       body: AppBackground(
-        child: SafeArea(
-          child: StreamBuilder<_AdminProfileData>(
-            stream: _profileController.stream,
-            initialData: _AdminProfileData.empty(),
-            builder: (context, snapshot) {
-              final data = snapshot.data ?? _AdminProfileData.empty();
+        showPattern: false,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const _AdminProfileBackground(),
+            SafeArea(
+              child: StreamBuilder<DatabaseEvent>(
+                stream: _rootRef.onValue,
+                builder: (context, snapshot) {
+                  final data = _buildProfileData(
+                    snapshot.data?.snapshot.value,
+                  );
 
               return RefreshIndicator(
-                color: primaryGreen,
+                color: adminPurple,
+                backgroundColor: Colors.white,
                 onRefresh: _refreshData,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
                   children: [
                     _header(data),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     _verificationCard(data),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     _sectionTitle(
                       title: 'Data Sistem',
                       subtitle: 'Pilih menu untuk melihat data lengkap',
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     _statsGrid(data),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     _sectionTitle(
                       title: 'Pengaturan',
                       subtitle: 'Informasi aplikasi dan sesi admin',
                     ),
                     const SizedBox(height: 12),
                     _menuTile(
-                      icon: Icons.info_rounded,
+                      icon: Icons.agriculture_rounded,
                       title: 'Tentang Aplikasi',
                       subtitle: 'Informasi sistem dan fitur aplikasi',
                       color: primaryGreen,
@@ -262,8 +391,10 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                   ],
                 ),
               );
-            },
-          ),
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -273,18 +404,27 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
     final aman = data.totalVerifikasi == 0;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      padding: const EdgeInsets.fromLTRB(
+        13,
+        13,
+        13,
+        13,
+      ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen],
+          colors: [
+            adminNavy,
+            adminNavyLight,
+            adminPurple,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.18),
-            blurRadius: 18,
+            color: adminNavy.withValues(alpha: 0.22),
+            blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
@@ -292,22 +432,24 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
       child: Row(
         children: [
           _backButton(),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Container(
-            height: 42,
-            width: 42,
+            height: 44,
+            width: 44,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.19),
+              ),
             ),
             child: const Icon(
-              Icons.admin_panel_settings_rounded,
+              Icons.manage_accounts_rounded,
               color: Colors.white,
-              size: 22,
+              size: 24,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,28 +460,30 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 19,
+                    fontSize: 18.5,
+                    height: 1.05,
                     fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(
                   aman
-                      ? 'Semua verifikasi sudah diproses'
-                      : '${data.totalVerifikasi} data perlu diverifikasi',
-                  maxLines: 2,
+                      ? 'Semua tugas verifikasi sudah selesai'
+                      : '${data.totalVerifikasi} data menunggu pemeriksaan',
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xffDDEFE3),
-                    fontSize: 11.8,
-                    height: 1.3,
-                    fontWeight: FontWeight.w600,
+                    color: Color(0xffE3E8F1),
+                    fontSize: 10.8,
+                    height: 1.2,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           _headerCounter(data.totalVerifikasi),
         ],
       ),
@@ -371,23 +515,63 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
   }
 
   Widget _headerCounter(int total) {
+    final countText = total > 99
+        ? '99+'
+        : total.toString();
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      constraints: const BoxConstraints(
+        minWidth: 64,
+        minHeight: 40,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 7,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        color: Colors.white.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.19),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.fact_check_rounded, color: Colors.white, size: 14),
-          const SizedBox(width: 5),
-          Text(
-            total.toString(),
-            style: const TextStyle(
+          Container(
+            height: 27,
+            constraints: const BoxConstraints(
+              minWidth: 27,
+              maxWidth: 36,
+            ),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 5,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.96),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                countText,
+                style: const TextStyle(
+                  color: adminPurple,
+                  fontSize: 11,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text(
+            'Tugas',
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 12,
+              fontSize: 8.8,
+              height: 1,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -401,37 +585,39 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
     final color = aman ? primaryGreen : orangeStatus;
 
     return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: _cardDecoration(radius: 20),
+      padding: const EdgeInsets.all(11),
+      decoration: _cardDecoration(radius: 19),
       child: Column(
         children: [
           Row(
             children: [
               Container(
-                height: 42,
-                width: 42,
+                height: 37,
+                width: 37,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: color.withValues(alpha: 0.11)),
+                  color: color.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.12),
+                  ),
                 ),
                 child: Icon(
                   aman
                       ? Icons.verified_user_rounded
                       : Icons.pending_actions_rounded,
                   color: color,
-                  size: 21,
+                  size: 19,
                 ),
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   aman
-                      ? 'Tidak ada verifikasi menunggu.'
+                      ? 'Tidak ada verifikasi yang menunggu.'
                       : '${data.totalVerifikasi} verifikasi menunggu keputusan admin.',
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 13.5,
+                    fontSize: 12.2,
                     height: 1.35,
                     fontWeight: FontWeight.w900,
                   ),
@@ -439,36 +625,42 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
               ),
             ],
           ),
-          const SizedBox(height: 13),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
                 child: _verifyBox(
                   title: 'Anggota',
                   value: data.calonMenunggu,
-                  icon: Icons.assignment_ind_rounded,
+                  icon: Icons.how_to_reg_rounded,
                   color: blueStatus,
-                  onTap: () => _openPage(const VerifikasiAnggotaPage()),
+                  onTap: () => _openPage(
+                    const VerifikasiAnggotaPage(),
+                  ),
                 ),
               ),
-              const SizedBox(width: 9),
+              const SizedBox(width: 8),
               Expanded(
                 child: _verifyBox(
                   title: 'Pupuk',
                   value: data.pupukMenunggu,
-                  icon: Icons.inventory_2_rounded,
+                  icon: Icons.eco_rounded,
                   color: primaryGreen,
-                  onTap: () => _openPage(const VerifikasiPupukPage()),
+                  onTap: () => _openPage(
+                    const VerifikasiPupukPage(),
+                  ),
                 ),
               ),
-              const SizedBox(width: 9),
+              const SizedBox(width: 8),
               Expanded(
                 child: _verifyBox(
                   title: 'Alat',
                   value: data.alatMenunggu,
-                  icon: Icons.handyman_rounded,
+                  icon: Icons.agriculture_rounded,
                   color: orangeStatus,
-                  onTap: () => _openPage(const VerifikasiPeminjamanPage()),
+                  onTap: () => _openPage(
+                    const VerifikasiPeminjamanPage(),
+                  ),
                 ),
               ),
             ],
@@ -485,52 +677,85 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        height: 74,
-        padding: const EdgeInsets.all(9),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cardBorder),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.022),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+    final countText = value > 99
+        ? '99+'
+        : value.toString();
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(15),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          height: 68,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 8,
+          ),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.065),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: color.withValues(alpha: 0.13),
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 15, color: color),
-            const Spacer(),
-            Text(
-              value.toString(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontSize: 18,
-                height: 1,
-                fontWeight: FontWeight.w900,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    color: color,
+                    size: 17,
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    height: 23,
+                    constraints: const BoxConstraints(
+                      minWidth: 23,
+                      maxWidth: 33,
+                    ),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        countText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9.2,
+                          height: 1,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: textGrey,
-                fontSize: 9.2,
-                fontWeight: FontWeight.w700,
+              const SizedBox(height: 7),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 10.3,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -541,28 +766,28 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
       _StatItem(
         title: 'Anggota Aktif',
         value: data.totalAnggota,
-        icon: Icons.verified_user_rounded,
+        icon: Icons.groups_rounded,
         color: primaryGreen,
         page: const AnggotaAktifPage(),
       ),
       _StatItem(
         title: 'Calon Anggota',
         value: data.totalCalon,
-        icon: Icons.assignment_ind_rounded,
+        icon: Icons.how_to_reg_rounded,
         color: blueStatus,
         page: const DataCalonAnggotaPage(),
       ),
       _StatItem(
         title: 'Bantuan Pupuk',
         value: data.totalPupuk,
-        icon: Icons.inventory_2_rounded,
+        icon: Icons.eco_rounded,
         color: primaryGreen,
         page: const DataBantuanPupukPage(),
       ),
       _StatItem(
         title: 'Peminjaman Alat',
         value: data.totalPeminjaman,
-        icon: Icons.precision_manufacturing_rounded,
+        icon: Icons.agriculture_rounded,
         color: orangeStatus,
         page: const DataPeminjamanAlatPage(),
       ),
@@ -570,74 +795,137 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final itemWidth = (constraints.maxWidth - 10) / 2;
+        final compact = constraints.maxWidth < 430;
+        final columns = compact ? 2 : 4;
+        final gap = compact ? 7.0 : 8.0;
+
+        final itemWidth =
+            (constraints.maxWidth - gap * (columns - 1)) /
+                columns;
 
         return Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children:
-              items.map((item) {
-                return SizedBox(width: itemWidth, child: _statCard(item));
-              }).toList(),
+          spacing: gap,
+          runSpacing: gap,
+          children: items.map((item) {
+            return SizedBox(
+              width: itemWidth,
+              child: _statCard(item),
+            );
+          }).toList(),
         );
       },
     );
   }
 
   Widget _statCard(_StatItem item) {
-    return InkWell(
-      onTap: () => _openPage(item.page),
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        height: 92,
-        padding: const EdgeInsets.all(11),
-        decoration: _cardDecoration(radius: 18),
-        child: Row(
-          children: [
-            Container(
-              height: 38,
-              width: 38,
-              decoration: BoxDecoration(
-                color: item.color.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: item.color.withValues(alpha: 0.10)),
-              ),
-              child: Icon(item.icon, color: item.color, size: 19),
+    final countText = item.value > 99
+        ? '99+'
+        : item.value.toString();
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(17),
+      child: InkWell(
+        onTap: () => _openPage(item.page),
+        borderRadius: BorderRadius.circular(17),
+        child: Container(
+          height: 78,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.98),
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(
+              color: item.color.withValues(alpha: 0.12),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.value.toString(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: item.color,
-                      fontSize: 19,
-                      height: 1,
-                      fontWeight: FontWeight.w900,
+            boxShadow: [
+              BoxShadow(
+                color: adminNavy.withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  height: 20,
+                  constraints: const BoxConstraints(
+                    minWidth: 20,
+                    maxWidth: 31,
+                  ),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: item.color,
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: [
+                      BoxShadow(
+                        color: item.color.withValues(alpha: 0.18),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      countText,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8.4,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    item.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: textDark,
-                      fontSize: 11.2,
-                      height: 1.2,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: item.color, size: 18),
-          ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  10,
+                  11,
+                  35,
+                  11,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      height: 38,
+                      width: 38,
+                      decoration: BoxDecoration(
+                        color: item.color.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        item.icon,
+                        color: item.color,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: textDark,
+                          fontSize: 11.2,
+                          height: 1.18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -650,169 +938,445 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
+    return Material(
+      color: color.withValues(alpha: 0.10),
       borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: _cardDecoration(radius: 18),
-        child: Row(
-          children: [
-            Container(
-              height: 38,
-              width: 38,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: color.withValues(alpha: 0.10)),
-              ),
-              child: Icon(icon, color: color, size: 19),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: color.withValues(alpha: 0.12),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: textDark,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: textGrey,
-                      fontSize: 11.2,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                height: 42,
+                width: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 21,
+                ),
               ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: color, size: 18),
-          ],
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: textDark,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textGrey,
+                        fontSize: 10.2,
+                        height: 1.3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                height: 31,
+                width: 31,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.88),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  color: color,
+                  size: 18,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _logoutTile() {
-    return InkWell(
-      onTap: _logout,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: redColor.withValues(alpha: 0.055),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: redColor.withValues(alpha: 0.10)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              height: 38,
-              width: 38,
-              decoration: BoxDecoration(
-                color: redColor.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: redColor.withValues(alpha: 0.10)),
+    return Material(
+      color: const Color(0xffFFF7F7),
+      borderRadius: BorderRadius.circular(19),
+      child: InkWell(
+        onTap: _logout,
+        borderRadius: BorderRadius.circular(19),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(19),
+            border: Border.all(
+              color: redColor.withValues(alpha: 0.16),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: redColor.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
               ),
-              child: const Icon(
-                Icons.logout_rounded,
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                height: 42,
+                width: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.power_settings_new_rounded,
+                  color: redColor,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 11),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Keluar dari Akun',
+                      style: TextStyle(
+                        color: redColor,
+                        fontSize: 13.8,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Akhiri sesi admin dan kembali ke halaman awal',
+                      style: TextStyle(
+                        color: Color(0xff991B1B),
+                        fontSize: 10.4,
+                        height: 1.3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
                 color: redColor,
-                size: 19,
+                size: 24,
               ),
-            ),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Keluar',
-                    style: TextStyle(
-                      color: redColor,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  SizedBox(height: 3),
-                  Text(
-                    'Akhiri sesi admin dan kembali ke login',
-                    style: TextStyle(
-                      color: textGrey,
-                      fontSize: 11.2,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: redColor, size: 18),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _sectionTitle({required String title, required String subtitle}) {
-    return Row(
-      children: [
-        Container(
-          height: 30,
-          width: 4,
-          decoration: BoxDecoration(
-            color: primaryGreen,
-            borderRadius: BorderRadius.circular(99),
-          ),
+  Widget _sectionTitle({
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 11,
+        vertical: 10,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: cardBorder.withValues(alpha: 0.90),
         ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: textDark,
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: textGrey,
-                  fontSize: 11.2,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+        boxShadow: [
+          BoxShadow(
+            color: adminNavy.withValues(alpha: 0.035),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-        ),
-      ],
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 31,
+            width: 4,
+            decoration: BoxDecoration(
+              color: adminPurple,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 15.5,
+                    height: 1.05,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 10.8,
+                    height: 1.25,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   BoxDecoration _cardDecoration({double radius = 18}) {
     return BoxDecoration(
-      color: Colors.white,
+      color: Colors.white.withValues(alpha: 0.98),
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: cardBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.026),
-          blurRadius: 12,
-          offset: const Offset(0, 5),
+          color: adminNavy.withValues(alpha: 0.05),
+          blurRadius: 15,
+          offset: const Offset(0, 6),
         ),
       ],
+    );
+  }
+}
+
+
+class _AdminProfileBackground extends StatelessWidget {
+  const _AdminProfileBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: SizedBox.expand(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final height = constraints.maxHeight;
+            final base = width < height ? width : height;
+
+            final large = (base * 1.02)
+                .clamp(290.0, 500.0)
+                .toDouble();
+
+            final medium = (base * 0.70)
+                .clamp(200.0, 345.0)
+                .toDouble();
+
+            final small = (base * 0.42)
+                .clamp(125.0, 205.0)
+                .toDouble();
+
+            return ClipRect(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0xff172A46),
+                          Color(0xff263E61),
+                          Color(0xffE8EAF2),
+                          Color(0xffF2F4F8),
+                        ],
+                        stops: [
+                          0,
+                          0.20,
+                          0.46,
+                          1,
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: -large * 0.56,
+                    right: -large * 0.31,
+                    child: _ProfileBackgroundCircle(
+                      size: large,
+                      color: const Color(0xff6256A4),
+                      alpha: 0.22,
+                    ),
+                  ),
+                  Positioned(
+                    top: -small * 0.10,
+                    left: -small * 0.24,
+                    child: _ProfileBackgroundRing(
+                      size: small,
+                      color: Colors.white,
+                      alpha: 0.11,
+                    ),
+                  ),
+                  Positioned(
+                    top: height * 0.28,
+                    left: -medium * 0.57,
+                    child: _ProfileBackgroundCircle(
+                      size: medium,
+                      color: const Color(0xff54779A),
+                      alpha: 0.14,
+                    ),
+                  ),
+                  Positioned(
+                    top: height * 0.50,
+                    right: -medium * 0.64,
+                    child: _ProfileBackgroundCircle(
+                      size: medium * 1.08,
+                      color: const Color(0xffE8E1F7),
+                      alpha: 0.38,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -large * 0.53,
+                    left: -large * 0.31,
+                    child: _ProfileBackgroundCircle(
+                      size: large,
+                      color: const Color(0xffDCEDE8),
+                      alpha: 0.34,
+                    ),
+                  ),
+                  const Positioned(
+                    top: 88,
+                    right: 18,
+                    child: _ProfileWatermark(
+                      icon: Icons.manage_accounts_rounded,
+                      size: 68,
+                      color: Colors.white,
+                      alpha: 0.050,
+                      angle: -0.14,
+                    ),
+                  ),
+                  const Positioned(
+                    bottom: 118,
+                    left: 18,
+                    child: _ProfileWatermark(
+                      icon: Icons.admin_panel_settings_outlined,
+                      size: 60,
+                      color: Color(0xff6256A4),
+                      alpha: 0.030,
+                      angle: 0.16,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileBackgroundCircle extends StatelessWidget {
+  final double size;
+  final Color color;
+  final double alpha;
+
+  const _ProfileBackgroundCircle({
+    required this.size,
+    required this.color,
+    required this.alpha,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: alpha),
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+class _ProfileBackgroundRing extends StatelessWidget {
+  final double size;
+  final Color color;
+  final double alpha;
+
+  const _ProfileBackgroundRing({
+    required this.size,
+    required this.color,
+    required this.alpha,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: color.withValues(alpha: alpha),
+          width: 2,
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileWatermark extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final Color color;
+  final double alpha;
+  final double angle;
+
+  const _ProfileWatermark({
+    required this.icon,
+    required this.size,
+    required this.color,
+    required this.alpha,
+    required this.angle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.rotate(
+      angle: angle,
+      child: Icon(
+        icon,
+        size: size,
+        color: color.withValues(alpha: alpha),
+      ),
     );
   }
 }
@@ -836,17 +1400,6 @@ class _AdminProfileData {
     required this.alatMenunggu,
   });
 
-  factory _AdminProfileData.empty() {
-    return const _AdminProfileData(
-      totalAnggota: 0,
-      totalCalon: 0,
-      totalPupuk: 0,
-      totalPeminjaman: 0,
-      calonMenunggu: 0,
-      pupukMenunggu: 0,
-      alatMenunggu: 0,
-    );
-  }
 
   int get totalVerifikasi => calonMenunggu + pupukMenunggu + alatMenunggu;
 }

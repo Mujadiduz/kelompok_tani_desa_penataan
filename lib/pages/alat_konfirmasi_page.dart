@@ -824,16 +824,7 @@ class _AlatKonfirmasiPageState
             ),
           ),
           backgroundColor: color,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            16,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+          behavior: SnackBarBehavior.fixed,
         ),
       );
   }
@@ -1482,7 +1473,9 @@ class _AlatKonfirmasiPageState
             14,
             12,
           ),
-          child: Center(
+          child: Align(
+            alignment: Alignment.center,
+            heightFactor: 1,
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 maxWidth: 760,

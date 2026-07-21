@@ -6,11 +6,11 @@ import 'package:flutter/material.dart';
 
 import '../services/notification_service.dart';
 import '../widgets/app_background.dart';
-import 'jadwal_alat_admin_page.dart';
 import 'kelola_alat_page.dart';
 import 'kelola_pengumuman_page.dart';
 import 'kelola_pupuk_page.dart';
 import 'laporan_page.dart';
+import 'notifikasi_admin_page.dart';
 import 'profil_admin_page.dart';
 import 'reset_password_admin_page.dart';
 import 'riwayat_admin_page.dart';
@@ -782,41 +782,20 @@ class _AdminHomePageState extends State<AdminHomePage> {
   ) async {
     if (!mounted) return;
 
-    final drawerOpen =
-        _scaffoldKey.currentState?.isDrawerOpen ??
-        false;
-
-    if (drawerOpen) {
-      Navigator.of(context).pop();
-
-      await Future<void>.delayed(
-        const Duration(milliseconds: 170),
-      );
-    }
-
-    if (!mounted) return;
-
-    await Navigator.push(
+    /*
+     * Jangan tutup drawer sebelum membuka halaman Kelola.
+     * Route baru ditampilkan di atas halaman admin yang drawer-nya
+     * masih terbuka. Saat halaman Kelola ditutup, drawer langsung
+     * terlihat kembali tanpa kilatan Dashboard Admin.
+     */
+    await Navigator.of(
       context,
+      rootNavigator: true,
+    ).push(
       MaterialPageRoute(
         builder: (_) => page,
       ),
     );
-
-    if (!mounted) return;
-
-    /*
-     * Setelah admin kembali dari halaman kelola,
-     * drawer dibuka lagi supaya posisi menu tetap
-     * berada di bagian Kelola Data.
-     */
-    await Future<void>.delayed(
-      const Duration(milliseconds: 180),
-    );
-
-    if (!mounted) return;
-
-    _scaffoldKey.currentState?.openDrawer();
   }
 
   @override
@@ -1110,10 +1089,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 ),
                 const SizedBox(width: 7),
 
-                /*
-                 * Indikator notifikasi hanya menjadi
-                 * tampilan informasi, tidak dapat ditekan.
-                 */
                 _notificationIndicator(
                   data.notifikasiBelumDibaca,
                 ),
@@ -1126,76 +1101,106 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 
   Widget _notificationIndicator(int total) {
-    return IgnorePointer(
-      child: SizedBox(
-        height: 46,
-        width: 48,
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: [
-            Container(
-              height: 42,
-              width: 42,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(
-                  alpha: 0.13,
-                ),
-                borderRadius:
-                    BorderRadius.circular(14),
-                border: Border.all(
-                  color: Colors.white.withValues(
-                    alpha: 0.19,
-                  ),
-                ),
+    return Semantics(
+      button: true,
+      label: total > 0
+          ? 'Buka notifikasi admin, $total belum dibaca'
+          : 'Buka notifikasi admin',
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(15),
+        child: InkWell(
+          onTap: () {
+            _openPage(
+              const NotifikasiAdminPage(),
+            );
+          },
+          borderRadius: BorderRadius.circular(15),
+          child: Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(
+                alpha: 0.13,
               ),
-              child: const Icon(
-                Icons.notifications_none_rounded,
-                color: Colors.white,
-                size: 23,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: Colors.white.withValues(
+                  alpha: 0.19,
+                ),
               ),
             ),
-            if (total > 0)
-              Positioned(
-                right: -1,
-                top: -2,
-                child: _notificationBadge(total),
-              ),
-          ],
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Center(
+                  child: Icon(
+                    Icons.notifications_none_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                if (total > 0)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: _notificationBadge(total),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _notificationBadge(int total) {
-    final text =
-        total > 99 ? '99+' : total.toString();
+    final text = total > 99
+        ? '99+'
+        : total.toString();
+
+    final width = text.length == 1
+        ? 18.0
+        : text.length == 2
+            ? 22.0
+            : 27.0;
 
     return Container(
-      constraints: const BoxConstraints(
-        minWidth: 20,
-        minHeight: 19,
-      ),
+      width: width,
+      height: 18,
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(
-        horizontal: 5,
-        vertical: 3,
+        horizontal: 3,
       ),
       decoration: BoxDecoration(
         color: redStatus,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: Colors.white,
-          width: 2,
+          width: 1.4,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: redStatus.withValues(
+              alpha: 0.28,
+            ),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 8.5,
-          height: 1,
-          fontWeight: FontWeight.w900,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          text,
+          maxLines: 1,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 7.8,
+            height: 1,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ),
     );
@@ -1279,6 +1284,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
                       Icons.notifications_outlined,
                   color: redStatus,
                   backgroundColor: softRed,
+                  onTap: () {
+                    _openPage(
+                      const NotifikasiAdminPage(),
+                    );
+                  },
                 ),
               ),
             ],
@@ -1294,8 +1304,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
     required IconData icon,
     required Color color,
     required Color backgroundColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    final content = Container(
       constraints: const BoxConstraints(
         minHeight: 72,
       ),
@@ -1344,6 +1355,20 @@ class _AdminHomePageState extends State<AdminHomePage> {
             ),
           ),
         ],
+      ),
+    );
+
+    if (onTap == null) {
+      return content;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(15),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: content,
       ),
     );
   }
@@ -2064,19 +2089,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
                     onTap: () {
                       _openManagementPage(
                         const KelolaAlatPage(),
-                      );
-                    },
-                  ),
-                  _drawerTile(
-                    title: 'Jadwal Alat',
-                    subtitle:
-                        'Atur jadwal peminjaman alat',
-                    icon:
-                        Icons.calendar_month_outlined,
-                    color: blueStatus,
-                    onTap: () {
-                      _openManagementPage(
-                        const JadwalAlatAdminPage(),
                       );
                     },
                   ),

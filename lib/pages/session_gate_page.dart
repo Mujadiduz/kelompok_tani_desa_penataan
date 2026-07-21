@@ -5,17 +5,16 @@ import 'admin_home_page.dart';
 import 'role_selection_page.dart';
 import 'user_home_page.dart';
 
-class SplashScreenPage extends StatefulWidget {
-  const SplashScreenPage({super.key});
+class SessionGatePage extends StatefulWidget {
+  const SessionGatePage({super.key});
 
   @override
-  State<SplashScreenPage> createState() =>
-      _SplashScreenPageState();
+  State<SessionGatePage> createState() =>
+      _SessionGatePageState();
 }
 
-class _SplashScreenPageState extends State<SplashScreenPage> {
+class _SessionGatePageState extends State<SessionGatePage> {
   static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff14532D);
   static const Color navy = Color(0xff17324D);
 
   @override
@@ -23,20 +22,11 @@ class _SplashScreenPageState extends State<SplashScreenPage> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _restoreSession();
+      _checkSession();
     });
   }
 
-  Future<void> _restoreSession() async {
-    /*
-     * Durasi pendek memberi waktu agar splash terlihat wajar,
-     * tetapi tidak membuat pengguna menunggu seperti sedang antre
-     * tanda tangan pejabat.
-     */
-    await Future<void>.delayed(
-      const Duration(milliseconds: 850),
-    );
-
+  Future<void> _checkSession() async {
     Widget destination = const RoleSelectionPage();
 
     try {
@@ -49,23 +39,19 @@ class _SplashScreenPageState extends State<SplashScreenPage> {
           nama: session.nama!,
           nik: session.nik!,
         );
-      } else if (session.role != null) {
-        /*
-         * Role tersimpan tetapi data sesi tidak lengkap.
-         * Bersihkan agar aplikasi tidak terjebak pada sesi rusak.
-         */
-        await SessionHelper.clearSession();
       }
     } catch (error, stackTrace) {
-      debugPrint(
-        'Gagal memulihkan sesi: $error',
-      );
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
-
-      destination = const RoleSelectionPage();
+      debugPrint('Gagal membaca sesi: $error');
+      debugPrintStack(stackTrace: stackTrace);
     }
+
+    /*
+     * Jeda hanya untuk mencegah layar berkedip terlalu cepat.
+     * Pemeriksaan sesi sudah selesai sebelum navigasi dijalankan.
+     */
+    await Future<void>.delayed(
+      const Duration(milliseconds: 450),
+    );
 
     if (!mounted) {
       return;
@@ -81,72 +67,24 @@ class _SplashScreenPageState extends State<SplashScreenPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xffF3F7F4),
+    return const Scaffold(
+      backgroundColor: Color(0xffF3F7F4),
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const _SplashBackground(),
+          _SessionGateBackground(),
           SafeArea(
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
+                padding: EdgeInsets.symmetric(
                   horizontal: 28,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      height: 104,
-                      width: 104,
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(31),
-                        border: Border.all(
-                          color: primaryGreen.withValues(
-                            alpha: 0.10,
-                          ),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: navy.withValues(alpha: 0.15),
-                            blurRadius: 28,
-                            offset: const Offset(0, 12),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(25),
-                        child: Image.asset(
-                          'assets/icon/Icon-Apps.png',
-                          fit: BoxFit.cover,
-                          errorBuilder: (
-                            context,
-                            error,
-                            stackTrace,
-                          ) {
-                            return const DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    darkGreen,
-                                    primaryGreen,
-                                  ],
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.eco_rounded,
-                                color: Colors.white,
-                                size: 52,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    const Text(
+                    _AppLogo(),
+                    SizedBox(height: 18),
+                    Text(
                       'TaniGo',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -157,8 +95,8 @@ class _SplashScreenPageState extends State<SplashScreenPage> {
                         letterSpacing: -0.5,
                       ),
                     ),
-                    const SizedBox(height: 7),
-                    const Text(
+                    SizedBox(height: 7),
+                    Text(
                       'Sistem Informasi Kelompok Tani',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -167,8 +105,8 @@ class _SplashScreenPageState extends State<SplashScreenPage> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 26),
-                    const SizedBox(
+                    SizedBox(height: 26),
+                    SizedBox(
                       height: 27,
                       width: 27,
                       child: CircularProgressIndicator(
@@ -176,9 +114,9 @@ class _SplashScreenPageState extends State<SplashScreenPage> {
                         strokeWidth: 2.8,
                       ),
                     ),
-                    const SizedBox(height: 11),
-                    const Text(
-                      'Memeriksa sesi akun...',
+                    SizedBox(height: 11),
+                    Text(
+                      'Memulihkan sesi akun...',
                       style: TextStyle(
                         color: Color(0xff7A858F),
                         fontSize: 10.2,
@@ -196,8 +134,65 @@ class _SplashScreenPageState extends State<SplashScreenPage> {
   }
 }
 
-class _SplashBackground extends StatelessWidget {
-  const _SplashBackground();
+class _AppLogo extends StatelessWidget {
+  const _AppLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 104,
+      width: 104,
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(31),
+        border: Border.all(
+          color: _SessionGatePageState.primaryGreen
+              .withValues(alpha: 0.10),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _SessionGatePageState.navy
+                .withValues(alpha: 0.15),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(25),
+        child: Image.asset(
+          'assets/icon/Icon-Apps.png',
+          fit: BoxFit.cover,
+          errorBuilder: (
+            context,
+            error,
+            stackTrace,
+          ) {
+            return const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xff14532D),
+                    _SessionGatePageState.primaryGreen,
+                  ],
+                ),
+              ),
+              child: Icon(
+                Icons.eco_rounded,
+                color: Colors.white,
+                size: 52,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionGateBackground extends StatelessWidget {
+  const _SessionGateBackground();
 
   @override
   Widget build(BuildContext context) {
@@ -237,7 +232,7 @@ class _SplashBackground extends StatelessWidget {
                 Positioned(
                   top: -large * 0.49,
                   right: -large * 0.32,
-                  child: _SplashCircle(
+                  child: _GateCircle(
                     size: large,
                     color: Color(0xffDCEAF6),
                   ),
@@ -245,7 +240,7 @@ class _SplashBackground extends StatelessWidget {
                 Positioned(
                   top: constraints.maxHeight * 0.34,
                   left: -medium * 0.57,
-                  child: _SplashCircle(
+                  child: _GateCircle(
                     size: medium,
                     color: Color(0xffDFF0E4),
                   ),
@@ -253,7 +248,7 @@ class _SplashBackground extends StatelessWidget {
                 Positioned(
                   bottom: -large * 0.52,
                   right: -large * 0.31,
-                  child: _SplashCircle(
+                  child: _GateCircle(
                     size: large,
                     color: Color(0xffFFF0D2),
                   ),
@@ -267,11 +262,11 @@ class _SplashBackground extends StatelessWidget {
   }
 }
 
-class _SplashCircle extends StatelessWidget {
+class _GateCircle extends StatelessWidget {
   final double size;
   final Color color;
 
-  const _SplashCircle({
+  const _GateCircle({
     required this.size,
     required this.color,
   });

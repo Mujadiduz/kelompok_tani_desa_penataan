@@ -663,24 +663,28 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
       ..clearSnackBars()
       ..showSnackBar(
         SnackBar(
-          content: Text(
-            message,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
+          content: Row(
+            children: [
+              const Icon(
+                Icons.info_outline_rounded,
+                color: Colors.white,
+                size: 19,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
           backgroundColor: color,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            16,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(14),
-          ),
+          behavior: SnackBarBehavior.fixed,
+          duration: const Duration(seconds: 3),
         ),
       );
   }
@@ -1840,8 +1844,7 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
     return Material(
       color: Colors.white,
       elevation: 10,
-      shadowColor:
-          deepTeal.withValues(alpha: 0.13),
+      shadowColor: deepTeal.withValues(alpha: 0.13),
       child: SafeArea(
         top: false,
         child: Padding(
@@ -1851,10 +1854,11 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
             14,
             12,
           ),
-          child: Center(
+          child: Align(
+            alignment: Alignment.center,
+            heightFactor: 1,
             child: ConstrainedBox(
-              constraints:
-                  const BoxConstraints(
+              constraints: const BoxConstraints(
                 maxWidth: 760,
               ),
               child: SizedBox(
@@ -1864,34 +1868,22 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                   onPressed: active
                       ? _continueToForm
                       : null,
-                  style:
-                      ElevatedButton.styleFrom(
+                  style: ElevatedButton.styleFrom(
                     backgroundColor: teal,
-                    foregroundColor:
-                        Colors.white,
+                    foregroundColor: Colors.white,
                     disabledBackgroundColor:
-                        teal.withValues(
-                      alpha: 0.28,
-                    ),
+                        teal.withValues(alpha: 0.28),
                     disabledForegroundColor:
-                        Colors.white.withValues(
-                      alpha: 0.86,
-                    ),
+                        Colors.white.withValues(alpha: 0.86),
                     elevation: 0,
-                    shape:
-                        RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(
-                        15,
-                      ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
                     ),
                   ),
                   icon: Icon(
                     active
-                        ? Icons
-                            .arrow_forward_rounded
-                        : Icons
-                            .event_available_outlined,
+                        ? Icons.arrow_forward_rounded
+                        : Icons.event_available_outlined,
                     size: 19,
                   ),
                   label: Text(
@@ -1899,12 +1891,10 @@ class _KoordinasiJadwalPageState extends State<KoordinasiJadwalPage> {
                         ? 'Lanjut Isi Data'
                         : 'Pilih Tanggal Terlebih Dahulu',
                     maxLines: 1,
-                    overflow:
-                        TextOverflow.ellipsis,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 12.3,
-                      fontWeight:
-                          FontWeight.w900,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),

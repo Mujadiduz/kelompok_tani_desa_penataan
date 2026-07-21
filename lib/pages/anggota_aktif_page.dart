@@ -8,38 +8,43 @@ class AnggotaAktifPage extends StatefulWidget {
   const AnggotaAktifPage({super.key});
 
   @override
-  State<AnggotaAktifPage> createState() => _AnggotaAktifPageState();
+  State<AnggotaAktifPage> createState() =>
+      _AnggotaAktifPageState();
 }
 
 class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
-  static const Color primaryGreen = Color(0xff2E7D32);
-  static const Color darkGreen = Color(0xff14532D);
-  static const Color softGreen = Color(0xffEAF7EC);
-  static const Color mintGreen = Color(0xffF1F8F3);
-  static const Color backgroundColor = Color(0xffF6FAF7);
-  static const Color cardBorder = Color(0xffE6ECE8);
-  static const Color textDark = Color(0xff1F2937);
-  static const Color textGrey = Color(0xff6B7280);
-  static const Color blueTone = Color(0xff2563EB);
+  static const Color adminNavy = Color(0xff172A46);
+  static const Color adminIndigo = Color(0xff435987);
+  static const Color adminPurple = Color(0xff6256A4);
 
-  final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocusNode = FocusNode();
+  static const Color green = Color(0xff2E7D32);
+  static const Color blue = Color(0xff326CA3);
 
-  final ValueNotifier<String> _keywordNotifier = ValueNotifier<String>('');
-  final ValueNotifier<String> _filterNotifier = ValueNotifier<String>('semua');
+  static const Color pageBackground = Color(0xffF2F4F8);
+  static const Color cardBorder = Color(0xffE0E5EC);
+  static const Color textDark = Color(0xff18212B);
+  static const Color textGrey = Color(0xff66727F);
 
-  final DatabaseReference _anggotaRef = FirebaseDatabase.instanceFor(
+  static const Color softGreen = Color(0xffE9F5EB);
+  static const Color softBlue = Color(0xffE9F2FA);
+  static const Color softPurple = Color(0xffF0ECFA);
+
+  final TextEditingController _searchController =
+      TextEditingController();
+
+  final DatabaseReference _anggotaRef =
+      FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL:
         'https://kelompok-tani-desa-penataan-default-rtdb.asia-southeast1.firebasedatabase.app',
   ).ref('anggota');
 
+  String _searchQuery = '';
+  String _selectedFilter = 'semua';
+
   @override
   void dispose() {
     _searchController.dispose();
-    _searchFocusNode.dispose();
-    _keywordNotifier.dispose();
-    _filterNotifier.dispose();
     super.dispose();
   }
 
@@ -47,72 +52,94 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
     await _anggotaRef.get();
   }
 
-  List<Map<String, dynamic>> _ambilData(dynamic value) {
-    if (value == null || value is! Map) return [];
+  Map<String, dynamic> _map(dynamic value) {
+    if (value is! Map) {
+      return <String, dynamic>{};
+    }
 
-    final data = Map<dynamic, dynamic>.from(value);
-
-    final list =
-        data.entries
-            .where((entry) => entry.value is Map)
-            .map((entry) {
-              final item = Map<String, dynamic>.from(entry.value as Map);
-              item['id'] = entry.key.toString();
-              return item;
-            })
-            .where((item) {
-              final status = _statusData(item);
-              return status.isEmpty ||
-                  status == 'aktif' ||
-                  status == 'anggota' ||
-                  status == 'disetujui';
-            })
-            .toList();
-
-    list.sort((a, b) {
-      final namaA = _text(a['nama']).toLowerCase();
-      final namaB = _text(b['nama']).toLowerCase();
-      return namaA.compareTo(namaB);
-    });
-
-    return list;
+    return Map<String, dynamic>.from(value);
   }
 
-  String _text(dynamic value, {String fallback = '-'}) {
+  String _text(
+    dynamic value, {
+    String fallback = '-',
+  }) {
     final result = (value ?? '').toString().trim();
-    return result.isEmpty ? fallback : result;
+
+    if (result.isEmpty ||
+        result.toLowerCase() == 'null') {
+      return fallback;
+    }
+
+    return result;
   }
 
-  String _statusData(Map<String, dynamic> item) {
-    return _text(item['status'], fallback: '').toLowerCase().trim();
-  }
-
-  String _telepon(Map<String, dynamic> item) {
-    return _text(item['telepon'] ?? item['no_hp'] ?? item['nomor_hp']);
+  String _status(Map<String, dynamic> item) {
+    return _text(
+      item['status'],
+      fallback: '',
+    ).toLowerCase();
   }
 
   String _genderRaw(Map<String, dynamic> item) {
     return _text(
-      item['jenis_kelamin'] ?? item['jenisKelamin'],
+      item['jenis_kelamin'] ??
+          item['jenisKelamin'],
       fallback: '',
-    ).toLowerCase().trim();
+    ).toLowerCase();
   }
 
   String _genderText(Map<String, dynamic> item) {
-    final gender = _genderRaw(item);
+    final value = _genderRaw(item);
 
-    if (gender == 'laki-laki' || gender == 'laki laki' || gender == 'pria') {
+    if (value == 'laki-laki' ||
+        value == 'laki laki' ||
+        value == 'pria') {
       return 'Laki-laki';
     }
 
-    if (gender == 'perempuan' || gender == 'wanita') {
+    if (value == 'perempuan' ||
+        value == 'wanita') {
       return 'Perempuan';
     }
 
     return '-';
   }
 
-  String _tanggalDaftar(Map<String, dynamic> item) {
+  String _phone(Map<String, dynamic> item) {
+    return _text(
+      item['telepon'] ??
+          item['no_hp'] ??
+          item['nomor_hp'],
+    );
+  }
+
+  String _landArea(Map<String, dynamic> item) {
+    final raw = _text(
+      item['luas_lahan'] ??
+          item['luas_sawah'],
+      fallback: '',
+    );
+
+    if (raw.isEmpty) {
+      return '-';
+    }
+
+    final lower = raw.toLowerCase();
+
+    if (lower.contains('ha') ||
+        lower.contains('m²') ||
+        lower.contains('m2') ||
+        lower.contains('meter')) {
+      return raw;
+    }
+
+    return '$raw ha';
+  }
+
+  String _registrationDate(
+    Map<String, dynamic> item,
+  ) {
     final raw = _text(
       item['tanggal_daftar'] ??
           item['tanggal_verifikasi'] ??
@@ -121,60 +148,109 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
       fallback: '',
     );
 
-    if (raw.isEmpty) return '-';
+    if (raw.isEmpty) {
+      return '-';
+    }
 
-    try {
-      final date = DateTime.parse(raw);
-      return '${date.day.toString().padLeft(2, '0')}/'
-          '${date.month.toString().padLeft(2, '0')}/'
-          '${date.year}';
-    } catch (_) {
+    final parsed = DateTime.tryParse(raw);
+
+    if (parsed == null) {
       return raw;
     }
+
+    return '${parsed.day.toString().padLeft(2, '0')}/'
+        '${parsed.month.toString().padLeft(2, '0')}/'
+        '${parsed.year}';
   }
 
-  String _luasLahan(Map<String, dynamic> item) {
-    final luas = _text(item['luas_lahan'] ?? item['luas_sawah'], fallback: '');
-    if (luas.isEmpty) return '-';
-    return '$luas ha';
-  }
+  String _maskedNik(dynamic value) {
+    final nik = _text(
+      value,
+      fallback: '',
+    ).replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
 
-  String _maskNik(dynamic value) {
-    final nik = _text(value, fallback: '').replaceAll(RegExp(r'\s+'), '');
-    if (nik.isEmpty) return '•••• •••• •••• ----';
-
-    final last4 = nik.length >= 4 ? nik.substring(nik.length - 4) : nik;
-    return '•••• •••• •••• $last4';
-  }
-
-  List<Map<String, dynamic>> _filterData({
-    required List<Map<String, dynamic>> data,
-    required String keyword,
-    required String filter,
-  }) {
-    var result = data;
-
-    if (filter == 'laki') {
-      result =
-          result.where((item) {
-            final gender = _genderRaw(item);
-            return gender == 'laki-laki' ||
-                gender == 'laki laki' ||
-                gender == 'pria';
-          }).toList();
-    } else if (filter == 'perempuan') {
-      result =
-          result.where((item) {
-            final gender = _genderRaw(item);
-            return gender == 'perempuan' || gender == 'wanita';
-          }).toList();
+    if (nik.isEmpty) {
+      return '•••• •••• •••• ----';
     }
 
-    final q = keyword.toLowerCase().trim();
-    if (q.isEmpty) return result;
+    final lastFour = nik.length >= 4
+        ? nik.substring(nik.length - 4)
+        : nik;
 
-    return result.where((item) {
-      final combined = [
+    return '•••• •••• •••• $lastFour';
+  }
+
+  List<Map<String, dynamic>> _members(
+    dynamic value,
+  ) {
+    if (value is! Map) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final result = <Map<String, dynamic>>[];
+
+    for (final entry
+        in Map<dynamic, dynamic>.from(value).entries) {
+      if (entry.value is! Map) {
+        continue;
+      }
+
+      final item = _map(entry.value);
+      final status = _status(item);
+
+      if (status.isNotEmpty &&
+          status != 'aktif' &&
+          status != 'anggota' &&
+          status != 'disetujui') {
+        continue;
+      }
+
+      item['id'] = entry.key.toString();
+      result.add(item);
+    }
+
+    result.sort(
+      (first, second) => _text(
+        first['nama'],
+      ).toLowerCase().compareTo(
+            _text(
+              second['nama'],
+            ).toLowerCase(),
+          ),
+    );
+
+    return result;
+  }
+
+  List<Map<String, dynamic>> _filteredMembers(
+    List<Map<String, dynamic>> source,
+  ) {
+    final query = _searchQuery.trim().toLowerCase();
+
+    return source.where((item) {
+      final gender = _genderRaw(item);
+
+      if (_selectedFilter == 'laki' &&
+          gender != 'laki-laki' &&
+          gender != 'laki laki' &&
+          gender != 'pria') {
+        return false;
+      }
+
+      if (_selectedFilter == 'perempuan' &&
+          gender != 'perempuan' &&
+          gender != 'wanita') {
+        return false;
+      }
+
+      if (query.isEmpty) {
+        return true;
+      }
+
+      final combined = <dynamic>[
         item['nama'],
         item['nik'],
         item['alamat'],
@@ -182,149 +258,388 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
         item['no_hp'],
         item['nomor_hp'],
         item['jenis_kelamin'],
-        item['jenisKelamin'],
         item['luas_lahan'],
         item['luas_sawah'],
-      ].map((e) => _text(e, fallback: '').toLowerCase()).join(' ');
+      ].map(
+        (value) => _text(
+          value,
+          fallback: '',
+        ).toLowerCase(),
+      ).join(' ');
 
-      return combined.contains(q);
+      return combined.contains(query);
     }).toList();
+  }
+
+  int _maleCount(List<Map<String, dynamic>> source) {
+    return source.where((item) {
+      final value = _genderRaw(item);
+
+      return value == 'laki-laki' ||
+          value == 'laki laki' ||
+          value == 'pria';
+    }).length;
+  }
+
+  int _femaleCount(
+    List<Map<String, dynamic>> source,
+  ) {
+    return source.where((item) {
+      final value = _genderRaw(item);
+
+      return value == 'perempuan' ||
+          value == 'wanita';
+    }).length;
+  }
+
+  Future<void> _showMemberDetail(
+    Map<String, dynamic> item,
+  ) async {
+    final screenSize = MediaQuery.sizeOf(context);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: adminNavy.withValues(alpha: 0.48),
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: screenSize.height * 0.82,
+            ),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(26),
+                ),
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  18,
+                  10,
+                  18,
+                  22,
+                ),
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        height: 4,
+                        width: 42,
+                        decoration: BoxDecoration(
+                          color: cardBorder,
+                          borderRadius:
+                              BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        _iconBox(
+                          icon: Icons.person_outline_rounded,
+                          color: green,
+                          background: softGreen,
+                          size: 48,
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _text(item['nama']),
+                                maxLines: 2,
+                                overflow:
+                                    TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: textDark,
+                                  fontSize: 16,
+                                  fontWeight:
+                                      FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                _maskedNik(item['nik']),
+                                style: const TextStyle(
+                                  color: textGrey,
+                                  fontSize: 10.3,
+                                  fontWeight:
+                                      FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _activeBadge(),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _detailRow(
+                      icon: Icons.badge_outlined,
+                      label: 'NIK',
+                      value: _text(item['nik']),
+                    ),
+                    _detailRow(
+                      icon: Icons.phone_outlined,
+                      label: 'Nomor Telepon',
+                      value: _phone(item),
+                    ),
+                    _detailRow(
+                      icon: Icons.wc_outlined,
+                      label: 'Jenis Kelamin',
+                      value: _genderText(item),
+                    ),
+                    _detailRow(
+                      icon: Icons.home_outlined,
+                      label: 'Alamat',
+                      value: _text(item['alamat']),
+                    ),
+                    _detailRow(
+                      icon: Icons.landscape_outlined,
+                      label: 'Luas Lahan',
+                      value: _landArea(item),
+                    ),
+                    _detailRow(
+                      icon: Icons.calendar_month_outlined,
+                      label: 'Tanggal Daftar',
+                      value: _registrationDate(item),
+                      last: true,
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 45,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: adminPurple,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Text(
+                          'Tutup',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth =
+        MediaQuery.sizeOf(context).width;
+
+    final horizontalPadding = screenWidth < 350
+        ? 12.0
+        : screenWidth >= 700
+            ? 22.0
+            : 16.0;
+
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: pageBackground,
       body: AppBackground(
-        child: SafeArea(
-          child: StreamBuilder<DatabaseEvent>(
-            stream: _anggotaRef.onValue,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
-                  children: [
-                    _header(total: 0),
-                    const SizedBox(height: 16),
-                    _emptyState(
-                      icon: Icons.fact_check_rounded,
-                      title: 'Terjadi Kesalahan',
-                      message: snapshot.error.toString(),
-                    ),
-                  ],
-                );
-              }
+        showPattern: false,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const _MemberBackground(),
+            SafeArea(
+              child: StreamBuilder<DatabaseEvent>(
+                stream: _anggotaRef.onValue,
+                builder: (context, snapshot) {
+                  final members = _members(
+                    snapshot.data?.snapshot.value,
+                  );
 
-              final semuaData = _ambilData(snapshot.data?.snapshot.value);
+                  final filtered =
+                      _filteredMembers(members);
 
-              return RefreshIndicator(
-                color: primaryGreen,
-                backgroundColor: Colors.white,
-                onRefresh: _refreshData,
-                child: ListView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.manual,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
-                  children: [
-                    _header(total: semuaData.length),
-                    const SizedBox(height: 14),
-                    _searchBox(),
-                    const SizedBox(height: 10),
-                    _filterChips(),
-                    const SizedBox(height: 16),
-                    ValueListenableBuilder<String>(
-                      valueListenable: _keywordNotifier,
-                      builder: (context, keyword, _) {
-                        return ValueListenableBuilder<String>(
-                          valueListenable: _filterNotifier,
-                          builder: (context, filter, _) {
-                            final dataFilter = _filterData(
-                              data: semuaData,
-                              keyword: keyword,
-                              filter: filter,
-                            );
-
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                  return RefreshIndicator(
+                    color: adminPurple,
+                    backgroundColor: Colors.white,
+                    onRefresh: _refreshData,
+                    child: ListView(
+                      physics:
+                          const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.fromLTRB(
+                        horizontalPadding,
+                        12,
+                        horizontalPadding,
+                        28,
+                      ),
+                      children: [
+                        Center(
+                          child: ConstrainedBox(
+                            constraints:
+                                const BoxConstraints(
+                              maxWidth: 840,
+                            ),
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.stretch,
                               children: [
-                                _sectionTitle(
-                                  title: 'Daftar Anggota',
-                                  subtitle:
-                                      '${dataFilter.length} anggota ditampilkan',
+                                _header(members.length),
+                                const SizedBox(height: 10),
+                                _summary(
+                                  total: members.length,
+                                  male:
+                                      _maleCount(members),
+                                  female:
+                                      _femaleCount(members),
                                 ),
-                                const SizedBox(height: 12),
-                                if (snapshot.connectionState ==
-                                        ConnectionState.waiting &&
-                                    semuaData.isEmpty)
-                                  const Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(28),
-                                      child: CircularProgressIndicator(
-                                        color: primaryGreen,
-                                      ),
-                                    ),
-                                  )
-                                else if (semuaData.isEmpty)
+                                const SizedBox(height: 10),
+                                _searchBox(),
+                                const SizedBox(height: 8),
+                                _filterBar(),
+                                const SizedBox(height: 15),
+                                _sectionTitle(
+                                  filtered.length,
+                                ),
+                                const SizedBox(height: 9),
+                                if (snapshot
+                                        .connectionState ==
+                                    ConnectionState.waiting)
+                                  _loadingState()
+                                else if (snapshot.hasError)
                                   _emptyState(
-                                    icon: Icons.assignment_ind_rounded,
-                                    title: 'Belum Ada Anggota Aktif',
+                                    icon:
+                                        Icons.cloud_off_outlined,
+                                    title:
+                                        'Data Gagal Dimuat',
                                     message:
-                                        'Data anggota resmi akan tampil setelah calon anggota disetujui oleh admin.',
+                                        'Periksa koneksi lalu tarik halaman ke bawah.',
                                   )
-                                else if (dataFilter.isEmpty)
+                                else if (filtered.isEmpty)
                                   _emptyState(
-                                    icon: Icons.manage_search_rounded,
-                                    title: 'Anggota Tidak Ditemukan',
+                                    icon:
+                                        Icons.people_outline_rounded,
+                                    title:
+                                        'Anggota Tidak Ditemukan',
                                     message:
-                                        'Coba gunakan nama atau NIK anggota yang berbeda.',
+                                        members.isEmpty
+                                            ? 'Belum ada anggota aktif.'
+                                            : 'Coba gunakan pencarian atau filter lain.',
                                   )
                                 else
-                                  ...dataFilter.map(
-                                    (item) => _memberCard(item: item),
+                                  LayoutBuilder(
+                                    builder: (
+                                      context,
+                                      constraints,
+                                    ) {
+                                      final columns =
+                                          constraints
+                                                      .maxWidth >=
+                                                  700
+                                              ? 2
+                                              : 1;
+
+                                      const gap = 9.0;
+
+                                      final itemWidth =
+                                          columns == 2
+                                              ? (constraints
+                                                          .maxWidth -
+                                                      gap) /
+                                                  2
+                                              : constraints
+                                                  .maxWidth;
+
+                                      return Wrap(
+                                        spacing: gap,
+                                        runSpacing: gap,
+                                        children:
+                                            filtered.map(
+                                          (item) {
+                                            return SizedBox(
+                                              width:
+                                                  itemWidth,
+                                              child:
+                                                  _memberCard(
+                                                item,
+                                              ),
+                                            );
+                                          },
+                                        ).toList(),
+                                      );
+                                    },
                                   ),
                               ],
-                            );
-                          },
-                        );
-                      },
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              );
-            },
-          ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _header({required int total}) {
+  Widget _header(int total) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [darkGreen, primaryGreen],
+          colors: [
+            adminNavy,
+            adminIndigo,
+            adminPurple,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(23),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.18),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: adminNavy.withValues(alpha: 0.22),
+            blurRadius: 22,
+            offset: const Offset(0, 9),
           ),
         ],
       ),
       child: Row(
         children: [
           _backButton(),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
+          _iconBox(
+            icon: Icons.groups_2_outlined,
+            color: Colors.white,
+            background:
+                Colors.white.withValues(alpha: 0.14),
+            size: 46,
+          ),
+          const SizedBox(width: 10),
           const Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   'Anggota Aktif',
@@ -332,55 +647,150 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 19,
+                    fontSize: 17.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: 3),
                 Text(
-                  'Data anggota resmi kelompok tani',
-                  maxLines: 2,
+                  'Cek data anggota resmi',
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Color(0xffDDEFE3),
-                    fontSize: 11.8,
-                    height: 1.3,
+                    color: Color(0xffE5E7FF),
+                    fontSize: 10.2,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          _headerBadge(total),
+          Container(
+            constraints: const BoxConstraints(
+              minWidth: 42,
+              minHeight: 32,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 6,
+            ),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color:
+                  Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                total > 999
+                    ? '999+'
+                    : total.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _headerBadge(int total) {
+  Widget _summary({
+    required int total,
+    required int male,
+    required int female,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final gap =
+            constraints.maxWidth < 350 ? 6.0 : 8.0;
+
+        final width =
+            (constraints.maxWidth - gap * 2) / 3;
+
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            SizedBox(
+              width: width,
+              child: _summaryItem(
+                label: 'Total',
+                value: total,
+                icon: Icons.groups_2_outlined,
+                color: adminPurple,
+                background: softPurple,
+              ),
+            ),
+            SizedBox(
+              width: width,
+              child: _summaryItem(
+                label: 'Laki-laki',
+                value: male,
+                icon: Icons.male_rounded,
+                color: blue,
+                background: softBlue,
+              ),
+            ),
+            SizedBox(
+              width: width,
+              child: _summaryItem(
+                label: 'Perempuan',
+                value: female,
+                icon: Icons.female_rounded,
+                color: green,
+                background: softGreen,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _summaryItem({
+    required String label,
+    required int value,
+    required IconData icon,
+    required Color color,
+    required Color background,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      constraints: const BoxConstraints(
+        minHeight: 69,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 5,
+        vertical: 8,
+      ),
+      decoration: _cardDecoration(radius: 16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.verified_user_rounded,
-            color: Colors.white,
-            size: 14,
-          ),
-          const SizedBox(width: 5),
+          Icon(icon, color: color, size: 16),
+          const SizedBox(height: 4),
           Text(
-            total.toString(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
+            value > 999 ? '999+' : value.toString(),
+            style: TextStyle(
+              color: color,
+              fontSize: 14.5,
+              height: 1,
               fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: textGrey,
+              fontSize: 8.2,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -390,299 +800,290 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
 
   Widget _searchBox() {
     return Container(
-      height: 52,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.025),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
+      height: 48,
+      decoration: _cardDecoration(radius: 16),
       child: TextField(
         controller: _searchController,
-        focusNode: _searchFocusNode,
-        maxLines: 1,
-        textInputAction: TextInputAction.search,
-        keyboardType: TextInputType.text,
-        onChanged: (value) => _keywordNotifier.value = value,
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value;
+          });
+        },
         decoration: InputDecoration(
-          hintText: 'Cari nama, NIK, alamat, atau nomor...',
+          hintText: 'Cari nama, NIK, alamat...',
           prefixIcon: const Icon(
-            Icons.manage_search_rounded,
-            color: primaryGreen,
+            Icons.search_rounded,
+            color: adminPurple,
             size: 19,
           ),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 42,
-            minHeight: 42,
-          ),
-          suffixIcon: ValueListenableBuilder<String>(
-            valueListenable: _keywordNotifier,
-            builder: (context, value, _) {
-              if (value.isEmpty) return const SizedBox.shrink();
+          suffixIcon: _searchQuery.isEmpty
+              ? null
+              : IconButton(
+                  onPressed: () {
+                    _searchController.clear();
 
-              return IconButton(
-                onPressed: () {
-                  _searchController.clear();
-                  _keywordNotifier.value = '';
-                  _searchFocusNode.requestFocus();
-                },
-                icon: const Icon(
-                  Icons.cancel_rounded,
-                  color: textGrey,
-                  size: 18,
+                    setState(() {
+                      _searchQuery = '';
+                    });
+                  },
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: textGrey,
+                    size: 18,
+                  ),
                 ),
-              );
-            },
-          ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.fromLTRB(0, 16, 14, 14),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 14,
+          ),
           hintStyle: const TextStyle(
             color: textGrey,
+            fontSize: 11.5,
             fontWeight: FontWeight.w600,
-            fontSize: 12.7,
           ),
         ),
       ),
     );
   }
 
-  Widget _filterChips() {
-    final filters = [
-      ['semua', 'Semua'],
-      ['laki', 'Laki-laki'],
-      ['perempuan', 'Perempuan'],
+  Widget _filterBar() {
+    const filters = <Map<String, String>>[
+      {
+        'value': 'semua',
+        'label': 'Semua',
+      },
+      {
+        'value': 'laki',
+        'label': 'Laki-laki',
+      },
+      {
+        'value': 'perempuan',
+        'label': 'Perempuan',
+      },
     ];
 
-    return ValueListenableBuilder<String>(
-      valueListenable: _filterNotifier,
-      builder: (context, selected, _) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
-          child: Row(
-            children:
-                filters.map((item) {
-                  final aktif = selected == item[0];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: filters.map((item) {
+          final value = item['value']!;
+          final selected =
+              _selectedFilter == value;
 
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      selected: aktif,
-                      showCheckmark: false,
-                      visualDensity: const VisualDensity(
-                        horizontal: -3,
-                        vertical: -3,
-                      ),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 5),
-                      selectedColor: primaryGreen,
-                      backgroundColor: Colors.white,
-                      side: BorderSide(
-                        width: 0.8,
-                        color:
-                            aktif
-                                ? primaryGreen.withValues(alpha: 0.85)
-                                : cardBorder,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      label: Text(item[1]),
-                      labelStyle: TextStyle(
-                        color: aktif ? Colors.white : textGrey,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 10,
-                      ),
-                      onSelected: (_) {
-                        _filterNotifier.value = item[0];
-                      },
-                    ),
-                  );
-                }).toList(),
-          ),
-        );
-      },
+          return Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: ChoiceChip(
+              selected: selected,
+              showCheckmark: false,
+              label: Text(item['label']!),
+              selectedColor: adminPurple,
+              backgroundColor: Colors.white,
+              side: BorderSide(
+                color: selected
+                    ? adminPurple
+                    : cardBorder,
+              ),
+              visualDensity: const VisualDensity(
+                horizontal: -3,
+                vertical: -3,
+              ),
+              materialTapTargetSize:
+                  MaterialTapTargetSize.shrinkWrap,
+              labelStyle: TextStyle(
+                color: selected
+                    ? Colors.white
+                    : textGrey,
+                fontSize: 9.3,
+                fontWeight: FontWeight.w900,
+              ),
+              onSelected: (_) {
+                setState(() {
+                  _selectedFilter = value;
+                });
+              },
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
-  Widget _sectionTitle({required String title, required String subtitle}) {
+  Widget _sectionTitle(int count) {
     return Row(
       children: [
         Container(
-          height: 30,
-          width: 4,
+          height: 29,
+          width: 5,
           decoration: BoxDecoration(
-            color: primaryGreen,
+            color: adminPurple,
             borderRadius: BorderRadius.circular(99),
           ),
         ),
         const SizedBox(width: 9),
-        Expanded(
+        const Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
-                title,
-                style: const TextStyle(
+                'Daftar Anggota',
+                style: TextStyle(
                   color: textDark,
-                  fontSize: 15.5,
+                  fontSize: 14,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               Text(
-                subtitle,
-                style: const TextStyle(
+                'Ketuk kartu untuk melihat detail.',
+                style: TextStyle(
                   color: textGrey,
-                  fontSize: 11.2,
+                  fontSize: 9.3,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
         ),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 7,
+            vertical: 4,
+          ),
+          decoration: BoxDecoration(
+            color: softPurple,
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Text(
+            '$count data',
+            style: const TextStyle(
+              color: adminPurple,
+              fontSize: 8,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _memberCard({required Map<String, dynamic> item}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.026),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _avatarBox(),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+  Widget _memberCard(
+    Map<String, dynamic> item,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: () {
+          _showMemberDetail(item);
+        },
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(11),
+          decoration: _cardDecoration(radius: 18),
+          child: Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              _iconBox(
+                icon: Icons.person_outline_rounded,
+                color: green,
+                background: softGreen,
+                size: 42,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        _text(item['nama']),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: textDark,
-                          fontSize: 14.2,
-                          fontWeight: FontWeight.w900,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _text(item['nama']),
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: textDark,
+                              fontSize: 12.6,
+                              fontWeight:
+                                  FontWeight.w900,
+                            ),
+                          ),
                         ),
+                        const SizedBox(width: 6),
+                        _activeBadge(),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _maskedNik(item['nik']),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textGrey,
+                        fontSize: 9.4,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    _statusBadge(),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.badge_rounded, size: 13, color: textGrey),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        _maskNik(item['nik']),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: textGrey,
-                          fontSize: 11.4,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
+                    const SizedBox(height: 7),
+                    Wrap(
+                      spacing: 5,
+                      runSpacing: 5,
+                      children: [
+                        _miniInfo(
+                          icon:
+                              Icons.phone_outlined,
+                          text: _phone(item),
+                          color: blue,
                         ),
-                      ),
+                        _miniInfo(
+                          icon: Icons.wc_outlined,
+                          text: _genderText(item),
+                          color: adminPurple,
+                        ),
+                        _miniInfo(
+                          icon:
+                              Icons.landscape_outlined,
+                          text: _landArea(item),
+                          color: green,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _miniInfo(
-                      icon: Icons.contact_phone_rounded,
-                      text: _telepon(item),
-                      color: primaryGreen,
-                    ),
-                    _miniInfo(
-                      icon: Icons.wc_rounded,
-                      text: _genderText(item),
-                      color: blueTone,
-                    ),
-                    _miniInfo(
-                      icon: Icons.landscape_rounded,
-                      text: _luasLahan(item),
-                      color: darkGreen,
-                    ),
-                    _miniInfo(
-                      icon: Icons.calendar_month_rounded,
-                      text: _tanggalDaftar(item),
-                      color: textGrey,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 5),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: textGrey,
+                size: 20,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _avatarBox() {
+  Widget _activeBadge() {
     return Container(
-      height: 42,
-      width: 42,
-      decoration: BoxDecoration(
-        color: mintGreen,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.11)),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 6,
+        vertical: 3,
       ),
-      child: const Icon(
-        Icons.account_circle_outlined,
-        color: primaryGreen,
-        size: 22,
-      ),
-    );
-  }
-
-  Widget _statusBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
       decoration: BoxDecoration(
         color: softGreen,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
+        borderRadius: BorderRadius.circular(99),
       ),
       child: const Text(
         'AKTIF',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: primaryGreen,
-          fontSize: 9,
+          color: green,
+          fontSize: 7.3,
           fontWeight: FontWeight.w900,
-          letterSpacing: 0.3,
         ),
       ),
     );
@@ -693,29 +1094,119 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
     required String text,
     required Color color,
   }) {
-    final value = text.trim().isEmpty ? '-' : text.trim();
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 6,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.08)),
+        borderRadius: BorderRadius.circular(99),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 11.5, color: color),
-          const SizedBox(width: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 9.8,
-              fontWeight: FontWeight.w800,
+          Icon(
+            icon,
+            color: color,
+            size: 10.5,
+          ),
+          const SizedBox(width: 3),
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 120,
+            ),
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 8,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _detailRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    bool last = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        vertical: 10,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: last
+              ? BorderSide.none
+              : const BorderSide(
+                  color: cardBorder,
+                ),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          _iconBox(
+            icon: icon,
+            color: adminPurple,
+            background: softPurple,
+            size: 34,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 8.8,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                SelectableText(
+                  value,
+                  style: const TextStyle(
+                    color: textDark,
+                    fontSize: 10.6,
+                    height: 1.35,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loadingState() {
+    return Column(
+      children: List.generate(
+        4,
+        (_) => Container(
+          height: 98,
+          margin: const EdgeInsets.only(bottom: 9),
+          decoration: _cardDecoration(radius: 18),
+          alignment: Alignment.center,
+          child: const CircularProgressIndicator(
+            color: adminPurple,
+            strokeWidth: 2.5,
+          ),
+        ),
       ),
     );
   }
@@ -726,49 +1217,36 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
     required String message,
   }) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.026),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 28,
       ),
+      decoration: _cardDecoration(radius: 20),
       child: Column(
         children: [
-          Container(
-            height: 76,
-            width: 76,
-            decoration: BoxDecoration(
-              color: softGreen,
-              shape: BoxShape.circle,
-              border: Border.all(color: primaryGreen.withValues(alpha: 0.12)),
-            ),
-            child: Icon(icon, color: primaryGreen, size: 34),
+          _iconBox(
+            icon: icon,
+            color: adminPurple,
+            background: softPurple,
+            size: 62,
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 12),
           Text(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textDark,
-              fontSize: 16.5,
+              fontSize: 14,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 5),
           Text(
             message,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 12.4,
+              fontSize: 9.6,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -779,24 +1257,124 @@ class _AnggotaAktifPageState extends State<AnggotaAktifPage> {
   }
 
   Widget _backButton() {
-    return InkWell(
-      onTap: () {
-        if (!mounted) return;
-        Navigator.pop(context);
-      },
-      borderRadius: BorderRadius.circular(15),
-      child: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
-        ),
-        child: const Icon(
-          Icons.arrow_back_ios_new_rounded,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () {
+          Navigator.maybePop(context);
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: _iconBox(
+          icon: Icons.arrow_back_rounded,
           color: Colors.white,
-          size: 17,
+          background:
+              Colors.white.withValues(alpha: 0.14),
+          size: 42,
+        ),
+      ),
+    );
+  }
+
+  Widget _iconBox({
+    required IconData icon,
+    required Color color,
+    required Color background,
+    required double size,
+  }) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius:
+            BorderRadius.circular(size * 0.32),
+      ),
+      child: Icon(
+        icon,
+        color: color,
+        size: size * 0.5,
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration({
+    double radius = 18,
+  }) {
+    return BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.98),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: cardBorder),
+      boxShadow: [
+        BoxShadow(
+          color: adminNavy.withValues(alpha: 0.045),
+          blurRadius: 13,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    );
+  }
+}
+
+class _MemberBackground extends StatelessWidget {
+  const _MemberBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: SizedBox.expand(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final shortest =
+                constraints.maxWidth <
+                        constraints.maxHeight
+                    ? constraints.maxWidth
+                    : constraints.maxHeight;
+
+            final large = (shortest * 1.05)
+                .clamp(290.0, 500.0)
+                .toDouble();
+
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xff172A46),
+                        Color(0xff435987),
+                        Color(0xffE5E7F1),
+                        Color(0xffF2F4F8),
+                      ],
+                      stops: [
+                        0,
+                        0.16,
+                        0.42,
+                        1,
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: -large * 0.56,
+                  right: -large * 0.28,
+                  child: Container(
+                    height: large,
+                    width: large,
+                    decoration: BoxDecoration(
+                      color: const Color(
+                        0xff8D7AD0,
+                      ).withValues(alpha: 0.22),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
