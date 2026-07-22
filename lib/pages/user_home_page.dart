@@ -4,7 +4,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
-import '../services/notification_service.dart';
 import '../widgets/app_background.dart';
 import 'alat_page.dart';
 import 'notifikasi_page.dart';
@@ -68,14 +67,11 @@ class _UserHomePageState extends State<UserHomePage> {
   final List<StreamSubscription<DatabaseEvent>>
       subscriptions = [];
 
-  final Set<String> shownNotificationIds = {};
-
   dynamic bantuanValue;
   dynamic peminjamanValue;
   dynamic notifikasiValue;
   dynamic pengumumanValue;
 
-  bool listenerSiap = false;
   bool isDisposed = false;
 
   @override
@@ -92,7 +88,6 @@ class _UserHomePageState extends State<UserHomePage> {
     pengumumanRef = db.ref('pengumuman');
 
     listenDashboardData();
-    listenNotifikasiMasuk();
   }
 
   @override
@@ -106,110 +101,6 @@ class _UserHomePageState extends State<UserHomePage> {
     dashboardController.close();
 
     super.dispose();
-  }
-
-  void listenNotifikasiMasuk() {
-    subscriptions.add(
-      notifikasiRef.onChildAdded.listen(
-        (event) {
-          /*
-           * Firebase mengirim notifikasi lama ketika
-           * listener pertama kali aktif. Notifikasi lama
-           * tidak perlu dimunculkan ulang.
-           */
-          if (!listenerSiap) return;
-
-          if (event.snapshot.value == null ||
-              event.snapshot.value is! Map) {
-            return;
-          }
-
-          final id = event.snapshot.key ?? '';
-
-          if (shownNotificationIds.contains(id)) {
-            return;
-          }
-
-          final item = Map<dynamic, dynamic>.from(
-            event.snapshot.value as Map,
-          );
-
-          final status =
-              (item['status'] ?? '')
-                  .toString()
-                  .trim()
-                  .toLowerCase();
-
-          final dibaca = item['dibaca'];
-
-          if (status == 'belum_dibaca' ||
-              dibaca == false) {
-            shownNotificationIds.add(id);
-
-            NotificationService.showLocalNotification(
-              title:
-                  (item['judul'] ?? 'TaniGo').toString(),
-              body: (item['pesan'] ?? '').toString(),
-            );
-
-            if (mounted) {
-              ScaffoldMessenger.of(context)
-                  .clearSnackBars();
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const Icon(
-                        Icons
-                            .notifications_active_outlined,
-                        color: Colors.white,
-                        size: 19,
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          (item['judul'] ??
-                                  'Notifikasi baru')
-                              .toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12.2,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  backgroundColor: deepTeal,
-                  behavior: SnackBarBehavior.floating,
-                  elevation: 0,
-                  margin: const EdgeInsets.fromLTRB(
-                    17,
-                    0,
-                    17,
-                    17,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(16),
-                  ),
-                ),
-              );
-            }
-          }
-        },
-      ),
-    );
-
-    Future<void>.delayed(
-      const Duration(seconds: 2),
-      () {
-        if (!isDisposed) {
-          listenerSiap = true;
-        }
-      },
-    );
   }
 
   void listenDashboardData() {

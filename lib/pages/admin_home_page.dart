@@ -4,7 +4,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
-import '../services/notification_service.dart';
 import '../widgets/app_background.dart';
 import 'kelola_alat_page.dart';
 import 'kelola_pengumuman_page.dart';
@@ -74,8 +73,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
   final List<StreamSubscription<DatabaseEvent>>
       _subscriptions = [];
 
-  final Set<String> _knownAdminNotifKeys = {};
-  final Set<String> _shownAdminNotifKeys = {};
 
   dynamic _anggotaValue;
   dynamic _calonAnggotaValue;
@@ -85,7 +82,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
   dynamic _notifikasiAdminValue;
 
   bool _isDisposed = false;
-  bool _adminNotifInitialLoaded = false;
 
   @override
   void initState() {
@@ -99,7 +95,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
     _notifikasiAdminRef = _db.ref('notifikasi_admin');
 
     _listenDashboard();
-    _listenLocalAdminNotification();
   }
 
   @override
@@ -151,99 +146,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
         }
       },
     );
-  }
-
-  void _listenLocalAdminNotification() {
-    _subscriptions.add(
-      _notifikasiAdminRef.onChildAdded.listen(
-        (event) async {
-          if (_isDisposed) return;
-
-          final key = event.snapshot.key;
-          final value = event.snapshot.value;
-
-          if (key == null || key.trim().isEmpty) {
-            return;
-          }
-
-          if (!_adminNotifInitialLoaded) {
-            _knownAdminNotifKeys.add(key);
-            return;
-          }
-
-          if (_knownAdminNotifKeys.contains(key)) {
-            return;
-          }
-
-          if (_shownAdminNotifKeys.contains(key)) {
-            return;
-          }
-
-          _knownAdminNotifKeys.add(key);
-          _shownAdminNotifKeys.add(key);
-
-          if (value is! Map) return;
-
-          final data =
-              Map<dynamic, dynamic>.from(value);
-
-          final judul = _text(
-            data['judul'],
-            fallback: _adminNotificationTitle(
-              data['tipe'],
-            ),
-          );
-
-          final pesan = _text(
-            data['pesan'],
-            fallback:
-                'Ada pemberitahuan admin baru di aplikasi TaniGo.',
-          );
-
-          await NotificationService
-              .showLocalNotification(
-            title: judul,
-            body: pesan,
-          );
-        },
-      ),
-    );
-
-    Future<void>.delayed(
-      const Duration(milliseconds: 900),
-      () {
-        if (_isDisposed) return;
-
-        _adminNotifInitialLoaded = true;
-      },
-    );
-  }
-
-  String _adminNotificationTitle(dynamic tipe) {
-    final cleanType = (tipe ?? '')
-        .toString()
-        .toLowerCase()
-        .trim();
-
-    if (cleanType.contains('anggota')) {
-      return 'Calon Anggota Baru';
-    }
-
-    if (cleanType.contains('pupuk')) {
-      return 'Pengajuan Bantuan Pupuk Baru';
-    }
-
-    if (cleanType.contains('alat') ||
-        cleanType.contains('peminjaman')) {
-      return 'Pengajuan Peminjaman Alat Baru';
-    }
-
-    if (cleanType.contains('reset') ||
-        cleanType.contains('password')) {
-      return 'Permintaan Reset Password Baru';
-    }
-
-    return 'Notifikasi Admin TaniGo';
   }
 
   void _emitDashboard() {

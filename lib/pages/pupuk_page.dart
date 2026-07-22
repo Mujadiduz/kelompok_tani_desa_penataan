@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
+import '../services/notification_helper.dart';
 import '../widgets/app_background.dart';
 
 class PupukPage extends StatefulWidget {
@@ -47,7 +48,6 @@ class _PupukPageState extends State<PupukPage> {
 
   late final DatabaseReference rootRef;
   late final DatabaseReference bantuanPupukRef;
-  late final DatabaseReference notifikasiAdminRef;
 
   bool isSubmitting = false;
 
@@ -56,7 +56,6 @@ class _PupukPageState extends State<PupukPage> {
     super.initState();
     rootRef = db.ref();
     bantuanPupukRef = db.ref('bantuan_pupuk');
-    notifikasiAdminRef = db.ref('notifikasi_admin');
   }
 
   Map<dynamic, dynamic> _asMap(dynamic value) {
@@ -972,20 +971,23 @@ class _PupukPageState extends State<PupukPage> {
       }).timeout(const Duration(seconds: 15));
 
       try {
-        await notifikasiAdminRef.push().set(<String, dynamic>{
-          'judul': 'Pengajuan Bantuan Pupuk Baru',
-          'pesan': '$applicantName mengajukan ${program.name} periode '
-              '${program.period}.',
-          'tipe': 'bantuan_pupuk',
-          'id_pengajuan': applicationId,
-          'id_program': program.id,
-          'nik': _normalizeNik(widget.nik),
-          'status': 'belum_dibaca',
-          'dibaca': false,
-          'tanggal': now,
-        }).timeout(const Duration(seconds: 10));
-      } catch (_) {
-        // Pengajuan tetap berhasil walaupun notifikasi admin gagal dibuat.
+        final jumlahKg = program.packageKg <= 0
+            ? ''
+            : program.packageKg % 1 == 0
+                ? program.packageKg.toInt().toString()
+                : program.packageKg.toStringAsFixed(1);
+
+        await NotificationHelper.pengajuanPupukUntukAdmin(
+          nik: _normalizeNik(widget.nik),
+          nama: applicantName,
+          jenisPupuk: program.fertilizer,
+          jumlahKg: jumlahKg,
+          eventId: applicationId,
+        );
+      } catch (error) {
+        debugPrint(
+          'Pengajuan pupuk tersimpan, tetapi notifikasi admin gagal: $error',
+        );
       }
 
       if (!mounted) {

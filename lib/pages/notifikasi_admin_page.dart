@@ -331,31 +331,28 @@ class _NotifikasiAdminPageState
   }
 
   IconData _typeIcon(String type) {
-    if (type == 'anggota' ||
-        type == 'verifikasi_anggota' ||
-        type == 'pendaftaran_anggota') {
+    if (type.contains('anggota') ||
+        type.contains('pendaftaran')) {
       return Icons.person_add_alt_1_rounded;
     }
 
-    if (type == 'bantuan_pupuk' ||
-        type == 'pupuk' ||
-        type == 'pengajuan_pupuk') {
+    if (type.contains('pupuk')) {
       return Icons.inventory_2_outlined;
     }
 
-    if (type == 'peminjaman_alat' ||
-        type == 'alat' ||
-        type == 'pengajuan_alat') {
+    if (type.contains('alat') ||
+        type.contains('peminjaman')) {
       return Icons.handyman_outlined;
     }
 
-    if (type == 'reset_password' ||
-        type == 'akun') {
+    if (type.contains('reset') ||
+        type.contains('password') ||
+        type.contains('akun')) {
       return Icons.lock_reset_rounded;
     }
 
-    if (type == 'pengumuman' ||
-        type == 'info') {
+    if (type.contains('pengumuman') ||
+        type.contains('info')) {
       return Icons.campaign_outlined;
     }
 
@@ -363,31 +360,28 @@ class _NotifikasiAdminPageState
   }
 
   Color _typeColor(String type) {
-    if (type == 'anggota' ||
-        type == 'verifikasi_anggota' ||
-        type == 'pendaftaran_anggota') {
+    if (type.contains('anggota') ||
+        type.contains('pendaftaran')) {
       return blue;
     }
 
-    if (type == 'bantuan_pupuk' ||
-        type == 'pupuk' ||
-        type == 'pengajuan_pupuk') {
+    if (type.contains('pupuk')) {
       return green;
     }
 
-    if (type == 'peminjaman_alat' ||
-        type == 'alat' ||
-        type == 'pengajuan_alat') {
+    if (type.contains('alat') ||
+        type.contains('peminjaman')) {
       return amber;
     }
 
-    if (type == 'reset_password' ||
-        type == 'akun') {
+    if (type.contains('reset') ||
+        type.contains('password') ||
+        type.contains('akun')) {
       return red;
     }
 
-    if (type == 'pengumuman' ||
-        type == 'info') {
+    if (type.contains('pengumuman') ||
+        type.contains('info')) {
       return adminPurple;
     }
 
@@ -395,31 +389,28 @@ class _NotifikasiAdminPageState
   }
 
   String _typeLabel(String type) {
-    if (type == 'anggota' ||
-        type == 'verifikasi_anggota' ||
-        type == 'pendaftaran_anggota') {
+    if (type.contains('anggota') ||
+        type.contains('pendaftaran')) {
       return 'Anggota';
     }
 
-    if (type == 'bantuan_pupuk' ||
-        type == 'pupuk' ||
-        type == 'pengajuan_pupuk') {
+    if (type.contains('pupuk')) {
       return 'Pupuk';
     }
 
-    if (type == 'peminjaman_alat' ||
-        type == 'alat' ||
-        type == 'pengajuan_alat') {
+    if (type.contains('alat') ||
+        type.contains('peminjaman')) {
       return 'Alat';
     }
 
-    if (type == 'reset_password' ||
-        type == 'akun') {
+    if (type.contains('reset') ||
+        type.contains('password') ||
+        type.contains('akun')) {
       return 'Akun';
     }
 
-    if (type == 'pengumuman' ||
-        type == 'info') {
+    if (type.contains('pengumuman') ||
+        type.contains('info')) {
       return 'Informasi';
     }
 
@@ -528,21 +519,25 @@ class _NotifikasiAdminPageState
                                 unread: unreadCount,
                                 read: readCount,
                               ),
-                              const SizedBox(height: 10),
-                              _filterSection(
+                              const SizedBox(height: 8),
+                              _unreadBanner(
                                 allNotifications:
                                     allNotifications,
+                                unread: unreadCount,
+                              ),
+                              const SizedBox(height: 8),
+                              _filterSection(
                                 total:
                                     allNotifications.length,
                                 unread: unreadCount,
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               _sectionTitle(
                                 resultCount:
                                     filteredNotifications
                                         .length,
                               ),
-                              const SizedBox(height: 9),
+                              const SizedBox(height: 5),
                               _content(
                                 loading:
                                     snapshot.connectionState ==
@@ -580,8 +575,11 @@ class _NotifikasiAdminPageState
             constraints.maxWidth < 380;
 
         return Container(
-          padding: EdgeInsets.all(
-            compact ? 12 : 14,
+          padding: EdgeInsets.fromLTRB(
+            compact ? 14 : 17,
+            compact ? 15 : 18,
+            compact ? 14 : 17,
+            compact ? 15 : 18,
           ),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
@@ -593,21 +591,21 @@ class _NotifikasiAdminPageState
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(23),
+            borderRadius: BorderRadius.circular(27),
             boxShadow: [
               BoxShadow(
                 color: adminNavy.withValues(
-                  alpha: 0.24,
+                  alpha: 0.26,
                 ),
-                blurRadius: 22,
-                offset: const Offset(0, 9),
+                blurRadius: 25,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
           child: Row(
             children: [
               _backButton(),
-              SizedBox(width: compact ? 9 : 11),
+              SizedBox(width: compact ? 10 : 13),
               _iconBox(
                 icon: unread > 0
                     ? Icons.notifications_active_outlined
@@ -617,9 +615,9 @@ class _NotifikasiAdminPageState
                     Colors.white.withValues(
                   alpha: 0.14,
                 ),
-                size: compact ? 43 : 47,
+                size: compact ? 42 : 46,
               ),
-              SizedBox(width: compact ? 9 : 11),
+              SizedBox(width: compact ? 11 : 14),
               const Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -633,19 +631,21 @@ class _NotifikasiAdminPageState
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 17.5,
+                        height: 1.1,
                         fontWeight:
                             FontWeight.w900,
+                        letterSpacing: -0.25,
                       ),
                     ),
-                    SizedBox(height: 3),
+                    SizedBox(height: 5),
                     Text(
-                      'Aktivitas dan pengajuan terbaru',
+                      'Aktivitas terbaru pengajuan TaniGo',
                       maxLines: 1,
                       overflow:
                           TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Color(0xffE5E7FF),
-                        fontSize: 10.2,
+                        fontSize: 9.8,
                         fontWeight:
                             FontWeight.w600,
                       ),
@@ -653,21 +653,25 @@ class _NotifikasiAdminPageState
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 9),
               Container(
+                constraints: const BoxConstraints(
+                  minWidth: 44,
+                  minHeight: 38,
+                ),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 6,
+                  horizontal: 10,
+                  vertical: 8,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(
                     alpha: 0.14,
                   ),
                   borderRadius:
-                      BorderRadius.circular(99),
+                      BorderRadius.circular(16),
                   border: Border.all(
                     color: Colors.white.withValues(
-                      alpha: 0.18,
+                      alpha: 0.19,
                     ),
                   ),
                 ),
@@ -677,16 +681,16 @@ class _NotifikasiAdminPageState
                     const Icon(
                       Icons.mark_email_unread_outlined,
                       color: Colors.white,
-                      size: 13,
+                      size: 10.5,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 5),
                     Text(
                       unread > 99
                           ? '99+'
                           : unread.toString(),
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 10.4,
+                        fontSize: 9.0,
                         fontWeight:
                             FontWeight.w900,
                       ),
@@ -709,8 +713,8 @@ class _NotifikasiAdminPageState
     return LayoutBuilder(
       builder: (context, constraints) {
         final gap = constraints.maxWidth < 350
-            ? 6.0
-            : 8.0;
+            ? 7.0
+            : 10.0;
 
         final itemWidth =
             (constraints.maxWidth - gap * 2) / 3;
@@ -733,7 +737,7 @@ class _NotifikasiAdminPageState
             SizedBox(
               width: itemWidth,
               child: _summaryCard(
-                label: 'Baru',
+                label: 'Belum Dibaca',
                 value: unread,
                 icon: Icons
                     .mark_email_unread_outlined,
@@ -767,26 +771,26 @@ class _NotifikasiAdminPageState
   }) {
     return Container(
       constraints: const BoxConstraints(
-        minHeight: 70,
+        minHeight: 78,
       ),
       padding: const EdgeInsets.symmetric(
-        horizontal: 5,
+        horizontal: 6,
         vertical: 8,
       ),
       decoration: _cardDecoration(
-        radius: 16,
+        radius: 22,
       ),
       child: Column(
         mainAxisAlignment:
             MainAxisAlignment.center,
         children: [
           Container(
-            height: 25,
-            width: 25,
+            height: 27,
+            width: 27,
             decoration: BoxDecoration(
               color: background,
               borderRadius:
-                  BorderRadius.circular(8),
+                  BorderRadius.circular(9),
             ),
             child: Icon(
               icon,
@@ -813,9 +817,10 @@ class _NotifikasiAdminPageState
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: textGrey,
-              fontSize: 8.3,
+              fontSize: 7.4,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -824,93 +829,144 @@ class _NotifikasiAdminPageState
     );
   }
 
-  Widget _filterSection({
+
+
+  Widget _unreadBanner({
     required List<Map<String, dynamic>>
         allNotifications,
-    required int total,
     required int unread,
   }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final filterList = SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics:
-              const BouncingScrollPhysics(),
-          child: Row(
-            children: [
-              _filterChip(
-                label: 'Semua',
-                value: 'semua',
-                count: total,
-              ),
-              const SizedBox(width: 7),
-              _filterChip(
-                label: 'Belum Dibaca',
-                value: 'belum',
-                count: unread,
-              ),
-            ],
-          ),
-        );
+    final hasUnread = unread > 0;
+    final color =
+        hasUnread ? amber : green;
+    final panelBackground =
+        hasUnread ? softAmber : softGreen;
 
-        final readAllButton = TextButton.icon(
-          onPressed:
-              unread == 0 || isProcessing
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        12,
+        10,
+        10,
+        10,
+      ),
+      decoration: BoxDecoration(
+        color: panelBackground,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(
+          color: color.withValues(
+            alpha: 0.12,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: adminNavy.withValues(
+              alpha: 0.045,
+            ),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _iconBox(
+            icon: hasUnread
+                ? Icons.notifications_active_outlined
+                : Icons.mark_email_read_outlined,
+            color: color,
+            background: Colors.white,
+            size: 38,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasUnread
+                      ? '$unread aktivitas baru'
+                      : 'Semua aktivitas sudah dibaca',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 9.8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  hasUnread
+                      ? 'Buka kartu notifikasi atau tandai semuanya sebagai dibaca.'
+                      : 'Belum ada notifikasi admin yang perlu diperiksa.',
+                  style: const TextStyle(
+                    color: textGrey,
+                    fontSize: 9.0,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (hasUnread) ...[
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: isProcessing
                   ? null
                   : () {
                       _markAllAsRead(
                         allNotifications,
                       );
                     },
-          style: TextButton.styleFrom(
-            foregroundColor: adminPurple,
-            disabledForegroundColor: textSoft,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 6,
-            ),
-            minimumSize: Size.zero,
-            tapTargetSize:
-                MaterialTapTargetSize.shrinkWrap,
-          ),
-          icon: const Icon(
-            Icons.done_all_rounded,
-            size: 15,
-          ),
-          label: Text(
-            isProcessing
-                ? 'Memproses'
-                : 'Baca Semua',
-            style: const TextStyle(
-              fontSize: 9.7,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        );
-
-        if (constraints.maxWidth < 390) {
-          return Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.stretch,
-            children: [
-              filterList,
-              const SizedBox(height: 5),
-              Align(
-                alignment: Alignment.centerRight,
-                child: readAllButton,
+              style: TextButton.styleFrom(
+                foregroundColor: amber,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 8,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize:
+                    MaterialTapTargetSize.shrinkWrap,
               ),
-            ],
-          );
-        }
-
-        return Row(
-          children: [
-            Expanded(child: filterList),
-            const SizedBox(width: 8),
-            readAllButton,
+              child: const Text(
+                'Baca Semua',
+                style: TextStyle(
+                  fontSize: 9.0,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
           ],
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  Widget _filterSection({
+    required int total,
+    required int unread,
+  }) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          _filterChip(
+            label: 'Semua',
+            value: 'semua',
+            count: total,
+            icon: Icons.grid_view_rounded,
+          ),
+          const SizedBox(width: 9),
+          _filterChip(
+            label: 'Belum Dibaca',
+            value: 'belum',
+            count: unread,
+            icon: Icons.mark_email_unread_outlined,
+          ),
+        ],
+      ),
     );
   }
 
@@ -918,6 +974,7 @@ class _NotifikasiAdminPageState
     required String label,
     required String value,
     required int count,
+    required IconData icon,
   }) {
     final selected =
         selectedFilter == value;
@@ -936,14 +993,14 @@ class _NotifikasiAdminPageState
           duration:
               const Duration(milliseconds: 170),
           padding: const EdgeInsets.symmetric(
-            horizontal: 9,
-            vertical: 6,
+            horizontal: 7,
+            vertical: 4,
           ),
           decoration: BoxDecoration(
             color: selected
                 ? adminPurple
                 : Colors.white.withValues(
-                    alpha: 0.96,
+                    alpha: 0.98,
                   ),
             borderRadius:
                 BorderRadius.circular(99),
@@ -952,22 +1009,43 @@ class _NotifikasiAdminPageState
                   ? adminPurple
                   : cardBorder,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: adminNavy.withValues(
+                  alpha: selected ? 0.10 : 0.035,
+                ),
+                blurRadius: 9,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Icon(
+                icon,
+                color: selected
+                    ? Colors.white
+                    : textGrey,
+                size: 10.5,
+              ),
+              const SizedBox(width: 7),
               Text(
                 label,
                 style: TextStyle(
                   color: selected
                       ? Colors.white
                       : textGrey,
-                  fontSize: 9.5,
+                  fontSize: 8.3,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 7),
               Container(
+                constraints: const BoxConstraints(
+                  minWidth: 20,
+                ),
+                alignment: Alignment.center,
                 padding:
                     const EdgeInsets.symmetric(
                   horizontal: 5,
@@ -990,7 +1068,7 @@ class _NotifikasiAdminPageState
                     color: selected
                         ? Colors.white
                         : textGrey,
-                    fontSize: 8.2,
+                    fontSize: 8.0,
                     fontWeight:
                         FontWeight.w900,
                   ),
@@ -1009,34 +1087,34 @@ class _NotifikasiAdminPageState
     return Row(
       children: [
         Container(
-          width: 5,
-          height: 30,
+          width: 6,
+          height: 34,
           decoration: BoxDecoration(
             color: adminPurple,
             borderRadius:
                 BorderRadius.circular(99),
           ),
         ),
-        const SizedBox(width: 9),
+        const SizedBox(width: 11),
         const Expanded(
           child: Column(
             crossAxisAlignment:
                 CrossAxisAlignment.start,
             children: [
               Text(
-                'Aktivitas Terbaru',
+                'Aktivitas Notifikasi',
                 style: TextStyle(
                   color: textDark,
-                  fontSize: 14,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              SizedBox(height: 2),
+              SizedBox(height: 4),
               Text(
-                'Ketuk aktivitas baru untuk menandai dibaca.',
+                'Pengajuan dan aktivitas terbaru dari anggota.',
                 style: TextStyle(
                   color: textGrey,
-                  fontSize: 9.4,
+                  fontSize: 8.3,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1124,7 +1202,7 @@ class _NotifikasiAdminPageState
                 CrossAxisAlignment.start,
             children: [
               _dateLabel(groupTitle),
-              const SizedBox(height: 7),
+              const SizedBox(height: 4),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final columns =
@@ -1173,7 +1251,7 @@ class _NotifikasiAdminPageState
             BorderRadius.circular(99),
         border: Border.all(
           color: adminPurple.withValues(
-            alpha: 0.10,
+            alpha: 0.11,
           ),
         ),
       ),
@@ -1181,7 +1259,7 @@ class _NotifikasiAdminPageState
         title,
         style: const TextStyle(
           color: adminPurple,
-          fontSize: 8.8,
+          fontSize: 8.7,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -1221,146 +1299,160 @@ class _NotifikasiAdminPageState
               }
             : null,
         borderRadius:
-            BorderRadius.circular(18),
+            BorderRadius.circular(24),
         child: AnimatedContainer(
           duration:
               const Duration(milliseconds: 180),
-          padding: const EdgeInsets.all(11),
+          padding: const EdgeInsets.fromLTRB(
+            11,
+            10,
+            11,
+            9,
+          ),
           decoration: BoxDecoration(
-            color: unread
-                ? color.withValues(
-                    alpha: 0.055,
-                  )
-                : Colors.white.withValues(
-                    alpha: 0.98,
-                  ),
+            color: Colors.white.withValues(
+              alpha: 0.99,
+            ),
             borderRadius:
-                BorderRadius.circular(18),
+                BorderRadius.circular(24),
             border: Border.all(
               color: unread
                   ? color.withValues(
-                      alpha: 0.18,
+                      alpha: 0.24,
                     )
                   : cardBorder,
+              width: unread ? 1.25 : 1,
             ),
             boxShadow: [
               BoxShadow(
                 color: adminNavy.withValues(
-                  alpha: 0.045,
+                  alpha: unread ? 0.075 : 0.045,
                 ),
-                blurRadius: 13,
-                offset: const Offset(0, 5),
+                blurRadius: 16,
+                offset: const Offset(0, 7),
               ),
             ],
           ),
-          child: Row(
+          child: Column(
             crossAxisAlignment:
-                CrossAxisAlignment.start,
+                CrossAxisAlignment.stretch,
             children: [
-              Stack(
-                clipBehavior: Clip.none,
+              Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
-                  _iconBox(
-                    icon: _typeIcon(type),
-                    color: color,
-                    background: color.withValues(
-                      alpha: 0.10,
-                    ),
-                    size: 42,
-                  ),
-                  if (unread)
-                    Positioned(
-                      right: -1,
-                      top: -1,
-                      child: Container(
-                        height: 10,
-                        width: 10,
-                        decoration: BoxDecoration(
-                          color: red,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2,
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      _iconBox(
+                        icon: _typeIcon(type),
+                        color: color,
+                        background:
+                            color.withValues(
+                          alpha: 0.10,
+                        ),
+                        size: 43,
+                      ),
+                      if (unread)
+                        Positioned(
+                          right: -1,
+                          top: -1,
+                          child: Container(
+                            height: 10,
+                            width: 10,
+                            decoration: BoxDecoration(
+                              color: red,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 2,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                    ],
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
-                        _typeBadge(
-                          label: _typeLabel(type),
-                          color: color,
+                        Row(
+                          children: [
+                            _typeBadge(
+                              label:
+                                  _typeLabel(type),
+                              color: color,
+                            ),
+                            const Spacer(),
+                            Text(
+                              _timeText(item),
+                              style:
+                                  const TextStyle(
+                                color: textSoft,
+                                fontSize: 8.7,
+                                fontWeight:
+                                    FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
-                        const Spacer(),
+                        const SizedBox(height: 8),
                         Text(
-                          _timeText(item),
-                          style: const TextStyle(
-                            color: textSoft,
-                            fontSize: 8.7,
+                          title.isEmpty
+                              ? 'Notifikasi Admin'
+                              : title,
+                          maxLines: 2,
+                          overflow:
+                              TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: textDark,
+                            fontSize: 12.8,
+                            height: 1.25,
+                            fontWeight: unread
+                                ? FontWeight.w900
+                                : FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          message.isEmpty
+                              ? '-'
+                              : message,
+                          maxLines: 4,
+                          overflow:
+                              TextOverflow.ellipsis,
+                          style:
+                              const TextStyle(
+                            color: textGrey,
+                            fontSize: 9.8,
+                            height: 1.45,
                             fontWeight:
-                                FontWeight.w700,
+                                FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      title.isEmpty
-                          ? 'Notifikasi Admin'
-                          : title,
-                      maxLines: 2,
-                      overflow:
-                          TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _statusBadge(unread),
+                  const Spacer(),
+                  if (unread)
+                    const Text(
+                      'Ketuk untuk baca',
                       style: TextStyle(
-                        color: textDark,
-                        fontSize: 12.2,
-                        height: 1.25,
-                        fontWeight: unread
-                            ? FontWeight.w900
-                            : FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      message.isEmpty ? '-' : message,
-                      maxLines: 3,
-                      overflow:
-                          TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: textGrey,
-                        fontSize: 9.5,
-                        height: 1.4,
+                        color: textSoft,
+                        fontSize: 8.3,
                         fontWeight:
                             FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 7),
-                    Row(
-                      children: [
-                        _statusBadge(unread),
-                        const Spacer(),
-                        if (unread)
-                          const Text(
-                            'Ketuk untuk baca',
-                            style: TextStyle(
-                              color: textSoft,
-                              fontSize: 8.4,
-                              fontWeight:
-                                  FontWeight.w600,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
+                ],
               ),
             ],
           ),
@@ -1379,7 +1471,7 @@ class _NotifikasiAdminPageState
         vertical: 3,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: color.withValues(alpha: 0.09),
         borderRadius:
             BorderRadius.circular(99),
       ),
@@ -1389,7 +1481,7 @@ class _NotifikasiAdminPageState
           color: color,
           fontSize: 7.4,
           fontWeight: FontWeight.w900,
-          letterSpacing: 0.2,
+          letterSpacing: 0.25,
         ),
       ),
     );
@@ -1420,12 +1512,14 @@ class _NotifikasiAdminPageState
             color: color,
             size: 10.5,
           ),
-          const SizedBox(width: 3),
+          const SizedBox(width: 5),
           Text(
-            unread ? 'BARU' : 'DIBACA',
+            unread
+                ? 'Belum dibaca'
+                : 'Dibaca',
             style: TextStyle(
               color: color,
-              fontSize: 7.2,
+              fontSize: 8.3,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1532,7 +1626,7 @@ class _NotifikasiAdminPageState
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: textDark,
-              fontSize: 14.5,
+              fontSize: 9.8,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1605,7 +1699,7 @@ class _NotifikasiAdminPageState
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: textDark,
-                    fontSize: 12.5,
+                    fontSize: 9.0,
                     fontWeight: FontWeight.w900,
                   ),
                 ),

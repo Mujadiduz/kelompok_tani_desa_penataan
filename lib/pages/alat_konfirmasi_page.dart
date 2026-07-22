@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
+import '../services/notification_helper.dart';
 import '../widgets/app_background.dart';
 
 class AlatKonfirmasiPage extends StatefulWidget {
@@ -73,14 +74,12 @@ class _AlatKonfirmasiPageState
   );
 
   late final DatabaseReference peminjamanRef;
-  late final DatabaseReference notifikasiAdminRef;
 
   @override
   void initState() {
     super.initState();
 
     peminjamanRef = db.ref('peminjaman_alat');
-    notifikasiAdminRef = db.ref('notifikasi_admin');
   }
 
   DateTime? _parseDate(String value) {
@@ -487,29 +486,6 @@ class _AlatKonfirmasiPageState
     );
   }
 
-  Future<void> _saveAdminNotification({
-    required String loanId,
-  }) async {
-    await notifikasiAdminRef.push().set({
-      'judul': 'Pengajuan Peminjaman Baru',
-      'pesan':
-          '${widget.nama.trim()} mengajukan peminjaman '
-          '${widget.namaAlat.trim()} pada tanggal '
-          '${widget.tanggalPinjam.trim()}.',
-      'tipe': 'peminjaman_alat',
-      'id_peminjaman': loanId,
-      'id_alat': widget.idAlat.trim(),
-      'nama': widget.nama.trim(),
-      'nik': _normalizedNik(widget.nik),
-      'nama_alat': widget.namaAlat.trim(),
-      'status': 'belum_dibaca',
-      'dibaca': false,
-      'tanggal': DateTime.now().toIso8601String(),
-    }).timeout(
-      const Duration(seconds: 10),
-    );
-  }
-
   Future<void> _submitLoan() async {
     if (isLoading) {
       return;
@@ -601,8 +577,14 @@ class _AlatKonfirmasiPageState
       );
 
       try {
-        await _saveAdminNotification(
-          loanId: loanId,
+        await NotificationHelper.peminjamanAlatUntukAdmin(
+          nik: _normalizedNik(widget.nik),
+          nama: widget.nama.trim(),
+          namaAlat: widget.namaAlat.trim(),
+          jumlah: 1,
+          tanggalPinjam: widget.tanggalPinjam.trim(),
+          tanggalKembali: widget.tanggalKembali.trim(),
+          eventId: loanId,
         );
       } catch (error) {
         notificationSent = false;

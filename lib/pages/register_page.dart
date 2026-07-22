@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../services/notification_helper.dart';
 import '../widgets/app_background.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -211,21 +212,6 @@ class _RegisterPageState extends State<RegisterPage> {
     });
   }
 
-  Future<void> simpanNotifikasiAdmin({
-    required String judul,
-    required String pesan,
-    required String tipe,
-  }) async {
-    await database.child('notifikasi_admin').push().set({
-      'judul': judul,
-      'pesan': pesan,
-      'tipe': tipe,
-      'status': 'belum_dibaca',
-      'dibaca': false,
-      'tanggal': DateTime.now().toIso8601String(),
-    });
-  }
-
   double _parseAngka(
     TextEditingController controller,
   ) {
@@ -247,9 +233,12 @@ class _RegisterPageState extends State<RegisterPage> {
     final alamat = alamatController.text.trim();
     final password = passwordController.text.trim();
 
-    await database
-        .child('calon_anggota')
-        .push()
+    final calonRef =
+        database.child('calon_anggota').push();
+
+    final calonId = calonRef.key ?? nik;
+
+    await calonRef
         .set({
           'nama': nama,
           'nik': nik,
@@ -275,12 +264,17 @@ class _RegisterPageState extends State<RegisterPage> {
         })
         .timeout(const Duration(seconds: 20));
 
-    await simpanNotifikasiAdmin(
-      judul: 'Calon Anggota Baru',
-      pesan:
-          '$nama telah mendaftar sebagai calon anggota kelompok tani.',
-      tipe: 'anggota',
-    );
+    try {
+      await NotificationHelper.calonAnggotaUntukAdmin(
+        nik: nik,
+        nama: nama,
+        eventId: calonId,
+      );
+    } catch (error) {
+      debugPrint(
+        'Pendaftaran tersimpan, tetapi notifikasi admin gagal: $error',
+      );
+    }
   }
 
   Future<void> kirimPendaftaran() async {

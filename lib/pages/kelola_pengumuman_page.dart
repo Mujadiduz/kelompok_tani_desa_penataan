@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -135,8 +133,10 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
       final cleanCategory = category.trim();
 
       if (id == null) {
-        await _pengumumanRef
-            .push()
+        final announcementRef = _pengumumanRef.push();
+        final announcementId = announcementRef.key ?? '';
+
+        await announcementRef
             .set({
               'judul': cleanTitle,
               'isi': cleanBody,
@@ -148,14 +148,35 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
             .timeout(const Duration(seconds: 10));
 
         if (status == 'aktif') {
-          unawaited(
-            NotificationHelper.pengumumanUntukSemuaAnggota(
+          try {
+            await NotificationHelper.pengumumanUntukSemuaAnggota(
               judul: cleanTitle,
               isi: cleanBody,
-            ),
-          );
+              eventId: announcementId,
+            );
+          } catch (error) {
+            debugPrint(
+              'Pengumuman tersimpan, tetapi notifikasi anggota gagal: $error',
+            );
+          }
         }
       } else {
+        final existingSnapshot =
+            await _pengumumanRef.child(id).get();
+
+        String previousStatus = '';
+
+        if (existingSnapshot.value is Map) {
+          final existingData = Map<dynamic, dynamic>.from(
+            existingSnapshot.value as Map,
+          );
+
+          previousStatus = (existingData['status'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+        }
+
         await _pengumumanRef
             .child(id)
             .update({
@@ -166,6 +187,20 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
               'tanggal_update': DateTime.now().toIso8601String(),
             })
             .timeout(const Duration(seconds: 10));
+
+        if (previousStatus != 'aktif' && status == 'aktif') {
+          try {
+            await NotificationHelper.pengumumanUntukSemuaAnggota(
+              judul: cleanTitle,
+              isi: cleanBody,
+              eventId: id,
+            );
+          } catch (error) {
+            debugPrint(
+              'Pengumuman diaktifkan, tetapi notifikasi anggota gagal: $error',
+            );
+          }
+        }
       }
 
       if (!mounted) return;
@@ -194,6 +229,37 @@ class _KelolaPengumumanPageState extends State<KelolaPengumumanPage> {
             'tanggal_update': DateTime.now().toIso8601String(),
           })
           .timeout(const Duration(seconds: 10));
+
+      if (newStatus == 'aktif') {
+        try {
+          final snapshot =
+              await _pengumumanRef.child(id).get();
+
+          if (snapshot.value is Map) {
+            final data = Map<dynamic, dynamic>.from(
+              snapshot.value as Map,
+            );
+
+            final title =
+                (data['judul'] ?? 'Pengumuman Baru')
+                    .toString()
+                    .trim();
+
+            final body =
+                (data['isi'] ?? '').toString().trim();
+
+            await NotificationHelper.pengumumanUntukSemuaAnggota(
+              judul: title,
+              isi: body,
+              eventId: id,
+            );
+          }
+        } catch (error) {
+          debugPrint(
+            'Status pengumuman aktif, tetapi notifikasi anggota gagal: $error',
+          );
+        }
+      }
 
       if (!mounted) return;
       _showSnack('Status pengumuman berhasil diperbarui.');

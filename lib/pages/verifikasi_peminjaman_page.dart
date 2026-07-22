@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -804,19 +802,23 @@ class _VerifikasiPeminjamanPageState
       final equipment =
           _equipmentName(item);
 
-      if (status == 'disetujui') {
-        unawaited(
-          NotificationHelper.alatDisetujui(
+      try {
+        if (status == 'disetujui') {
+          await NotificationHelper.alatDisetujui(
             nik: nik,
             namaAlat: equipment,
-          ),
-        );
-      } else if (status == 'ditolak') {
-        unawaited(
-          NotificationHelper.alatDitolak(
+            eventId: '${id}_disetujui',
+          );
+        } else if (status == 'ditolak') {
+          await NotificationHelper.alatDitolak(
             nik: nik,
             namaAlat: equipment,
-          ),
+            eventId: '${id}_ditolak',
+          );
+        }
+      } catch (error) {
+        debugPrint(
+          'Status peminjaman tersimpan, tetapi notifikasi user gagal: $error',
         );
       }
 
@@ -948,13 +950,18 @@ class _VerifikasiPeminjamanPageState
         const Duration(seconds: 15),
       );
 
-      unawaited(
-        NotificationHelper.alatDipinjam(
+      try {
+        await NotificationHelper.alatDipinjam(
           nik: nik,
           namaAlat: equipmentName,
           jumlah: quantity,
-        ),
-      );
+          eventId: '${id}_dipinjam',
+        );
+      } catch (error) {
+        debugPrint(
+          'Status alat dipinjam tersimpan, tetapi notifikasi user gagal: $error',
+        );
+      }
 
       if (!mounted) {
         return;
@@ -1044,14 +1051,18 @@ class _VerifikasiPeminjamanPageState
                   '${result.lateDays} hari.'
               : ' Pengembalian tepat waktu.';
 
-      unawaited(
-        NotificationHelper.alatDikembalikan(
+      try {
+        await NotificationHelper.alatDikembalikan(
           nik: nik,
           namaAlat: equipmentName,
-          pesanTambahan:
-              additionalMessage,
-        ),
-      );
+          pesanTambahan: additionalMessage,
+          eventId: '${id}_dikembalikan',
+        );
+      } catch (error) {
+        debugPrint(
+          'Status alat dikembalikan tersimpan, tetapi notifikasi user gagal: $error',
+        );
+      }
 
       if (!mounted) {
         return;

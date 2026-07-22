@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -1220,12 +1218,17 @@ class _VerifikasiPupukPageState
       if (previousStatus ==
               'menunggu_verifikasi' &&
           nik.isNotEmpty) {
-        unawaited(
-          NotificationHelper.pupukDisetujui(
+        try {
+          await NotificationHelper.pupukDisetujui(
             nik: nik,
             jenisPupuk: jenisPupuk,
-          ),
-        );
+            eventId: '${id}_disetujui',
+          );
+        } catch (error) {
+          debugPrint(
+            'Bantuan pupuk disetujui, tetapi notifikasi user gagal: $error',
+          );
+        }
       }
 
       if (!mounted) {
@@ -1561,12 +1564,17 @@ class _VerifikasiPupukPageState
       final jenisPupuk = ambilJenisPupuk(item);
 
       if (nik.isNotEmpty) {
-        unawaited(
-          NotificationHelper.pupukDitolak(
+        try {
+          await NotificationHelper.pupukDitolak(
             nik: nik,
             jenisPupuk: jenisPupuk,
-          ),
-        );
+            eventId: '${id}_ditolak',
+          );
+        } catch (error) {
+          debugPrint(
+            'Bantuan pupuk ditolak, tetapi notifikasi user gagal: $error',
+          );
+        }
       }
 
       if (!mounted) {
@@ -1671,13 +1679,18 @@ class _VerifikasiPupukPageState
       final jenisPupuk = ambilJenisPupuk(item);
 
       if (nik.isNotEmpty) {
-        unawaited(
-          NotificationHelper.pupukSudahDiambil(
+        try {
+          await NotificationHelper.pupukSudahDiambil(
             nik: nik,
             jenisPupuk: jenisPupuk,
             jumlahKg: formatKg(amount),
-          ),
-        );
+            eventId: '${id}_sudah_diambil',
+          );
+        } catch (error) {
+          debugPrint(
+            'Bantuan pupuk sudah diambil, tetapi notifikasi user gagal: $error',
+          );
+        }
       }
 
       if (!mounted) {

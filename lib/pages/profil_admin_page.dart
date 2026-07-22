@@ -339,6 +339,9 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final horizontalPadding = width < 350 ? 13.0 : 17.0;
+
     return Scaffold(
       backgroundColor: pageBackground,
       body: AppBackground(
@@ -355,42 +358,67 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                     snapshot.data?.snapshot.value,
                   );
 
-              return RefreshIndicator(
-                color: adminPurple,
-                backgroundColor: Colors.white,
-                onRefresh: _refreshData,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
-                  children: [
-                    _header(data),
-                    const SizedBox(height: 12),
-                    _verificationCard(data),
-                    const SizedBox(height: 14),
-                    _sectionTitle(
-                      title: 'Data Sistem',
-                      subtitle: 'Pilih menu untuk melihat data lengkap',
+                  return RefreshIndicator(
+                    color: adminPurple,
+                    backgroundColor: Colors.white,
+                    onRefresh: _refreshData,
+                    child: ListView(
+                      physics:
+                          const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.fromLTRB(
+                        horizontalPadding,
+                        13,
+                        horizontalPadding,
+                        30,
+                      ),
+                      children: [
+                        Center(
+                          child: ConstrainedBox(
+                            constraints:
+                                const BoxConstraints(
+                              maxWidth: 760,
+                            ),
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.stretch,
+                              children: [
+                                _header(data),
+                                const SizedBox(height: 13),
+                                _verificationCard(data),
+                                const SizedBox(height: 16),
+                                _sectionTitle(
+                                  title: 'Data Sistem',
+                                  subtitle:
+                                      'Pilih menu untuk melihat data lengkap',
+                                ),
+                                const SizedBox(height: 10),
+                                _statsGrid(data),
+                                const SizedBox(height: 17),
+                                _sectionTitle(
+                                  title: 'Pengaturan',
+                                  subtitle:
+                                      'Informasi aplikasi dan sesi admin',
+                                ),
+                                const SizedBox(height: 10),
+                                _menuTile(
+                                  icon: Icons.info_rounded,
+                                  title: 'Tentang Aplikasi',
+                                  subtitle:
+                                      'Informasi sistem dan fitur aplikasi',
+                                  color: primaryGreen,
+                                  onTap: () => _openPage(
+                                    const TentangAplikasiPage(),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                _logoutTile(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    _statsGrid(data),
-                    const SizedBox(height: 14),
-                    _sectionTitle(
-                      title: 'Pengaturan',
-                      subtitle: 'Informasi aplikasi dan sesi admin',
-                    ),
-                    const SizedBox(height: 12),
-                    _menuTile(
-                      icon: Icons.agriculture_rounded,
-                      title: 'Tentang Aplikasi',
-                      subtitle: 'Informasi sistem dan fitur aplikasi',
-                      color: primaryGreen,
-                      onTap: () => _openPage(const TentangAplikasiPage()),
-                    ),
-                    const SizedBox(height: 10),
-                    _logoutTile(),
-                  ],
-                ),
-              );
+                  );
                 },
               ),
             ),
@@ -404,12 +432,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
     final aman = data.totalVerifikasi == 0;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        13,
-        13,
-        13,
-        13,
-      ),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
@@ -420,12 +443,12 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(23),
         boxShadow: [
           BoxShadow(
-            color: adminNavy.withValues(alpha: 0.22),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: adminNavy.withValues(alpha: 0.23),
+            blurRadius: 22,
+            offset: const Offset(0, 9),
           ),
         ],
       ),
@@ -433,26 +456,40 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
         children: [
           _backButton(),
           const SizedBox(width: 10),
-          Container(
-            height: 44,
-            width: 44,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.19),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                height: 43,
+                width: 43,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.19),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.admin_panel_settings_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
-            ),
-            child: const Icon(
-              Icons.manage_accounts_rounded,
-              color: Colors.white,
-              size: 24,
-            ),
+              if (data.totalVerifikasi > 0)
+                Positioned(
+                  top: -5,
+                  right: -5,
+                  child: _smallNotificationBadge(
+                    data.totalVerifikasi,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Profil Admin',
@@ -460,31 +497,28 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18.5,
+                    fontSize: 17.8,
                     height: 1.05,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
                 Text(
                   aman
                       ? 'Semua tugas verifikasi sudah selesai'
-                      : '${data.totalVerifikasi} data menunggu pemeriksaan',
+                      : '${data.totalVerifikasi} data perlu diverifikasi',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xffE3E8F1),
-                    fontSize: 10.8,
-                    height: 1.2,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 9.8,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          _headerCounter(data.totalVerifikasi),
         ],
       ),
     );
@@ -514,96 +548,75 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
     );
   }
 
-  Widget _headerCounter(int total) {
-    final countText = total > 99
+  Widget _smallNotificationBadge(int total) {
+    final text = total > 99
         ? '99+'
         : total.toString();
 
     return Container(
       constraints: const BoxConstraints(
-        minWidth: 64,
-        minHeight: 40,
+        minWidth: 19,
+        minHeight: 19,
       ),
+      alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(
-        horizontal: 7,
-        vertical: 6,
+        horizontal: 5,
+        vertical: 3,
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(14),
+        color: redColor,
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.19),
+          color: Colors.white,
+          width: 1.8,
         ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            height: 27,
-            constraints: const BoxConstraints(
-              minWidth: 27,
-              maxWidth: 36,
-            ),
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 5,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.96),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                countText,
-                style: const TextStyle(
-                  color: adminPurple,
-                  fontSize: 11,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          const Text(
-            'Tugas',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 8.8,
-              height: 1,
-              fontWeight: FontWeight.w900,
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: redColor.withValues(alpha: 0.30),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 8.3,
+          height: 1,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
+
 
   Widget _verificationCard(_AdminProfileData data) {
     final aman = data.totalVerifikasi == 0;
     final color = aman ? primaryGreen : orangeStatus;
 
     return Container(
-      padding: const EdgeInsets.all(11),
-      decoration: _cardDecoration(radius: 19),
+      padding: const EdgeInsets.fromLTRB(
+        13,
+        13,
+        13,
+        12,
+      ),
+      decoration: _cardDecoration(radius: 20),
       child: Column(
         children: [
           Row(
             children: [
               Container(
-                height: 37,
-                width: 37,
+                height: 38,
+                width: 38,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.09),
                   borderRadius: BorderRadius.circular(13),
-                  border: Border.all(
-                    color: color.withValues(alpha: 0.12),
-                  ),
                 ),
                 child: Icon(
                   aman
-                      ? Icons.verified_user_rounded
+                      ? Icons.task_alt_rounded
                       : Icons.pending_actions_rounded,
                   color: color,
                   size: 19,
@@ -617,7 +630,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                       : '${data.totalVerifikasi} verifikasi menunggu keputusan admin.',
                   style: const TextStyle(
                     color: textDark,
-                    fontSize: 12.2,
+                    fontSize: 11.7,
                     height: 1.35,
                     fontWeight: FontWeight.w900,
                   ),
@@ -625,14 +638,15 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 11),
           Row(
             children: [
               Expanded(
                 child: _verifyBox(
                   title: 'Anggota',
                   value: data.calonMenunggu,
-                  icon: Icons.how_to_reg_rounded,
+                  icon:
+                      Icons.person_add_alt_1_rounded,
                   color: blueStatus,
                   onTap: () => _openPage(
                     const VerifikasiAnggotaPage(),
@@ -644,7 +658,8 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                 child: _verifyBox(
                   title: 'Pupuk',
                   value: data.pupukMenunggu,
-                  icon: Icons.eco_rounded,
+                  icon:
+                      Icons.inventory_2_rounded,
                   color: primaryGreen,
                   onTap: () => _openPage(
                     const VerifikasiPupukPage(),
@@ -656,7 +671,8 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                 child: _verifyBox(
                   title: 'Alat',
                   value: data.alatMenunggu,
-                  icon: Icons.agriculture_rounded,
+                  icon:
+                      Icons.handyman_rounded,
                   color: orangeStatus,
                   onTap: () => _openPage(
                     const VerifikasiPeminjamanPage(),
@@ -677,7 +693,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    final countText = value > 99
+    final text = value > 99
         ? '99+'
         : value.toString();
 
@@ -688,71 +704,79 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(15),
         child: Container(
-          height: 68,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 8,
+          height: 69,
+          padding: const EdgeInsets.fromLTRB(
+            9,
+            9,
+            9,
+            8,
           ),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.065),
+            color: color.withValues(alpha: 0.055),
             borderRadius: BorderRadius.circular(15),
             border: Border.all(
-              color: color.withValues(alpha: 0.13),
+              color: color.withValues(alpha: 0.12),
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Positioned(
+                top: -3,
+                right: -2,
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius:
+                        BorderRadius.circular(999),
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 1.4,
+                    ),
+                  ),
+                  child: Text(
+                    text,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 7.8,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+              Column(
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
                 children: [
                   Icon(
                     icon,
                     color: color,
-                    size: 17,
+                    size: 19,
                   ),
-                  const SizedBox(width: 6),
-                  Container(
-                    height: 23,
-                    constraints: const BoxConstraints(
-                      minWidth: 23,
-                      maxWidth: 33,
-                    ),
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        countText,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9.2,
-                          height: 1,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
+                  const SizedBox(height: 7),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: textDark,
+                      fontSize: 9.5,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 7),
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: textDark,
-                  fontSize: 10.3,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                ),
               ),
             ],
           ),
@@ -766,28 +790,28 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
       _StatItem(
         title: 'Anggota Aktif',
         value: data.totalAnggota,
-        icon: Icons.groups_rounded,
+        icon: Icons.verified_user_rounded,
         color: primaryGreen,
         page: const AnggotaAktifPage(),
       ),
       _StatItem(
         title: 'Calon Anggota',
         value: data.totalCalon,
-        icon: Icons.how_to_reg_rounded,
+        icon: Icons.person_add_alt_1_rounded,
         color: blueStatus,
         page: const DataCalonAnggotaPage(),
       ),
       _StatItem(
         title: 'Bantuan Pupuk',
         value: data.totalPupuk,
-        icon: Icons.eco_rounded,
+        icon: Icons.inventory_2_rounded,
         color: primaryGreen,
         page: const DataBantuanPupukPage(),
       ),
       _StatItem(
         title: 'Peminjaman Alat',
         value: data.totalPeminjaman,
-        icon: Icons.agriculture_rounded,
+        icon: Icons.handyman_rounded,
         color: orangeStatus,
         page: const DataPeminjamanAlatPage(),
       ),
@@ -795,12 +819,14 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 430;
-        final columns = compact ? 2 : 4;
-        final gap = compact ? 7.0 : 8.0;
+        final columns =
+            constraints.maxWidth < 560 ? 2 : 4;
+
+        const gap = 9.0;
 
         final itemWidth =
-            (constraints.maxWidth - gap * (columns - 1)) /
+            (constraints.maxWidth -
+                    gap * (columns - 1)) /
                 columns;
 
         return Wrap(
@@ -829,7 +855,13 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
         onTap: () => _openPage(item.page),
         borderRadius: BorderRadius.circular(17),
         child: Container(
-          height: 78,
+          height: 86,
+          padding: const EdgeInsets.fromLTRB(
+            11,
+            11,
+            9,
+            11,
+          ),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.98),
             borderRadius: BorderRadius.circular(17),
@@ -838,91 +870,66 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
             ),
             boxShadow: [
               BoxShadow(
-                color: adminNavy.withValues(alpha: 0.05),
+                color: adminNavy.withValues(alpha: 0.045),
                 blurRadius: 12,
                 offset: const Offset(0, 5),
               ),
             ],
           ),
-          child: Stack(
+          child: Row(
             children: [
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  height: 20,
-                  constraints: const BoxConstraints(
-                    minWidth: 20,
-                    maxWidth: 31,
-                  ),
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: item.color,
-                    borderRadius: BorderRadius.circular(999),
-                    boxShadow: [
-                      BoxShadow(
-                        color: item.color.withValues(alpha: 0.18),
-                        blurRadius: 5,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
+              Container(
+                height: 41,
+                width: 41,
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  item.icon,
+                  color: item.color,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment:
+                      MainAxisAlignment.center,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
                       countText,
                       maxLines: 1,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 8.4,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: item.color,
+                        fontSize: 16,
                         height: 1,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  10,
-                  11,
-                  35,
-                  11,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      height: 38,
-                      width: 38,
-                      decoration: BoxDecoration(
-                        color: item.color.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        item.icon,
-                        color: item.color,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: textDark,
-                          fontSize: 11.2,
-                          height: 1.18,
-                          fontWeight: FontWeight.w900,
-                        ),
+                    const SizedBox(height: 5),
+                    Text(
+                      item.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textDark,
+                        fontSize: 10.5,
+                        height: 1.18,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: item.color,
+                size: 14,
               ),
             ],
           ),
@@ -939,44 +946,57 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: color.withValues(alpha: 0.10),
+      color: Colors.white.withValues(alpha: 0.98),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(
+            11,
+            11,
+            10,
+            11,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: color.withValues(alpha: 0.12),
+              color: cardBorder,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: adminNavy.withValues(alpha: 0.035),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             children: [
               Container(
-                height: 42,
-                width: 42,
+                height: 40,
+                width: 40,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: color.withValues(alpha: 0.09),
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(
                   icon,
                   color: color,
-                  size: 21,
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
                       style: const TextStyle(
                         color: textDark,
-                        fontSize: 13.5,
+                        fontSize: 12.6,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -987,7 +1007,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: textGrey,
-                        fontSize: 10.2,
+                        fontSize: 9.6,
                         height: 1.3,
                         fontWeight: FontWeight.w600,
                       ),
@@ -996,18 +1016,10 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                height: 31,
-                width: 31,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.88),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.arrow_forward_rounded,
-                  color: color,
-                  size: 18,
-                ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: color,
+                size: 15,
               ),
             ],
           ),
@@ -1019,51 +1031,57 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
   Widget _logoutTile() {
     return Material(
       color: const Color(0xffFFF7F7),
-      borderRadius: BorderRadius.circular(19),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: _logout,
-        borderRadius: BorderRadius.circular(19),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(13),
+          padding: const EdgeInsets.fromLTRB(
+            11,
+            11,
+            10,
+            11,
+          ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(19),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: redColor.withValues(alpha: 0.16),
+              color: redColor.withValues(alpha: 0.15),
             ),
             boxShadow: [
               BoxShadow(
-                color: redColor.withValues(alpha: 0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
+                color: redColor.withValues(alpha: 0.035),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Row(
             children: [
               Container(
-                height: 42,
-                width: 42,
+                height: 40,
+                width: 40,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: const Icon(
-                  Icons.power_settings_new_rounded,
+                  Icons.logout_rounded,
                   color: redColor,
-                  size: 22,
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: 10),
               const Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Keluar dari Akun',
+                      'Keluar',
                       style: TextStyle(
                         color: redColor,
-                        fontSize: 13.8,
+                        fontSize: 12.8,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -1072,7 +1090,7 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                       'Akhiri sesi admin dan kembali ke halaman awal',
                       style: TextStyle(
                         color: Color(0xff991B1B),
-                        fontSize: 10.4,
+                        fontSize: 9.7,
                         height: 1.3,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1080,11 +1098,11 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right_rounded,
+              SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
                 color: redColor,
-                size: 24,
+                size: 15,
               ),
             ],
           ),
@@ -1097,65 +1115,45 @@ class _ProfilAdminPageState extends State<ProfilAdminPage> {
     required String title,
     required String subtitle,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 11,
-        vertical: 10,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: cardBorder.withValues(alpha: 0.90),
+    return Row(
+      children: [
+        Container(
+          height: 33,
+          width: 4,
+          decoration: BoxDecoration(
+            color: adminPurple,
+            borderRadius: BorderRadius.circular(99),
+          ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: adminNavy.withValues(alpha: 0.035),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 31,
-            width: 4,
-            decoration: BoxDecoration(
-              color: adminPurple,
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: textDark,
-                    fontSize: 15.5,
-                    height: 1.05,
-                    fontWeight: FontWeight.w900,
-                  ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 14,
+                  height: 1.05,
+                  fontWeight: FontWeight.w900,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: textGrey,
-                    fontSize: 10.8,
-                    height: 1.25,
-                    fontWeight: FontWeight.w700,
-                  ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: textGrey,
+                  fontSize: 9.5,
+                  height: 1.25,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -422,7 +421,17 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
 
       await calonAnggotaRef.child(id).remove();
 
-      unawaited(NotificationHelper.anggotaDisetujui(nik: nik, nama: nama));
+      try {
+        await NotificationHelper.anggotaDisetujui(
+          nik: nik,
+          nama: nama,
+          eventId: '${id}_disetujui',
+        );
+      } catch (error) {
+        debugPrint(
+          'Anggota berhasil disetujui, tetapi notifikasi user gagal: $error',
+        );
+      }
 
       berhasil = true;
     } catch (_) {
@@ -461,7 +470,17 @@ class _VerifikasiAnggotaPageState extends State<VerifikasiAnggotaPage> {
         'tanggal_verifikasi': DateTime.now().toIso8601String(),
       });
 
-      unawaited(NotificationHelper.anggotaDitolak(nik: nik, nama: nama));
+      try {
+        await NotificationHelper.anggotaDitolak(
+          nik: nik,
+          nama: nama,
+          eventId: '${id}_ditolak',
+        );
+      } catch (error) {
+        debugPrint(
+          'Anggota berhasil ditolak, tetapi notifikasi user gagal: $error',
+        );
+      }
 
       if (!mounted) return;
       _showSnackBar('Anggota berhasil ditolak.', redStatus);
